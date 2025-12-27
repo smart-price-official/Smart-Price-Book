@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Smart Price v7.1</title>
+    <title>Smart Price v7.2</title>
     
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMjhhNzQ1O2JvcmRlci1yYWRpdXM6MjAlIj48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0yNTYgODB2NDhtMC0yNEgyMzJtNDggMEgyODAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMzAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==">
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMjhhNzQ1Ij48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0yNTYgODB2NDhtMC0yNEgyMzJtNDggMEgyODAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMzAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==">
@@ -56,10 +56,11 @@
         .btn-fav.active { color: #ffc107; border-color: #ffc107; background: #3d3300; }
         
         /* Store Selector Modal */
-        #storeModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; justify-content:center; align-items:center; }
-        .store-list { max-height: 60vh; overflow-y: auto; width: 100%; }
-        .store-item { padding: 15px; border-bottom: 1px solid #444; cursor: pointer; }
+        #storeModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; justify-content:center; align-items:center; flex-direction: column; }
+        .store-list { max-height: 50vh; overflow-y: auto; width: 100%; }
+        .store-item { padding: 12px 15px; border-bottom: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
         .store-item:active { background: #333; }
+        .gps-btn { background: #0d6efd; border:none; padding: 15px; width: 100%; text-align: left; color: white; font-weight: bold; margin-bottom: 10px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -67,29 +68,39 @@
 <div id="syncOverlay"><div class="spinner-border text-success" role="status"></div><div class="mt-3">クラウド同期中...</div></div>
 
 <div id="storeModal">
-    <div class="card p-0" style="width: 85%; max-width: 400px; background:#222;">
-        <div class="card-header bg-success text-white">ストアを選択</div>
-        <div class="card-body p-0">
-            <div id="storeListContainer" class="store-list text-white"></div>
-            <div class="p-3 border-top border-secondary">
-                <input type="text" id="newStoreInput" class="form-control mb-2" placeholder="新しい店名を入力">
-                <button class="btn btn-outline-light w-100" onclick="setNewStore()">この店にする</button>
+    <div style="width: 90%; max-width: 400px;">
+        <h4 class="text-white mb-3 fw-bold"><i class="bi bi-shop"></i> お買い物をするお店は？</h4>
+        
+        <button class="gps-btn shadow" onclick="useGpsStore()">
+            <i class="bi bi-geo-alt-fill"></i> 📍 現在地から探す<br>
+            <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">GPSで付近を検索</span>
+        </button>
+
+        <div class="card p-0 mt-3" style="background:#222; border:1px solid #444;">
+            <div class="card-header bg-dark text-secondary small">いつものお店 (履歴)</div>
+            <div class="card-body p-0">
+                <div id="storeListContainer" class="store-list text-white"></div>
+                <div class="p-3 border-top border-secondary">
+                    <input type="text" id="newStoreInput" class="form-control mb-2" placeholder="新しい店名を入力">
+                    <button class="btn btn-outline-light w-100 btn-sm" onclick="setNewStore()">この名前で決定</button>
+                </div>
             </div>
         </div>
-        <div class="card-footer text-center">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('storeModal').style.display='none'">閉じる</button>
+        
+        <div class="text-center mt-3">
+             <button class="btn btn-link text-secondary text-decoration-none" onclick="document.getElementById('storeModal').style.display='none'">今は設定しない</button>
         </div>
     </div>
 </div>
 
 <div class="app-container">
     <div class="header d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cloud-check"></i> Smart Price v7.1</h5>
+        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cloud-check"></i> Smart Price v7.2</h5>
         <button class="btn btn-sm btn-outline-success" onclick="syncData()"><i class="bi bi-arrow-repeat"></i> 同期</button>
     </div>
     
     <div class="status-bar" onclick="openStoreModal()">
-        <span id="storeNameDisplay"><i class="bi bi-geo-alt"></i> ストア未定 (タップで選択)</span>
+        <span id="storeNameDisplay"><i class="bi bi-geo-alt"></i> ストア未定 (タップして選択)</span>
         <i class="bi bi-chevron-down"></i>
     </div>
 
@@ -114,7 +125,6 @@
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><span>詳細入力</span><button class="btn btn-sm btn-close btn-close-white" onclick="closeForm()"></button></div>
             <div class="card-body">
                 <input type="hidden" id="inputBarcode">
-                
                 <div class="d-flex mb-2">
                     <div style="position:relative; width:70px; height:70px; margin-right:10px;">
                         <img id="previewImg" src="" style="width:100%; height:100%; object-fit:cover; border-radius:8px; background:#444;">
@@ -132,7 +142,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small text-secondary">カテゴリー</label>
@@ -152,7 +161,6 @@
                         <input type="number" id="inputListPrice" class="form-control form-control-sm" placeholder="不明なら空欄">
                     </div>
                 </div>
-
                 <div class="mb-3 p-2 border rounded border-secondary" style="background:#252525;">
                     <label class="small text-warning fw-bold">購入価格(税抜) <span class="badge bg-warning text-dark" style="font-size:0.6rem">自動8%計算</span></label>
                     <div class="input-group mt-1">
@@ -161,9 +169,7 @@
                     </div>
                     <div class="text-end mt-1"><span id="taxResult" class="tax-display fs-5">税込 -- 円</span></div>
                 </div>
-                
                 <div class="mb-3"><input type="text" id="inputNote" class="form-control" placeholder="メモ (特売など)"></div>
-                
                 <div id="statsBox" class="alert alert-dark border-secondary d-none py-2 mb-3">
                     <div class="d-flex justify-content-between text-center small">
                         <div class="text-danger">底値<br><span class="fs-6 fw-bold" id="valLow">--</span></div>
@@ -176,30 +182,19 @@
         </div>
     </div>
 
-    <div id="scannerOverlay" class="scanner-overlay">
-        <div class="text-white text-center py-2 bg-dark">バーコードを枠内へ</div><div id="reader"></div>
-        <div class="text-center p-3"><button class="btn btn-danger w-50" onclick="stopScanner()">閉じる</button></div>
-    </div>
-    
+    <div id="scannerOverlay" class="scanner-overlay"><div class="text-white text-center py-2 bg-dark">バーコードを枠内へ</div><div id="reader"></div><div class="text-center p-3"><button class="btn btn-danger w-50" onclick="stopScanner()">閉じる</button></div></div>
     <div class="nav-bottom">
         <div class="nav-item active" onclick="showHome()"><i class="bi bi-house-door-fill"></i>ホーム</div>
         <div class="nav-item" onclick="filterFavs()"><i class="bi bi-star-fill"></i>定番</div>
     </div>
-
-    <div class="fab" onclick="toggleFabMenu()">
-        <i class="bi bi-plus"></i>
-        <div class="fab-menu">
-            <div class="fab-item" onclick="startScanner()"><i class="bi bi-upc-scan"></i></div>
-            <div class="fab-item" onclick="showVeggieMenu()"><i class="bi bi-keyboard"></i></div>
-        </div>
-    </div>
+    <div class="fab" onclick="toggleFabMenu()"><i class="bi bi-plus"></i><div class="fab-menu"><div class="fab-item" onclick="startScanner()"><i class="bi bi-upc-scan"></i></div><div class="fab-item" onclick="showVeggieMenu()"><i class="bi bi-keyboard"></i></div></div></div>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
-    // ▼▼▼ 前回の正しいURLをここにそのまま貼ってください ▼▼▼
-    const GAS_API_URL = "https://script.google.com/u/0/home/projects/1QWy_aTkxIQehSF0eAslEkIMG9wvJWUyZvNqfApAxgghwAW5F4U7l-yvG/edit"; 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ▼▼▼ ここにGASのURLを貼り付け (※必ず貼り直してください！) ▼▼▼
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz2VxaJWwtAXNSEdki_JlDpH-4GeaTG6AU6m1JOeiEPnCPLQI8MujraQJ__S82fI6vrIg/exec"; 
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     
     let appData = { products: {}, stores: [] };
     let currentStore = "未設定";
@@ -213,8 +208,18 @@
             appData = JSON.parse(localStorage.getItem('smart_price_cache'));
             renderHistory();
         }
-        if(GAS_API_URL && GAS_API_URL.includes("http")) syncData();
+        if(GAS_API_URL && GAS_API_URL.includes("http")) {
+            syncData();
+        } else {
+            // URL未設定時のアラート
+            alert("注意: GASのURLが設定されていません。コードを修正してください。");
+        }
         initVeggies();
+        
+        // ★起動時にストア未設定ならモーダルを表示
+        if(currentStore === "未設定") {
+            openStoreModal();
+        }
     };
 
     async function syncData() {
@@ -246,7 +251,6 @@
 
     // --- Store Logic ---
     function openStoreModal() {
-        // Collect unique stores from history
         const historyStores = new Set();
         Object.values(appData.products).forEach(p => {
             if(p.history) p.history.forEach(h => { if(h.store && h.store!=="未設定") historyStores.add(h.store); });
@@ -256,12 +260,12 @@
         container.innerHTML = "";
         
         if(historyStores.size === 0) {
-            container.innerHTML = "<div class='p-3 text-secondary text-center'>履歴がありません</div>";
+            container.innerHTML = "<div class='p-3 text-secondary text-center small'>履歴がまだありません</div>";
         } else {
             historyStores.forEach(s => {
                 const div = document.createElement('div');
                 div.className = 'store-item';
-                div.innerHTML = `<i class="bi bi-shop"></i> ${s}`;
+                div.innerHTML = `<span><i class="bi bi-shop"></i> ${s}</span> <i class="bi bi-chevron-right text-secondary"></i>`;
                 div.onclick = () => setStore(s);
                 container.appendChild(div);
             });
@@ -269,6 +273,22 @@
         document.getElementById('storeModal').style.display = 'flex';
     }
     
+    function useGpsStore() {
+        if(!navigator.geolocation) { alert("GPSが使えません"); return; }
+        document.querySelector('.gps-btn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> 検索中...';
+        
+        navigator.geolocation.getCurrentPosition(pos => {
+            // ※簡易版: 実際のお店特定はAPIが必要なため、ここでは「現在地(日時)」として登録
+            // 将来的にGoogle Maps APIなどを入れれば店名に変換可能
+            const date = new Date();
+            const gpsName = `📍現在地付近 (${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()})`;
+            setStore(gpsName);
+        }, err => {
+            alert("位置情報が取得できませんでした");
+            document.querySelector('.gps-btn').innerHTML = '<i class="bi bi-geo-alt-fill"></i> 📍 現在地から探す';
+        });
+    }
+
     function setNewStore() {
         const name = document.getElementById('newStoreInput').value;
         if(name) setStore(name);
@@ -278,6 +298,8 @@
         currentStore = name;
         document.getElementById('storeNameDisplay').innerHTML = `<i class="bi bi-geo-alt-fill text-success"></i> ${name}`;
         document.getElementById('storeModal').style.display = 'none';
+        // Reset GPS button text
+        document.querySelector('.gps-btn').innerHTML = '<i class="bi bi-geo-alt-fill"></i> 📍 現在地から探す<br><span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">GPSで付近を検索</span>';
     }
 
     // --- Scanner Logic ---
@@ -298,19 +320,9 @@
             const data = await res.json();
             if(data.product) {
                 foundName = data.product.product_name_ja || data.product.product_name || "";
-                
-                // ★内容量の自動取得 (quantity)
-                if(data.product.quantity) {
-                    foundName += ` (${data.product.quantity})`;
-                }
-                
+                if(data.product.quantity) foundName += ` (${data.product.quantity})`;
                 foundMaker = data.product.brands || "";
-                
-                // ★画像の自動取得 (image_url)
-                if(data.product.image_url) {
-                    foundImg = data.product.image_url;
-                }
-                
+                if(data.product.image_url) foundImg = data.product.image_url;
                 if(data.product.categories_tags) {
                     const tags = data.product.categories_tags.join(",");
                     if(tags.includes("beverages")) foundCat = "飲料";
@@ -325,27 +337,18 @@
         toggleView('formView');
         const prod = appData.products[code];
         document.getElementById('inputBarcode').value = code;
-        
         document.getElementById('inputName').value = prod ? prod.name : name;
         document.getElementById('inputMaker').value = (prod && prod.maker) ? prod.maker : maker;
         document.getElementById('inputCategory').value = (prod && prod.category) ? prod.category : cat;
         document.getElementById('inputListPrice').value = (prod && prod.listPrice) ? prod.listPrice : "";
-        
         document.getElementById('inputPrice').value = "";
         document.getElementById('taxResult').innerText = "税込 -- 円";
         document.getElementById('inputNote').value = "";
-        
         isCurrentFavorite = prod ? (prod.favorite || false) : false;
         updateFavoriteBtn();
-        
-        // 画像処理：既存があればそれ、なければネット画像、それもなければ空
         tempImgData = (prod && prod.image) ? prod.image : imgUrl; 
-        
-        if(tempImgData) {
-             document.getElementById('previewImg').src = tempImgData;
-        } else {
-             document.getElementById('previewImg').src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=";
-        }
+        if(tempImgData) document.getElementById('previewImg').src = tempImgData;
+        else document.getElementById('previewImg').src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=";
 
         const box = document.getElementById('statsBox');
         if(prod && prod.history.length > 0) {
@@ -359,7 +362,6 @@
     
     function toggleFavorite() { isCurrentFavorite = !isCurrentFavorite; updateFavoriteBtn(); }
     function updateFavoriteBtn() { const btn = document.getElementById('btnFav'); if(isCurrentFavorite) btn.classList.add('active'); else btn.classList.remove('active'); }
-    
     function formatPrice(input) { let value = input.value.replace(/,/g, ''); if (!isNaN(value)) { input.value = Number(value).toLocaleString(); calcTax(); } }
     function calcTax() { const val = document.getElementById('inputPrice').value.replace(/,/g, ''); document.getElementById('taxResult').innerText = val ? `税込 ${Math.floor(val * 1.08).toLocaleString()} 円` : "税込 -- 円"; }
     function closeForm() { showHome(); }
@@ -389,7 +391,6 @@
         const name = document.getElementById('inputName').value;
         const rawPrice = document.getElementById('inputPrice').value.replace(/,/g, '');
         if(!code || !rawPrice) { alert("入力エラー"); return; }
-        
         const payload = {
             code: code,
             name: name,
@@ -416,7 +417,6 @@
         });
     }
     function initVeggies() {}
-    
     function showHome() { isFavFilter=false; toggleView('mainView'); renderHistory(); updateNav(); }
     function filterFavs() { isFavFilter=true; toggleView('mainView'); renderHistory(); updateNav(); }
     function toggleView(id) { ['mainView','veggieView','formView'].forEach(v => document.getElementById(v).style.display = (v===id)?'block':'none'); }
@@ -451,7 +451,6 @@
             list.appendChild(d);
         });
     }
-
     function getLocation() {
         if(!navigator.geolocation) return;
         document.getElementById('storeNameDisplay').innerHTML = '取得中...';
