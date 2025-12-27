@@ -3,87 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Smart Price">
-    <title>Smart Price v5.0</title>
-
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMDA3YmZmO2JvcmRlci1yYWRpdXM6MjAlIj48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4MCIgZmlsbD0iI2ZmYzEwNyIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj7CoTwvdGV4dD48L3N2Zz4=">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMDA3YmZmIj48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4MCIgZmlsbD0iI2ZmYzEwNyIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj7CoTwvdGV4dD48L3N2Zz4=">
+    <title>Smart Price v7.0</title>
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMjhhNzQ1O2JvcmRlci1yYWRpdXM6MjAlIj48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0yNTYgODB2NDhtMC0yNEgyMzJtNDggMEgyODAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMzAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojMjhhNzQ1Ij48cGF0aCBkPSJNMzk4LjEgMjM4LjVjLTcuOSA1NC42LTU0LjYgOTYuOC0xMTEgOTYuOGgtMTY1TDk3LjMgNTFIMzJWMjFoNzYuMmwyNC40IDE2NS41aDI1OS41YzEzLjIgMCAyNC43IDkuMyAyNi45IDIyLjNsMTguOCA5OS43eiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSIxNjkuNSIgY3k9IjQxOSIgcj0iMzUiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMzU4LjUiIGN5PSI0MTkiIHI9IjM1IiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0yNTYgODB2NDhtMC0yNEgyMzJtNDggMEgyODAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMzAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; }
         .app-container { max-width: 600px; margin: 0 auto; min-height: 100vh; }
-        
-        .header { background: #000; padding: 12px 15px; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
+        .header { background: #202020; padding: 12px 15px; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
         .status-bar { font-size: 0.8rem; background: #1e1e1e; color: #aaa; padding: 5px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        
-        /* Cards */
         .card { background-color: #1e1e1e; border: 1px solid #333; color: #e0e0e0; margin-bottom: 8px; }
-        .form-control { background-color: #2c2c2c; border: 1px solid #444; color: #fff; font-size: 1.1rem; }
-        .form-control:focus { background-color: #333; color: #fff; border-color: #0d6efd; box-shadow: none; }
+        .form-control { background-color: #2c2c2c; border: 1px solid #444; color: #fff; font-size: 1.0rem; }
+        .form-control:focus { background-color: #333; color: #fff; border-color: #28a745; box-shadow: none; }
         
-        /* Price Cards */
         .price-card { border-left: 5px solid #555; position: relative; overflow: hidden; padding: 10px; }
         .price-card.cheap { border-left-color: #ff5252; background: linear-gradient(90deg, #2a1a1a 0%, #1e1e1e 100%); }
+        .price-card.cheap .price { color: #ff5252; }
+        .price-card .price-change { font-size: 0.8rem; margin-left: 5px; }
+        .price-card .price-change.up { color: #ff5252; }
+        .price-card .price-change.down { color: #28a745; }
+        
         .prod-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; background: #333; margin-right: 12px; }
         
-        /* Big Buttons */
         .btn-menu { height: 120px; border-radius: 15px; font-weight: bold; font-size: 1.2rem; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
         .btn-scan { background: linear-gradient(135deg, #007bff, #0056b3); border: none; }
-        .btn-manual { background: linear-gradient(135deg, #6c757d, #495057); border: none; }
-
-        /* Bottom Nav */
+        .btn-manual { background: linear-gradient(135deg, #28a745, #1e7e34); border: none; }
+        
         .nav-bottom { position: fixed; bottom: 0; left: 0; right: 0; background: #000; border-top: 1px solid #333; padding: 10px 0; display: flex; justify-content: space-around; max-width: 600px; margin: 0 auto; z-index: 1000; }
         .nav-item { text-align: center; color: #666; font-size: 0.7rem; flex: 1; cursor: pointer; }
-        .nav-item.active { color: #0d6efd; }
+        .nav-item.active { color: #28a745; }
         .nav-item i { font-size: 1.4rem; display: block; margin-bottom: 2px; }
         
-        /* Scanner Overlay */
         .scanner-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 2000; display: none; flex-direction: column; justify-content: center; }
         #reader { width: 100%; max-height: 60vh; }
-
-        /* Tax Display */
         .tax-display { font-size: 0.9rem; color: #ffc107; margin-left: 10px; font-weight: bold; }
+        
+        #syncOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column; color:white; }
+        
+        .input-group-text { background-color: #444; color: #ccc; border: 1px solid #555; font-size: 0.8rem; }
+        .badge-maker { font-size: 0.65rem; background: #444; color: #ccc; margin-right: 5px; padding: 2px 5px; border-radius: 3px; }
+        
+        .fab {
+            position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px;
+            border-radius: 50%; background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); z-index: 1000; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .fab:active { transform: scale(0.95); }
+        .fab-menu {
+            position: absolute; bottom: 70px; right: 0; display: none;
+            flex-direction: column; gap: 10px; align-items: center;
+        }
+        .fab-menu .fab-item {
+            width: 45px; height: 45px; border-radius: 50%; background: #28a745;
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: pointer;
+        }
+        /* お気に入りボタン */
+        .btn-fav { border: 1px solid #444; color: #666; background: #2c2c2c; }
+        .btn-fav.active { color: #ffc107; border-color: #ffc107; background: #3d3300; }
     </style>
 </head>
 <body>
 
+<div id="syncOverlay">
+    <div class="spinner-border text-success" role="status"></div>
+    <div class="mt-3">クラウド同期中...</div>
+</div>
+
 <div class="app-container">
     <div class="header d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart3"></i> Smart Price v5</h5>
-        <button class="btn btn-sm btn-outline-secondary" onclick="exportData()"><i class="bi bi-box-arrow-up"></i></button>
+        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cloud-check"></i> Smart Price v7.0</h5>
+        <button class="btn btn-sm btn-outline-success" onclick="syncData()"><i class="bi bi-arrow-repeat"></i> 同期</button>
     </div>
-    
     <div class="status-bar">
         <span id="storeName"><i class="bi bi-geo-alt"></i> ストア未定</span>
-        <button class="btn btn-sm btn-outline-info py-0" style="font-size:0.75rem" onclick="getLocation()">更新</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:0.75rem" onclick="getLocation()">更新</button>
     </div>
 
     <div id="mainView" class="p-3">
         <div class="row g-2 mb-4">
             <div class="col-7">
-                <button class="btn btn-primary btn-menu btn-scan shadow" onclick="startScanner()">
-                    <i class="bi bi-upc-scan fs-1 mb-2"></i> スキャン
-                </button>
+                <button class="btn btn-primary btn-menu btn-scan shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1 mb-2"></i> スキャン</button>
             </div>
             <div class="col-5">
-                <button class="btn btn-secondary btn-menu btn-manual shadow" onclick="showVeggieMenu()">
-                    <i class="bi bi-keyboard fs-1 mb-2"></i> 手入力
-                </button>
+                <button class="btn btn-secondary btn-menu btn-manual shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1 mb-2"></i> 手入力</button>
             </div>
         </div>
-
-        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-2">最近の履歴</h6>
+        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-2 d-flex justify-content-between">
+            <span>履歴</span><span class="badge bg-secondary" id="lastSyncTime">未同期</span>
+        </h6>
         <div id="historyList"></div>
     </div>
 
     <div id="veggieView" class="p-3" style="display:none;">
         <div class="d-flex justify-content-between mb-3">
-            <h5 class="text-white">商品カテゴリー</h5>
+            <h5 class="text-white">カテゴリー選択</h5>
             <button class="btn btn-sm btn-secondary" onclick="showHome()">戻る</button>
         </div>
         <div id="veggieGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;"></div>
@@ -91,41 +113,59 @@
 
     <div id="formView" class="p-3" style="display:none;">
         <div class="card shadow">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <span>記録</span>
-                <button class="btn btn-sm btn-close btn-close-white" onclick="closeForm()"></button>
-            </div>
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><span>詳細入力</span><button class="btn btn-sm btn-close btn-close-white" onclick="closeForm()"></button></div>
             <div class="card-body">
                 <input type="hidden" id="inputBarcode">
                 
-                <div class="d-flex mb-3">
-                    <div style="position:relative; width:80px; height:80px; margin-right:10px;">
+                <div class="d-flex mb-2">
+                    <div style="position:relative; width:70px; height:70px; margin-right:10px;">
                         <img id="previewImg" src="" style="width:100%; height:100%; object-fit:cover; border-radius:8px; background:#444;">
-                        <button class="btn btn-sm btn-light position-absolute bottom-0 end-0 p-0" style="width:28px;height:28px;" onclick="document.getElementById('cameraInput').click()"><i class="bi bi-camera-fill"></i></button>
+                        <button class="btn btn-sm btn-light position-absolute bottom-0 end-0 p-0" style="width:24px;height:24px;" onclick="document.getElementById('cameraInput').click()"><i class="bi bi-camera-fill"></i></button>
                     </div>
                     <input type="file" id="cameraInput" capture="environment" accept="image/*" style="display:none" onchange="handleImage(this)">
-                    
                     <div class="flex-grow-1">
-                        <input type="text" id="inputName" class="form-control fw-bold mb-2" placeholder="商品名">
-                        <button class="btn btn-sm btn-outline-info w-100" onclick="searchWeb('image')"><i class="bi bi-search"></i> 画像検索</button>
+                        <div class="d-flex gap-2 mb-1">
+                            <input type="text" id="inputName" class="form-control fw-bold" placeholder="商品名">
+                            <button id="btnFav" class="btn btn-fav" onclick="toggleFavorite()"><i class="bi bi-star-fill"></i></button>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">メーカー</span>
+                            <input type="text" id="inputMaker" class="form-control" placeholder="例:サントリー">
+                        </div>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="small text-secondary">税抜価格を入力 <span class="badge bg-warning text-dark">自動で8%計算</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-dark text-secondary">¥</span>
-                        <input type="number" id="inputPrice" class="form-control form-control-lg fw-bold text-end text-white" style="font-size:2rem;" placeholder="0" inputmode="numeric" oninput="calcTax()">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="small text-secondary">カテゴリー</label>
+                        <select id="inputCategory" class="form-control form-control-sm">
+                            <option value="">未選択</option>
+                            <option value="食品">食品</option>
+                            <option value="飲料">飲料</option>
+                            <option value="菓子">菓子</option>
+                            <option value="日用品">日用品</option>
+                            <option value="酒">酒</option>
+                            <option value="野菜">野菜/肉</option>
+                            <option value="その他">その他</option>
+                        </select>
                     </div>
-                    <div class="text-end mt-1">
-                        <span id="taxResult" class="tax-display">税込 -- 円</span>
+                    <div class="col-6">
+                        <label class="small text-secondary">定価(税抜)</label>
+                        <input type="number" id="inputListPrice" class="form-control form-control-sm" placeholder="不明なら空欄">
                     </div>
+                </div>
+
+                <div class="mb-3 p-2 border rounded border-secondary" style="background:#252525;">
+                    <label class="small text-warning fw-bold">購入価格(税抜) <span class="badge bg-warning text-dark" style="font-size:0.6rem">自動8%計算</span></label>
+                    <div class="input-group mt-1">
+                        <span class="input-group-text bg-dark text-white border-secondary">¥</span>
+                        <input type="number" id="inputPrice" class="form-control form-control-lg fw-bold text-end text-white border-secondary" style="font-size:1.8rem;" placeholder="0" inputmode="numeric" oninput="formatPrice(this)">
+                    </div>
+                    <div class="text-end mt-1"><span id="taxResult" class="tax-display fs-5">税込 -- 円</span></div>
                 </div>
                 
-                <div class="mb-3">
-                    <input type="text" id="inputNote" class="form-control" placeholder="メモ">
-                </div>
-
+                <div class="mb-3"><input type="text" id="inputNote" class="form-control" placeholder="メモ (特売など)"></div>
+                
                 <div id="statsBox" class="alert alert-dark border-secondary d-none py-2 mb-3">
                     <div class="d-flex justify-content-between text-center small">
                         <div class="text-danger">底値<br><span class="fs-6 fw-bold" id="valLow">--</span></div>
@@ -133,94 +173,135 @@
                         <div class="text-secondary">前回<br><span class="fs-6" id="valLast">--</span></div>
                     </div>
                 </div>
-
-                <div class="d-grid">
-                    <button class="btn btn-primary btn-lg" onclick="saveDataEntry()">保存する (税込で記録)</button>
-                </div>
+                <div class="d-grid"><button class="btn btn-success btn-lg" onclick="saveDataEntry()">クラウドに保存</button></div>
             </div>
         </div>
     </div>
 
     <div id="scannerOverlay" class="scanner-overlay">
-        <div class="text-white text-center py-2 bg-dark">バーコードを枠内へ</div>
-        <div id="reader"></div>
-        <div class="text-center p-3">
-            <button class="btn btn-danger w-50" onclick="stopScanner()">閉じる</button>
-        </div>
+        <div class="text-white text-center py-2 bg-dark">バーコードを枠内へ</div><div id="reader"></div>
+        <div class="text-center p-3"><button class="btn btn-danger w-50" onclick="stopScanner()">閉じる</button></div>
     </div>
-
+    
     <div class="nav-bottom">
         <div class="nav-item active" onclick="showHome()"><i class="bi bi-house-door-fill"></i>ホーム</div>
         <div class="nav-item" onclick="filterFavs()"><i class="bi bi-star-fill"></i>定番</div>
+    </div>
+
+    <div class="fab" onclick="toggleFabMenu()">
+        <i class="bi bi-plus"></i>
+        <div class="fab-menu">
+            <div class="fab-item" onclick="startScanner()"><i class="bi bi-upc-scan"></i></div>
+            <div class="fab-item" onclick="showVeggieMenu()"><i class="bi bi-keyboard"></i></div>
+        </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
-    const DB_KEY = 'smart_price_db_v5';
+    // ▼▼▼ ここにGASのURLを貼り付け ▼▼▼
+    const GAS_API_URL = "ここにデプロイしたURLを貼り付け";
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    
     let appData = { products: {}, stores: [] };
     let currentStore = "未設定";
     let scanner = null;
     let isFavFilter = false;
     let tempImgData = null;
+    let isCurrentFavorite = false; // 編集中の商品がお気に入りかどうか
 
-    // --- Core ---
     window.onload = () => {
-        if(localStorage.getItem(DB_KEY)) appData = JSON.parse(localStorage.getItem(DB_KEY));
-        renderHistory();
+        if(localStorage.getItem('smart_price_cache')) {
+            appData = JSON.parse(localStorage.getItem('smart_price_cache'));
+            renderHistory();
+        }
+        if(GAS_API_URL && GAS_API_URL.includes("http")) syncData();
         initVeggies();
     };
-    function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(appData)); renderHistory(); }
 
-    // --- Views ---
-    function showHome() { isFavFilter = false; toggleView('mainView'); renderHistory(); updateNav(); }
-    function filterFavs() { isFavFilter = true; toggleView('mainView'); renderHistory(); updateNav(); }
-    function toggleView(id) { ['mainView','veggieView','formView'].forEach(v => document.getElementById(v).style.display = (v===id)?'block':'none'); }
-    function updateNav() { 
-        document.querySelectorAll('.nav-item')[0].classList.toggle('active', !isFavFilter);
-        document.querySelectorAll('.nav-item')[1].classList.toggle('active', isFavFilter);
+    async function syncData() {
+        document.getElementById('syncOverlay').style.display = 'flex';
+        try {
+            const res = await fetch(GAS_API_URL);
+            const data = await res.json();
+            appData.products = data;
+            localStorage.setItem('smart_price_cache', JSON.stringify(appData));
+            const now = new Date();
+            document.getElementById('lastSyncTime').innerText = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+            renderHistory();
+        } catch(e) { console.error(e); }
+        document.getElementById('syncOverlay').style.display = 'none';
     }
 
-    // --- Scanner ---
+    async function saveToCloud(payload) {
+        document.getElementById('syncOverlay').style.display = 'flex';
+        try {
+            await fetch(GAS_API_URL, {
+                method: "POST", mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            await syncData();
+            closeForm();
+        } catch(e) { alert("保存エラー: " + e.message); document.getElementById('syncOverlay').style.display = 'none'; }
+    }
+
+    // ビュー切替
+    function showHome() { isFavFilter=false; toggleView('mainView'); renderHistory(); updateNav(); }
+    function filterFavs() { isFavFilter=true; toggleView('mainView'); renderHistory(); updateNav(); }
+    function toggleView(id) { ['mainView','veggieView','formView'].forEach(v => document.getElementById(v).style.display = (v===id)?'block':'none'); }
+    function updateNav() { document.querySelectorAll('.nav-item')[0].classList.toggle('active',!isFavFilter); document.querySelectorAll('.nav-item')[1].classList.toggle('active',isFavFilter); }
+
+    // スキャナー
     function startScanner() {
         document.getElementById('scannerOverlay').style.display = 'flex';
         if(!scanner) scanner = new Html5Qrcode("reader");
-        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: {width:250, height:150} }, (decodedText) => {
-            stopScanner();
-            handleScannedCode(decodedText);
-        }).catch(err => { alert("カメラエラー: " + err); stopScanner(); });
+        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: {width:250, height:150} }, (d) => { stopScanner(); handleScannedCode(d); })
+        .catch(e => { alert("カメラエラー: " + e); stopScanner(); });
     }
     function stopScanner() { if(scanner) scanner.stop(); document.getElementById('scannerOverlay').style.display = 'none'; }
-
+    
     async function handleScannedCode(code) {
-        if (appData.products[code]) { openForm(code, appData.products[code].name); return; }
-        // Fetch Logic (Simplified)
-        let foundName = "";
+        if (appData.products[code]) { openForm(code); return; }
+        let foundName = "", foundMaker = "", foundCat = "";
         try {
             const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
             const data = await res.json();
-            if(data.product) foundName = data.product.product_name_ja || data.product.product_name || "";
+            if(data.product) {
+                foundName = data.product.product_name_ja || data.product.product_name || "";
+                foundMaker = data.product.brands || "";
+                if(data.product.categories_tags) {
+                    const tags = data.product.categories_tags.join(",");
+                    if(tags.includes("beverages")) foundCat = "飲料";
+                    else if(tags.includes("snacks")) foundCat = "菓子";
+                }
+            }
         } catch(e) {}
-        openForm(code, foundName);
+        openForm(code, foundName, foundMaker, foundCat);
     }
 
-    // --- Form & Tax Logic ---
-    function openForm(code, defaultName="") {
+    // フォーム
+    function openForm(code, name="", maker="", cat="") {
         toggleView('formView');
         const prod = appData.products[code];
-        
         document.getElementById('inputBarcode').value = code;
-        document.getElementById('inputName').value = prod ? prod.name : defaultName;
+        
+        document.getElementById('inputName').value = prod ? prod.name : name;
+        document.getElementById('inputMaker').value = (prod && prod.maker) ? prod.maker : maker;
+        document.getElementById('inputCategory').value = (prod && prod.category) ? prod.category : cat;
+        document.getElementById('inputListPrice').value = (prod && prod.listPrice) ? prod.listPrice : "";
+        
         document.getElementById('inputPrice').value = "";
         document.getElementById('taxResult').innerText = "税込 -- 円";
         document.getElementById('inputNote').value = "";
         
-        // Image
+        // お気に入り状態の反映
+        isCurrentFavorite = prod ? (prod.favorite || false) : false;
+        updateFavoriteBtn();
+        
         tempImgData = null;
-        const img = document.getElementById('previewImg');
-        img.src = (prod && prod.image) ? prod.image : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=";
-
-        // Stats
+        document.getElementById('previewImg').src = (prod && prod.image) ? prod.image : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=";
+        
         const box = document.getElementById('statsBox');
         if(prod && prod.history.length > 0) {
             box.classList.remove('d-none');
@@ -230,30 +311,43 @@
             document.getElementById('valLast').innerText = prod.history[prod.history.length-1].price+"円";
         } else { box.classList.add('d-none'); }
     }
-
-    // ★ Tax Calculation (Realtime)
-    function calcTax() {
-        const val = document.getElementById('inputPrice').value;
-        if(val) {
-            const taxed = Math.floor(val * 1.08);
-            document.getElementById('taxResult').innerText = `税込 ${taxed} 円`;
+    
+    // お気に入り機能
+    function toggleFavorite() {
+        isCurrentFavorite = !isCurrentFavorite;
+        updateFavoriteBtn();
+    }
+    function updateFavoriteBtn() {
+        const btn = document.getElementById('btnFav');
+        if(isCurrentFavorite) {
+            btn.classList.add('active');
         } else {
-            document.getElementById('taxResult').innerText = "税込 -- 円";
+            btn.classList.remove('active');
         }
+    }
+    
+    function formatPrice(input) {
+        let value = input.value.replace(/,/g, '');
+        if (!isNaN(value)) {
+            input.value = Number(value).toLocaleString();
+            calcTax();
+        }
+    }
+    function calcTax() {
+        const val = document.getElementById('inputPrice').value.replace(/,/g, '');
+        document.getElementById('taxResult').innerText = val ? `税込 ${Math.floor(val * 1.08).toLocaleString()} 円` : "税込 -- 円";
     }
 
     function closeForm() { showHome(); }
-
+    
     function handleImage(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const maxSize = 150; 
-                    let w = img.width, h = img.height;
+                    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                    const maxSize = 150; let w = img.width, h = img.height;
                     if (w > h) { h *= maxSize/w; w = maxSize; } else { w *= maxSize/h; h = maxSize; }
                     canvas.width = w; canvas.height = h;
                     ctx.drawImage(img, 0, 0, w, h);
@@ -265,90 +359,93 @@
             reader.readAsDataURL(input.files[0]);
         }
     }
-
+    
     function saveDataEntry() {
         const code = document.getElementById('inputBarcode').value;
         const name = document.getElementById('inputName').value;
-        const rawPrice = document.getElementById('inputPrice').value;
+        const rawPrice = document.getElementById('inputPrice').value.replace(/,/g, '');
         
-        if(!rawPrice) { alert("価格を入れてください"); return; }
+        // バリデーション強化
+        if(!code) { alert("商品コードがありません"); return; }
+        if(!rawPrice || isNaN(rawPrice)) { alert("価格を正しく入力してください"); return; }
         
-        // Auto Save as Tax Included
         const taxPrice = Math.floor(rawPrice * 1.08);
-
-        if(!appData.products[code]) appData.products[code] = { name: name, history: [], favorite: false, image: null };
-        if(name) appData.products[code].name = name;
-        if(tempImgData) appData.products[code].image = tempImgData;
-
         const now = new Date();
-        appData.products[code].history.push({
+        
+        const payload = {
+            code: code,
+            name: name,
+            maker: document.getElementById('inputMaker').value,
+            category: document.getElementById('inputCategory').value,
+            listPrice: document.getElementById('inputListPrice').value,
+            price: taxPrice,
             date: `${now.getMonth()+1}/${now.getDate()}`,
-            timestamp: now.getTime(),
-            price: taxPrice, // Save Tax Included
             store: currentStore,
-            note: document.getElementById('inputNote').value
-        });
-        saveDB();
-        closeForm();
+            note: document.getElementById('inputNote').value,
+            image: tempImgData || "",
+            favorite: isCurrentFavorite // 追加: お気に入り状態
+        };
+        saveToCloud(payload);
     }
 
-    function searchWeb(mode) {
-        const q = document.getElementById('inputName').value;
-        if(!q) return;
-        let url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-        if(mode==='image') url += "&tbm=isch";
-        window.open(url, '_blank');
-    }
-
-    // --- Manual Menu ---
     function showVeggieMenu() {
         toggleView('veggieView');
         const items = ['キャベツ','レタス','きゅうり','トマト','人参','玉ねぎ','じゃがいも','バナナ','豚肉','鶏肉','牛肉','卵','牛乳','パン','豆腐','ビール','洗剤','ティッシュ'];
-        const grid = document.getElementById('veggieGrid');
-        grid.innerHTML = "";
+        const grid = document.getElementById('veggieGrid'); grid.innerHTML = "";
         items.forEach(v => {
-            const d = document.createElement('div');
-            d.className = 'card text-center p-3 mb-0 fw-bold';
-            d.innerText = v;
-            d.onclick = () => openForm("MANUAL_" + v, v);
-            grid.appendChild(d);
+            const d = document.createElement('div'); d.className = 'card text-center p-3 mb-0 fw-bold'; d.innerText = v;
+            d.onclick = () => openForm("MANUAL_" + v, v, "", "食品"); grid.appendChild(d);
         });
     }
     function initVeggies() {}
 
-    // --- History & Location ---
     function renderHistory() {
-        const list = document.getElementById('historyList');
-        list.innerHTML = "";
+        const list = document.getElementById('historyList'); list.innerHTML = "";
         let items = [];
         Object.keys(appData.products).forEach(k => {
             const p = appData.products[k];
+            // フィルタリング処理
             if(isFavFilter && !p.favorite) return;
+            
             if(p.history.length > 0) {
                 const last = p.history[p.history.length-1];
                 const prices = p.history.map(h=>h.price);
-                items.push({ code: k, name: p.name, image: p.image, price: last.price, date: last.date, store: last.store, isCheap: (last.price <= Math.min(...prices) && p.history.length > 1), ts: last.timestamp });
+                const prevPrice = p.history.length > 1 ? p.history[p.history.length-2].price : null;
+                items.push({ 
+                    code: k, name: p.name, maker: p.maker, image: p.image, 
+                    price: last.price, date: last.date, store: last.store, 
+                    isCheap: (last.price <= Math.min(...prices) && p.history.length > 1), 
+                    prevPrice: prevPrice, ts: last.timestamp,
+                    favorite: p.favorite // 表示用に追加
+                });
             }
         });
         items.sort((a,b) => b.ts - a.ts);
         if(items.length===0) { list.innerHTML='<div class="text-center text-muted mt-4">履歴なし</div>'; return; }
-        
         items.forEach(it => {
-            const d = document.createElement('div');
-            d.className = `card price-card ${it.isCheap?'cheap':''}`;
+            const d = document.createElement('div'); d.className = `card price-card ${it.isCheap?'cheap':''}`;
             const imgHtml = it.image ? `<img src="${it.image}" class="prod-thumb">` : `<div class="prod-thumb d-flex align-items-center justify-content-center text-secondary"><i class="bi bi-basket"></i></div>`;
+            const makerHtml = it.maker ? `<span class="badge-maker">${it.maker}</span>` : "";
+            const priceChangeHtml = it.prevPrice ? 
+                `<div class="price-change ${it.price > it.prevPrice ? 'up' : 'down'}">
+                    <i class="bi bi-arrow-${it.price > it.prevPrice ? 'up' : 'down'}"></i> ${Math.abs(it.price - it.prevPrice)}円
+                </div>` : '';
+            const favIcon = it.favorite ? '<i class="bi bi-star-fill text-warning me-1"></i>' : '';
+            
             d.innerHTML = `
-                <div class="d-flex align-items-center" onclick="openForm('${it.code}')">
-                    ${imgHtml}
-                    <div class="flex-grow-1" style="min-width:0;">
-                        <div class="fw-bold text-white text-truncate">${it.name || '未設定'}</div>
-                        <div class="small text-secondary">${it.store} (${it.date})</div>
-                    </div>
-                    <div class="text-end">
-                        <div class="fs-3 fw-bold text-white">${it.price}<span class="fs-6">円</span></div>
-                        ${it.isCheap?'<span class="badge bg-danger">安!</span>':''}
-                    </div>
-                </div>`;
+            <div class="d-flex align-items-center" onclick="openForm('${it.code}')">
+                ${imgHtml}
+                <div class="flex-grow-1" style="min-width:0;">
+                    <div class="fw-bold text-white text-truncate">${favIcon}${it.name || '未設定'}</div>
+                    <div class="mb-1">${makerHtml}</div>
+                    <div class="small text-secondary">${it.store} (${it.date})</div>
+                </div>
+                <div class="text-end">
+                    <div class="fs-3 fw-bold price">${it.price.toLocaleString()}<span class="fs-6">円</span></div>
+                    ${priceChangeHtml}
+                    ${it.isCheap?'<span class="badge bg-danger">安!</span>':''}
+                </div>
+            </div>`;
             list.appendChild(d);
         });
     }
@@ -356,15 +453,12 @@
     function getLocation() {
         if(!navigator.geolocation) return;
         document.getElementById('storeName').innerHTML = '取得中...';
-        navigator.geolocation.getCurrentPosition(pos => {
-            document.getElementById('storeName').innerHTML = `<i class="bi bi-geo-alt-fill text-primary"></i> 現在地付近`;
-        });
+        navigator.geolocation.getCurrentPosition(pos => { document.getElementById('storeName').innerHTML = `<i class="bi bi-geo-alt-fill text-success"></i> 現在地付近`; });
     }
-    
-    function exportData() {
-        const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
-        const a = document.createElement('a'); a.href = data; a.download = "smart_price.json";
-        document.body.appendChild(a); a.click(); a.remove();
+
+    function toggleFabMenu() {
+        const menu = document.querySelector('.fab-menu');
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
     }
 </script>
 </body>
