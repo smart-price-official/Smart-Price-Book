@@ -10,7 +10,7 @@
 
 <style>
     :root {
-        --primary-color: #C1121F; /* 深みのある赤 */
+        --primary-color: #C1121F;
         --accent-color: #669BBC;
         --bg-color: #FDF0D5;
         --card-bg: #FFFFFF;
@@ -39,6 +39,36 @@
     
     .container { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 140px; }
     
+    /* 店名選択カード */
+    .store-selector {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        text-align: left;
+    }
+    .store-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .store-btn {
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        background: white;
+        font-weight: bold;
+        color: var(--text-color);
+        cursor: pointer;
+    }
+    .store-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
     .card {
         background: var(--card-bg);
         border-radius: 20px;
@@ -46,10 +76,9 @@
         margin-bottom: 20px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         text-align: center;
-        border: 1px solid rgba(0,0,0,0.05);
     }
     .product-img { width: 100%; max-height: 250px; object-fit: contain; margin-bottom: 20px; border-radius: 12px; }
-    .product-name { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; line-height: 1.4; }
+    .product-name { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; }
     
     .price-info {
         display: flex; justify-content: space-around;
@@ -60,7 +89,7 @@
     .price-label { font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px; font-weight: bold; }
     .price-value { font-size: 2rem; font-weight: 900; color: var(--primary-color); }
     
-    /* 下部中央固定ボタン */
+    /* 下部固定スキャンボタン（お店選択後に活性化） */
     .footer-action {
         position: fixed; bottom: 0; left: 0; width: 100%;
         display: flex; justify-content: center;
@@ -75,42 +104,37 @@
         font-size: 1.3rem; font-weight: bold;
         box-shadow: 0 10px 25px rgba(193, 18, 31, 0.4);
         display: flex; align-items: center; justify-content: center; gap: 10px;
+        opacity: 0.5; /* 初期は半透明 */
     }
+    .btn-scan.ready { opacity: 1; }
 
-    /* カメラ画面 & スキャン枠 */
+    /* スキャン専用画面（枠・オーバーレイ） */
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
-    
-    /* スキャンガイド（長方形の枠） */
     .scan-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         display: flex; flex-direction: column; z-index: 2001;
     }
     .overlay-top, .overlay-bottom { flex: 1; background: rgba(0,0,0,0.6); }
-    .overlay-middle { display: flex; height: 200px; }
+    .overlay-middle { display: flex; height: 180px; }
     .overlay-side { flex: 1; background: rgba(0,0,0,0.6); }
     .overlay-cutout {
-        width: 280px; height: 200px;
+        width: 280px; height: 180px;
         border: 3px solid var(--primary-color);
-        box-shadow: 0 0 20px rgba(255,255,255,0.2);
         border-radius: 10px; position: relative;
     }
-    /* レーザー線アニメーション */
     .laser {
         position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
         background: var(--primary-color); box-shadow: 0 0 10px var(--primary-color);
         animation: scanAnim 2s infinite ease-in-out;
     }
     @keyframes scanAnim { 0%, 100% { top: 10%; } 50% { top: 90%; } }
-
     .camera-close { position: absolute; top: 40px; right: 25px; color: white; font-size: 2rem; z-index: 2005; }
 
     /* モーダル */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: white; padding: 30px; border-radius: 25px; width: 85%; max-width: 400px; }
     .btn-save { width: 100%; padding: 15px; border-radius: 30px; border: none; background: var(--primary-color); color: white; font-size: 1.1rem; font-weight: bold; margin-top: 15px; }
-    .btn-cancel { width: 100%; padding: 12px; border: none; background: none; color: #666; margin-top: 10px; font-weight: bold; }
-
     #toast { visibility: hidden; min-width: 200px; background: rgba(0,0,0,0.8); color: white; text-align: center; border-radius: 50px; padding: 12px 25px; position: fixed; z-index: 5000; left: 50%; bottom: 120px; transform: translateX(-50%); }
     #toast.show { visibility: visible; }
 </style>
@@ -119,52 +143,63 @@
 <body>
 
 <header>
-    <div>Smart Price <span style="font-size:0.8rem; opacity:0.8;">v9.2</span></div>
+    <div>Smart Price <span style="font-size:0.8rem; opacity:0.8;">v9.3</span></div>
     <button class="settings-btn" onclick="openSettings()">⚙️</button>
 </header>
 
 <div class="container">
+    <div id="store-card" class="store-selector">
+        <h3 style="margin:0; font-size:1.1rem;">1. お店を選んでください</h3>
+        <div class="store-list" id="store-list">
+            <button class="store-btn" onclick="selectStore(this)">スーパーA</button>
+            <button class="store-btn" onclick="selectStore(this)">スーパーB</button>
+            <button class="store-btn" onclick="selectStore(this)">ドラッグストア</button>
+            <button class="store-btn" onclick="selectStore(this)">コンビニ</button>
+            <button class="store-btn" onclick="selectStore(this)">その他</button>
+        </div>
+    </div>
+
     <div id="welcome-msg" class="card">
-        <div style="font-size:5rem; margin-bottom:15px;">🛍️</div>
-        <h2 style="margin:0;">スキャンを開始</h2>
-        <p style="color:#666;">中央のボタンを押して<br>バーコードを枠に合わせてください</p>
+        <div style="font-size:4rem; margin-bottom:15px;">🛍️</div>
+        <p style="color:#666;">お店を選んだら、下のボタンで<br>スキャンを開始してください</p>
     </div>
 
     <div id="product-card" class="card" style="display:none;">
+        <div id="current-store-tag" style="background:var(--primary-color); color:white; display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.8rem; margin-bottom:10px;"></div>
         <img id="product-img" src="" alt="" class="product-img">
         <div id="product-name" class="product-name">商品名</div>
-        <div id="product-barcode" style="color:#aaa; font-size:0.8rem; margin-bottom:15px;"></div>
-        
         <div class="price-info">
             <div class="price-box">
-                <span class="price-label">前回の購入価格</span>
-                <span id="last-price" class="price-value">--</span><span style="font-weight:900;">円</span>
+                <span class="price-label">前回</span>
+                <span id="last-price" class="price-value">--</span>円
             </div>
             <div class="price-box" style="border-left: 1px solid #ddd; padding-left: 15px;">
-                <span class="price-label">平均の底値</span>
-                <span id="avg-price" class="price-value" style="color:var(--accent-color);">--</span><span style="font-weight:900;">円</span>
+                <span class="price-label">平均</span>
+                <span id="avg-price" class="price-value" style="color:var(--accent-color);">--</span>円
             </div>
         </div>
-        <button onclick="openEditModal()" style="background:none; border:1px solid #ddd; padding:10px 20px; border-radius:10px; color:#555; cursor:pointer;">✏️ 修正・記録する</button>
+        <button onclick="openEditModal()" style="background:none; border:1px solid #ddd; padding:10px 20px; border-radius:10px; color:#555;">✏️ 修正・記録する</button>
     </div>
 </div>
 
 <div class="footer-action">
-    <button class="btn-scan" onclick="startScanner()">📷 バーコードをスキャン</button>
+    <button id="main-scan-btn" class="btn-scan" onclick="attemptScanner()">📷 スキャンを開始</button>
 </div>
 
 <div id="camera-area">
     <div class="camera-close" onclick="stopScanner()">×</div>
     <div id="interactive"></div>
     <div class="scan-overlay">
-        <div class="overlay-top"></div>
+        <div class="overlay-top" style="display:flex; justify-content:center; align-items:flex-end; color:white; padding-bottom:20px;">
+            <span id="scan-store-name">店名未設定</span>
+        </div>
         <div class="overlay-middle">
             <div class="overlay-side"></div>
             <div class="overlay-cutout"><div class="laser"></div></div>
             <div class="overlay-side"></div>
         </div>
         <div class="overlay-bottom" style="display:flex; justify-content:center; align-items:center; color:white; font-size:0.9rem;">
-            枠内にバーコードを合わせてください
+            バーコードを枠に合わせてください
         </div>
     </div>
 </div>
@@ -172,49 +207,48 @@
 <div id="edit-modal" class="modal">
     <div class="modal-content">
         <h3 style="text-align:center; margin-top:0;">価格の記録</h3>
-        <div style="margin-bottom:15px;">
-            <label style="display:block; font-size:0.8rem; font-weight:bold;">商品名</label>
-            <input type="text" id="edit-name" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box;">
-        </div>
-        <div style="margin-bottom:20px;">
-            <label style="display:block; font-size:0.8rem; font-weight:bold;">今回の価格 (税込)</label>
-            <input type="tel" id="edit-price" placeholder="例: 298" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box;">
-        </div>
-        <button class="btn-save" onclick="saveProduct()">この価格で保存する</button>
-        <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
+        <div style="margin-bottom:15px;"><label style="font-size:0.8rem;">商品名</label><input type="text" id="edit-name" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box;"></div>
+        <div style="margin-bottom:20px;"><label style="font-size:0.8rem;">価格 (税込)</label><input type="tel" id="edit-price" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box;"></div>
+        <button class="btn-save" onclick="saveProduct()">この価格で保存</button>
+        <button onclick="closeEditModal()" style="width:100%; border:none; background:none; color:#666; margin-top:10px;">キャンセル</button>
     </div>
 </div>
 
-<div id="settings-modal" class="modal">
-    <div class="modal-content">
-        <h3 style="text-align:center;">設定</h3>
-        <input type="text" id="gas-url" placeholder="GAS URLを貼り付け" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box;">
-        <button class="btn-save" onclick="saveSettings()">設定を保存</button>
-        <button class="btn-cancel" onclick="closeSettings()">閉じる</button>
-    </div>
-</div>
+<div id="settings-modal" class="modal"><div class="modal-content"><h3>設定</h3><input type="text" id="gas-url" placeholder="GAS URL" style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box;"><button class="btn-save" onclick="saveSettings()">保存</button><button onclick="closeSettings()">閉じる</button></div></div>
 <div id="toast"></div>
 
 <script>
     const YAHOO_CLIENT_ID = "dj00aiZpPTViMUdLQzgwODFhQSZzPWNvbnN1bWVyc2VjcmV0Jng9NmQ-";
     let db = JSON.parse(localStorage.getItem('smartPriceDB')) || {};
     let currentBarcode = null;
+    let selectedStore = "";
     let gasUrl = localStorage.getItem('smartPriceGasUrl') || '';
 
     window.onload = function() {
         if(gasUrl) syncWithGas();
         history.pushState(null, null, location.href);
-        window.addEventListener('popstate', () => {
-            history.pushState(null, null, location.href);
-            showToast("終了はホームボタンを使用して下さい");
-        });
+        window.addEventListener('popstate', () => { history.pushState(null, null, location.href); });
     };
+
+    function selectStore(btn) {
+        document.querySelectorAll('.store-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedStore = btn.innerText;
+        document.getElementById('main-scan-btn').classList.add('ready');
+        showToast(selectedStore + " を選択しました");
+    }
+
+    function attemptScanner() {
+        if(!selectedStore) { alert("最初にお店を選択してください！"); return; }
+        document.getElementById('scan-store-name').innerText = "📍 " + selectedStore;
+        startScanner();
+    }
 
     async function showProduct(code) {
         currentBarcode = code;
         document.getElementById('welcome-msg').style.display = 'none';
         document.getElementById('product-card').style.display = 'block';
-        document.getElementById('product-barcode').innerText = "JAN: " + code;
+        document.getElementById('current-store-tag').innerText = "📍 " + selectedStore;
         if (db[code]) {
             const item = db[code];
             updateDisplay(item.name, item.lastPrice, item.avgPrice, item.image);
@@ -231,13 +265,12 @@
     }
 
     async function searchProduct(code) {
-        showToast("商品を検索中...");
+        showToast("検索中...");
         try {
             const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
             const data = await res.json();
             if (data.status === 1) {
-                const name = data.product.product_name_ja || data.product.product_name || "商品名不明";
-                updateDisplay(name, null, null, data.product.image_url);
+                updateDisplay(data.product.product_name_ja || data.product.product_name || "商品名不明", null, null, data.product.image_url);
                 openEditModal(); return;
             }
         } catch(e) {}
@@ -245,8 +278,7 @@
             const yRes = await fetch(`https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid=${YAHOO_CLIENT_ID}&jan_code=${code}`);
             const yData = await yRes.json();
             if (yData.hits && yData.hits.length > 0) {
-                const item = yData.hits[0];
-                updateDisplay(item.name, null, null, item.image.medium);
+                updateDisplay(yData.hits[0].name, null, null, yData.hits[0].image.medium);
                 openEditModal(); return;
             }
         } catch(e) {}
@@ -264,14 +296,13 @@
     function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 
     function saveProduct() {
-        const name = document.getElementById('edit-name').value;
         const price = parseInt(document.getElementById('edit-price').value);
-        if (!name || isNaN(price) || price <= 0) { alert("正しい価格を入力して下さい"); return; }
-        let imgUrl = document.getElementById('product-img').style.display !== 'none' ? document.getElementById('product-img').src : "";
+        if (isNaN(price) || price <= 0) { alert("価格を入力してください"); return; }
         let item = db[currentBarcode] || { count: 0, avgPrice: 0 };
         const total = (item.avgPrice * item.count) + price;
         item.count++; item.avgPrice = total / item.count; item.lastPrice = price;
-        item.name = name; item.image = imgUrl;
+        item.name = document.getElementById('edit-name').value;
+        item.image = document.getElementById('product-img').style.display !== 'none' ? document.getElementById('product-img').src : "";
         db[currentBarcode] = item;
         localStorage.setItem('smartPriceDB', JSON.stringify(db));
         showProduct(currentBarcode);
@@ -284,21 +315,18 @@
         document.getElementById('camera-area').style.display = 'block';
         Quagga.init({
             inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive'), constraints: { facingMode: "environment" } },
-            decoder: { readers: ["ean_reader"] },
-            locate: true
+            decoder: { readers: ["ean_reader"] }, locate: true
         }, (err) => {
-            if (err) { alert("カメラ起動エラー"); stopScanner(); return; }
+            if (err) { stopScanner(); return; }
             Quagga.start();
         });
         Quagga.onDetected((res) => { stopScanner(); showProduct(res.codeResult.code); });
     }
-
     function stopScanner() { Quagga.stop(); document.getElementById('camera-area').style.display = 'none'; }
     function openSettings() { document.getElementById('gas-url').value = gasUrl; document.getElementById('settings-modal').style.display = 'flex'; }
     function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
     function saveSettings() { gasUrl = document.getElementById('gas-url').value; localStorage.setItem('smartPriceGasUrl', gasUrl); closeSettings(); syncWithGas(); }
     function showToast(m) { const t = document.getElementById("toast"); t.innerText = m; t.className = "show"; setTimeout(()=>t.className="", 3000); }
-    
     async function syncWithGas() {
         if(!gasUrl) return;
         try {
