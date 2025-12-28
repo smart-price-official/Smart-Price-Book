@@ -10,7 +10,7 @@
 
 <style>
     :root {
-        --primary-color: #E63946; /* v8.1の赤 */
+        --primary-color: #E63946;
         --secondary-color: #F1FAEE;
         --text-color: #1D3557;
         --accent-color: #457B9D;
@@ -38,13 +38,13 @@
     header .settings-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
     .container { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px; }
     
-    .card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
+    /* ストア選択エリア (昨日のUI) */
+    .store-area { background: white; padding: 12px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .store-list { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; }
+    .store-tag { padding: 8px 16px; border: 1px solid #ccc; border-radius: 20px; white-space: nowrap; font-size: 0.9rem; background: #eee; cursor: pointer; }
+    .store-tag.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .product-display { text-align: center; display: none; }
     .product-img { max-width: 100%; height: 200px; object-fit: contain; margin-bottom: 15px; border-radius: 8px; }
     .product-name { font-size: 1.4rem; font-weight: bold; margin-bottom: 10px; }
@@ -58,7 +58,7 @@
     .price-label { font-size: 0.8rem; color: #666; display: block; }
     .price-value { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); }
 
-    /* v8.1の右下スキャンボタン */
+    /* 右下スキャンボタン (昨日のUI) */
     .scan-fab {
         position: fixed; bottom: 30px; right: 30px;
         width: 70px; height: 70px;
@@ -69,40 +69,37 @@
         cursor: pointer; z-index: 100; font-size: 2rem;
     }
 
-    /* カメラエリア */
+    /* カメラ画面 */
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
-    .camera-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 2rem; z-index: 2001; background: rgba(0,0,0,0.5); border-radius: 50%; width: 50px; height: 50px; text-align: center; line-height: 50px; }
+    .camera-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 2.5rem; z-index: 2001; }
 
     /* モーダル */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 400px; }
-    input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1.1rem; box-sizing: border-box; outline: none; margin-bottom: 10px; }
+    input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1.1rem; box-sizing: border-box; outline: none; margin-bottom: 15px; }
 
-    #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 25px; padding: 16px; position: fixed; z-index: 5000; left: 50%; bottom: 30px; transform: translateX(-50%); }
-    #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-    @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-    @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-    .sync-status { font-size: 0.8rem; margin-top: 5px; color: #888; text-align: center; }
+    #toast { visibility: hidden; min-width: 200px; background-color: #333; color: #fff; text-align: center; border-radius: 20px; padding: 12px; position: fixed; z-index: 5000; left: 50%; bottom: 120px; transform: translateX(-50%); }
+    #toast.show { visibility: visible; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </head>
 <body>
 
 <header>
-    <div>Smart Price <span style="font-size:0.8rem; opacity:0.8;">v9.7</span></div>
+    <div>Smart Price <span style="font-size:0.8rem; opacity:0.8;">v9.8</span></div>
     <button class="settings-btn" onclick="openSettings()">⚙️</button>
 </header>
 
 <div class="container">
-    <div id="gps-store-card" class="card">
-        <div id="gps-status" style="font-size: 0.7rem; color: #888; margin-bottom:5px;">📍 位置検索中...</div>
-        <div id="store-list" style="display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px;"></div>
+    <div class="store-area">
+        <div id="gps-status" style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">📍 位置情報を取得中...</div>
+        <div id="store-list" class="store-list"></div>
     </div>
 
     <div id="welcome-msg" class="card" style="text-align:center; padding:40px 20px;">
         <div style="font-size:4rem; margin-bottom:20px;">🛒</div>
-        <p style="color:#666;">右下のボタンを押して<br>スキャンを開始してください</p>
+        <p style="color:#666;">右下のボタンから<br>スキャンを開始してください</p>
     </div>
 
     <div id="product-card" class="card product-display">
@@ -119,7 +116,7 @@
                 <span id="avg-price" class="price-value" style="color:var(--accent-color);">--</span>円
             </div>
         </div>
-        <button class="settings-btn" style="color:var(--text-color); font-size:1rem; border:1px solid #ddd; padding:10px 20px; border-radius:8px;" onclick="openEditModal()">修正・記録 ✏️</button>
+        <button style="background:none; border:1px solid #ddd; padding:10px 20px; border-radius:8px; cursor:pointer;" onclick="openEditModal()">✏️ 修正・記録</button>
     </div>
 </div>
 
@@ -134,16 +131,16 @@
     <div class="modal-content">
         <h3 style="text-align:center; margin-top:0;">価格の記録</h3>
         <input type="text" id="edit-name">
-        <input type="tel" id="edit-price" placeholder="税込価格">
-        <button onclick="saveProduct()" style="width:100%; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:30px; font-weight:bold; font-size:1.1rem;">保存する</button>
-        <button onclick="closeEditModal()" style="width:100%; background:none; border:none; margin-top:10px; color:#666;">キャンセル</button>
+        <input type="tel" id="edit-price" placeholder="税込価格を入力">
+        <button onclick="saveProduct()" style="width:100%; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:30px; font-weight:bold; font-size:1.1rem; cursor:pointer;">保存する</button>
+        <button onclick="closeEditModal()" style="width:100%; background:none; border:none; margin-top:10px; color:#666; cursor:pointer;">キャンセル</button>
     </div>
 </div>
 
 <div id="settings-modal" class="modal">
     <div class="modal-content">
-        <h3 style="text-align:center;">設定</h3>
-        <input type="text" id="gas-url" placeholder="GAS URL">
+        <h3>設定</h3>
+        <input type="text" id="gas-url" placeholder="GAS URLを貼り付け">
         <button onclick="saveSettings()" style="width:100%; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:30px;">設定を保存</button>
         <button onclick="closeSettings()" style="width:100%; background:none; border:none; margin-top:10px;">閉じる</button>
     </div>
@@ -154,7 +151,7 @@
 <script>
     const YAHOO_ID = "dj00aiZpPTViMUdLQzgwODFhQSZzPWNvbnN1bWVyc2VjcmV0Jng9NmQ-";
     let db = JSON.parse(localStorage.getItem('smartPriceDB')) || {};
-    let currentBarcode = null;
+    let curBarcode = null;
     let selectedStore = "";
     let gasUrl = localStorage.getItem('smartPriceGasUrl') || '';
 
@@ -171,13 +168,13 @@
                 list.innerHTML = "";
                 if (data.Feature) {
                     data.Feature.forEach((f, i) => {
-                        const btn = document.createElement('button');
-                        btn.style = "padding:8px 15px; border-radius:20px; border:1px solid #ccc; background:#eee; white-space:nowrap; cursor:pointer;";
-                        if(i===0) { btn.style.background = "#E63946"; btn.style.color = "white"; selectedStore = f.Name; }
+                        const btn = document.createElement('span');
+                        btn.className = 'store-tag' + (i===0 ? ' active' : '');
                         btn.innerText = f.Name;
+                        if(i===0) selectedStore = f.Name;
                         btn.onclick = () => {
-                            Array.from(list.children).forEach(c => { c.style.background="#eee"; c.style.color="#000"; });
-                            btn.style.background = "#E63946"; btn.style.color = "white";
+                            Array.from(list.children).forEach(c => c.classList.remove('active'));
+                            btn.classList.add('active');
                             selectedStore = f.Name;
                         };
                         list.appendChild(btn);
@@ -188,13 +185,14 @@
     }
 
     async function showProduct(code) {
-        currentBarcode = code;
+        curBarcode = code;
         document.getElementById('welcome-msg').style.display = 'none';
         document.getElementById('product-card').style.display = 'block';
         document.getElementById('store-tag').innerText = "📍 " + selectedStore;
         if (db[code]) {
             updateUI(db[code].name, db[code].lastPrice, db[code].avgPrice, db[code].image);
         } else {
+            showToast("商品を検索中...");
             await searchProduct(code);
         }
     }
@@ -220,7 +218,7 @@
 
     function openEditModal() {
         document.getElementById('edit-name').value = document.getElementById('product-name').innerText;
-        document.getElementById('edit-price').value = db[currentBarcode] ? db[currentBarcode].lastPrice : "";
+        document.getElementById('edit-price').value = db[curBarcode] ? db[curBarcode].lastPrice : "";
         document.getElementById('edit-modal').style.display = 'flex';
         document.getElementById('edit-price').focus();
     }
@@ -229,14 +227,14 @@
     function saveProduct() {
         const p = parseInt(document.getElementById('edit-price').value);
         if (!p || p <= 0) { alert("正しい価格を入力してください"); return; }
-        let item = db[currentBarcode] || { count: 0, avgPrice: 0 };
+        let item = db[curBarcode] || { count: 0, avgPrice: 0 };
         item.avgPrice = ((item.avgPrice * item.count) + p) / (item.count + 1);
         item.count++; item.lastPrice = p;
         item.name = document.getElementById('edit-name').value;
         item.image = document.getElementById('product-img').src;
-        db[currentBarcode] = item;
+        db[curBarcode] = item;
         localStorage.setItem('smartPriceDB', JSON.stringify(db));
-        showProduct(currentBarcode);
+        showProduct(curBarcode);
         closeEditModal();
         showToast("保存完了！");
         if(gasUrl) syncWithGas();
