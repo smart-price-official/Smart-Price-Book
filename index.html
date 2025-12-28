@@ -210,7 +210,6 @@
             const item = db[code];
             updateDisplay(item.name, item.lastPrice, item.avgPrice, item.image);
         } else {
-            // 新規商品：ハイブリッド検索
             await searchProduct(code);
         }
     }
@@ -226,7 +225,6 @@
 
     async function searchProduct(code) {
         showToast("商品を探しています...");
-        // 1. まず食品DB (OpenFoodFacts)
         try {
             const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
             const data = await res.json();
@@ -238,7 +236,6 @@
             }
         } catch(e) {}
 
-        // 2. 次に日用品DB (Yahoo!ショッピング)
         try {
             const yRes = await fetch(`https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid=${YAHOO_CLIENT_ID}&jan_code=${code}`);
             const yData = await yRes.json();
