@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v17.0</title>
+    <title>Smart Price v17.1</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -40,7 +40,7 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.0</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.1</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -79,10 +79,10 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content text-center">
-        <h5 class="text-white mb-4">Firebase 接続設定</h5>
+        <h5 class="text-white mb-4">Firebase 強制接続モード</h5>
         <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com/">
         <button id="migrateBtn" class="btn btn-warning w-100 py-3 fw-bold mb-3 shadow" onclick="startMigration()">
-            <i class="bi bi-truck"></i> 全画像をクラウドへ移動(メモリ解放)
+            <i class="bi bi-truck"></i> 全データを強制移動
         </button>
         <div id="migrateStatus" class="small text-secondary mb-3"></div>
         <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
@@ -94,31 +94,27 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
     let db = { products: {} };
-    let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
     let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
+    let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
 
     window.onload = () => { loadLocal(); renderStoreList(); renderHistory(); if(fbUrl) syncFirebase(); };
 
     function loadLocal() { const saved = localStorage.getItem('smart_price_db'); if (saved) db = JSON.parse(saved); if (!db.products) db.products = {}; }
 
-    // 【重要】なべさんの入力したURLを100%信用して使用。ただしREST APIのために末尾の.jsonだけチェック
-    function getSafeUrl(url) {
-        let clean = url.trim();
-        if (!clean) return "";
-        // URLの最後が / で終わっている場合は削り、.json がなければ付ける
-        clean = clean.replace(/\/+$/, "");
-        if (!clean.endsWith('.json')) clean += '.json';
-        return clean;
+    // 【重要】なべさんのFirebase構造(db/db/products)に強制的に合わせる関数
+    function getFinalUrl(url) {
+        let clean = url.trim().replace(/\/+$/, "").replace(/\.json$/, "");
+        // スクショの「db/products」という構造へ直接アクセスするパスを生成
+        return clean + "/db.json";
     }
 
     async function syncFirebase() { 
-        const url = getSafeUrl(fbUrl);
-        if (!url) return;
+        const url = getFinalUrl(fbUrl);
         try { 
             const res = await fetch(url); 
             const data = await res.json(); 
-            // スクショの構造に合わせて「db」または全体を読み込む
             if (data) { 
+                // スクショの「db」の中にあるデータを取得
                 db = data.db ? data.db : data; 
                 localStorage.setItem('smart_price_db', JSON.stringify(db)); 
                 renderHistory(); 
@@ -129,14 +125,11 @@
     async function startMigration() {
         const inputUrl = document.getElementById('firebase-url').value.trim();
         if (!inputUrl) return alert("URLを入力してください");
-        const btn = document.getElementById('migrateBtn');
         const status = document.getElementById('migrateStatus');
-        btn.disabled = true; status.innerHTML = "接続中...";
-        
-        const targetUrl = getSafeUrl(inputUrl);
+        const targetUrl = getFinalUrl(inputUrl);
         
         try {
-            // スクショにある既存構造「db」を維持して送信
+            // スクショの構造「dbの中にdbがある状態」を維持して送信
             const res = await fetch(targetUrl, { 
                 method: 'PUT', 
                 body: JSON.stringify({ db: db }) 
@@ -148,9 +141,9 @@
             Object.values(lightDb.products).forEach(p => { if(p.image && p.image.startsWith('data:')) p.image = "cloud_sync"; });
             localStorage.setItem('smart_price_db', JSON.stringify(lightDb));
             
-            status.innerHTML = `<span class="text-success">接続成功！メモリを解放しました。</span>`;
+            status.innerHTML = `<span class="text-success">接続成功！メモリ解放完了。</span>`;
             setTimeout(() => location.reload(), 2000);
-        } catch(e) { status.innerHTML = `<span class="text-danger">失敗。URLまたはルールを確認してください。</span>`; btn.disabled = false; }
+        } catch(e) { status.innerHTML = `<span class="text-danger">失敗：${e.message}。ルールタブを確認してください。</span>`; }
     }
 
     async function saveData() {
@@ -165,16 +158,15 @@
         if (pr > 0) p.history.push({ price: Math.floor(pr * 1.08), store: curStore, ts: Date.now() });
 
         try {
-            const url = getSafeUrl(fbUrl);
-            if (url) {
-                await fetch(url, { method: 'PUT', body: JSON.stringify({ db: db }) });
+            if (fbUrl) {
+                await fetch(getFinalUrl(fbUrl), { method: 'PUT', body: JSON.stringify({ db: db }) });
             }
             localStorage.setItem('smart_price_db', JSON.stringify(db));
             showHome();
-        } catch(e) { alert("同期失敗。設定のURLが「.com/」で終わっていないか確認してください。"); }
+        } catch(e) { alert("同期失敗。ルールか通信を確認してください。"); btn.innerText = "保存して同期"; btn.disabled = false; }
     }
 
-    // --- UI制御 (不変の高級UI) ---
+    // UIロジック
     function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg}平 / ${low}最</div></div></div>`; list.appendChild(div); }); }
     function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || ""; }
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
