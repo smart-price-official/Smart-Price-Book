@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v11.5</title>
+    <title>Smart Price v11.6</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -35,10 +35,10 @@
 </head>
 <body>
 
-<div id="loading-overlay"><div class="spinner-border text-danger mb-2"></div><div>クラウド同期中...</div></div>
+<div id="loading-overlay"><div class="spinner-border text-danger mb-2"></div><div>データ読込中...</div></div>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v11.5</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v11.6</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -96,9 +96,9 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content">
-        <h5 class="text-white mb-4 text-center">Firebase 連携設定</h5>
+        <h5 class="text-white mb-4 text-center">設定</h5>
         <input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://your-db.firebaseio.com/">
-        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">設定を更新</button>
+        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">設定を保存</button>
         <button class="btn btn-link text-secondary w-100 mt-2" onclick="closeSettings()">閉じる</button>
     </div>
 </div>
@@ -108,7 +108,6 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-    // なべさんのFirebase URLをあらかじめセット
     const FB_PRESET_URL = "https://smartpricedb-default-rtdb.firebaseio.com/";
     let db = { products: {} };
     let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
@@ -116,7 +115,7 @@
 
     window.onload = async () => { 
         loadLocal(); 
-        if(fbUrl) await pullFromFirebase();
+        if(fbUrl) pullFromFirebase(); // 待機せずに実行
         renderStoreList(); 
         renderHistory(); 
     };
@@ -128,7 +127,6 @@
     }
 
     async function pullFromFirebase() {
-        document.getElementById('loading-overlay').style.display = 'flex';
         const targetUrl = fbUrl.endsWith('/') ? `${fbUrl}db.json` : `${fbUrl}/db.json`;
         try {
             const res = await fetch(targetUrl);
@@ -136,19 +134,17 @@
             if(cloudData && cloudData.products) {
                 db = cloudData;
                 localStorage.setItem('smart_price_db', JSON.stringify(db));
-            } else if (db.products && Object.keys(db.products).length > 0) {
-                syncToFirebase(db);
+                renderHistory(); // 取得後に再描画
+                renderStoreList();
             }
-        } catch (e) { console.error("Firebase Pull Error", e); }
-        document.getElementById('loading-overlay').style.display = 'none';
+        } catch (e) { console.warn("Firebase Pull Fail"); }
     }
 
-    async function syncToFirebase(data) {
+    // 非同期（バックグラウンド）同期。画面を止めない
+    function syncToFirebase(data) {
         if (!fbUrl) return;
         const targetUrl = fbUrl.endsWith('/') ? `${fbUrl}db.json` : `${fbUrl}/db.json`;
-        try {
-            await fetch(targetUrl, { method: 'PUT', body: JSON.stringify(data) });
-        } catch (e) { console.error("Firebase Sync Error", e); }
+        fetch(targetUrl, { method: 'PUT', body: JSON.stringify(data) }).catch(() => {});
     }
 
     function saveData() {
@@ -164,15 +160,17 @@
             p.history.push({ price: Math.floor(parseInt(priceVal) * 1.08), store: curStore, ts: Date.now() });
         }
         
+        // 1. まずローカルに保存
         localStorage.setItem('smart_price_db', JSON.stringify(db));
-        if(fbUrl) syncToFirebase(db);
+        
+        // 2. 画面を即座に戻す
         showHome();
+
+        // 3. 裏でFirebaseへ飛ばす（成否を待たない）
+        if(fbUrl) syncToFirebase(db);
     }
 
     // --- その他UI機能 ---
-    function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
-    function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
-    function saveSettings() { fbUrl = document.getElementById('firebase-url').value; localStorage.setItem('smartPriceFirebaseUrl', fbUrl); location.reload(); }
     function renderStoreList() {
         const list = document.getElementById('store-list'); const historyStores = new Set();
         Object.values(db.products).forEach(p => p.history?.forEach(h => { if(h.store) historyStores.add(h.store); }));
@@ -209,6 +207,9 @@
     function stopScanner() { if (scanner) scanner.stop(); document.getElementById('camera-area').style.display = 'none'; }
     function showHome() { document.getElementById('mainView').style.display = 'block'; document.getElementById('formView').style.display = 'none'; renderHistory(); renderStoreList(); }
     function handleImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX = 150; let w = img.width, h = img.height; if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); tempImgData = canvas.toDataURL('image/jpeg', 0.5); document.getElementById('previewImg').src = tempImgData; }; img.src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
+    function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
+    function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
+    function saveSettings() { fbUrl = document.getElementById('firebase-url').value; localStorage.setItem('smartPriceFirebaseUrl', fbUrl); location.reload(); }
     function showVeggieMenu() { document.getElementById('mainView').style.display='none'; const grid = document.createElement('div'); grid.style="display:grid; grid-template-columns: repeat(3,1fr); gap:10px; padding:20px;"; ['キャベツ','トマト','豚肉','卵','牛乳','パン'].forEach(v=>{ const d=document.createElement('div'); d.className='card p-3 text-center fw-bold'; d.innerText=v; d.onclick=()=>{ grid.remove(); openForm("M_"+v,v); }; grid.appendChild(d); }); document.querySelector('.container').appendChild(grid); }
 </script>
 </body>
