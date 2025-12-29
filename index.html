@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v11.3</title>
+    <title>Smart Price v11.5</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -29,14 +29,16 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
         .modal-content { background: #1e1e1e; padding: 20px; border-radius: 20px; width: 95%; max-width: 500px; border: 1px solid #D50000; }
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; z-index: 5000; flex-direction: column; align-items: center; justify-content: center; }
+        #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
+        #interactive { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-<div id="loading-overlay"><div class="spinner-border text-danger mb-2"></div><div id="load-msg">クラウド同期中...</div></div>
+<div id="loading-overlay"><div class="spinner-border text-danger mb-2"></div><div>クラウド同期中...</div></div>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v11.3</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v11.5</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -96,7 +98,7 @@
     <div class="modal-content">
         <h5 class="text-white mb-4 text-center">Firebase 連携設定</h5>
         <input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://your-db.firebaseio.com/">
-        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">設定を保存して同期</button>
+        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">設定を更新</button>
         <button class="btn btn-link text-secondary w-100 mt-2" onclick="closeSettings()">閉じる</button>
     </div>
 </div>
@@ -106,9 +108,11 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
+    // なべさんのFirebase URLをあらかじめセット
+    const FB_PRESET_URL = "https://smartpricedb-default-rtdb.firebaseio.com/";
     let db = { products: {} };
     let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
-    let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
+    let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || FB_PRESET_URL;
 
     window.onload = async () => { 
         loadLocal(); 
@@ -132,8 +136,10 @@
             if(cloudData && cloudData.products) {
                 db = cloudData;
                 localStorage.setItem('smart_price_db', JSON.stringify(db));
+            } else if (db.products && Object.keys(db.products).length > 0) {
+                syncToFirebase(db);
             }
-        } catch (e) { console.error("Pull Error", e); }
+        } catch (e) { console.error("Firebase Pull Error", e); }
         document.getElementById('loading-overlay').style.display = 'none';
     }
 
@@ -142,7 +148,7 @@
         const targetUrl = fbUrl.endsWith('/') ? `${fbUrl}db.json` : `${fbUrl}/db.json`;
         try {
             await fetch(targetUrl, { method: 'PUT', body: JSON.stringify(data) });
-        } catch (e) { alert("同期エラー: URLを確認してください"); }
+        } catch (e) { console.error("Firebase Sync Error", e); }
     }
 
     function saveData() {
@@ -151,7 +157,7 @@
         const p = db.products[curBarcode];
         p.name = document.getElementById('inputName').value || "商品名なし";
         p.maker = document.getElementById('inputMaker').value || "";
-        p.image = tempImgData || p.image || "";
+        if (tempImgData) p.image = tempImgData;
         
         if (priceVal && parseInt(priceVal) > 0) {
             if(!p.history) p.history = [];
@@ -163,7 +169,7 @@
         showHome();
     }
 
-    // --- 以降UI処理 ---
+    // --- その他UI機能 ---
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
     function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
     function saveSettings() { fbUrl = document.getElementById('firebase-url').value; localStorage.setItem('smartPriceFirebaseUrl', fbUrl); location.reload(); }
