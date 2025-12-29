@@ -7,18 +7,18 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v9.2</title>
+    <title>Smart Price v9.3</title>
     
-    <link rel="icon" type="image/png" href="https://takecwatanabe-dev.github.io/Smart-Price-Book/icons/icon-512.png?upd=92">
-    <link rel="apple-touch-icon" href="https://takecwatanabe-dev.github.io/Smart-Price-Book/icons/icon-512.png?upd=92">
+    <link rel="icon" type="image/png" id="favicon-link" href="">
+    <link rel="apple-touch-icon" id="apple-icon-link" href="">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; overscroll-behavior-y: none; }
-        .app-container { max-width: 600px; margin: 0 auto; min-height: 100vh; position: relative; }
-        .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; }
+        .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .v-badge { background: #000; color: #fff; font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; vertical-align: middle; margin-left: 5px; }
         .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; }
         .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
         .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; cursor: pointer; }
@@ -26,7 +26,7 @@
         .btn-menu { height: 130px; border-radius: 15px; font-weight: bold; font-size: 1.3rem; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; border: 1px solid rgba(255,255,255,0.1); }
         .btn-scan { background: linear-gradient(135deg, #D50000, #8a0000); color: white; }
         .btn-manual { background: linear-gradient(135deg, #333, #111); color: #ccc; }
-        .price-card { background-color: #1e1e1e; border: 1px solid #333; border-left: 5px solid #D50000; margin-bottom: 8px; padding: 12px; }
+        .price-card { background-color: #1e1e1e; border: 1px solid #333; border-left: 5px solid #D50000; margin-bottom: 8px; padding: 12px; border-radius: 4px; }
         #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
         #interactive { width: 100%; height: 100%; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
@@ -38,14 +38,13 @@
 
 <div class="app-container">
     <header class="header d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span style="font-size:0.7rem; opacity:0.6;">v9.2</span></h5>
+        <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v9.3</span></h5>
         <button class="btn btn-sm btn-outline-light" onclick="toggleSettings(true)"><i class="bi bi-gear-fill"></i></button>
     </header>
 
     <div class="store-area">
         <div id="store-list" class="store-list">
-            <span class="store-tag">ストア読込中...</span>
-        </div>
+            </div>
     </div>
 
     <div id="main-view" class="p-3">
@@ -65,17 +64,17 @@
             </div>
             <label class="small text-danger fw-bold">購入価格(税抜)</label>
             <input type="number" id="inputPrice" class="form-control form-control-lg text-end" style="font-size:2rem; color:#ff5252;" placeholder="0">
-            <button class="btn btn-danger w-100 py-3 mt-3 fw-bold shadow" onclick="saveData()">保存して戻る</button>
+            <button class="btn btn-danger w-100 py-3 mt-3 fw-bold" onclick="saveData()">保存して戻る</button>
             <button class="btn btn-link text-secondary w-100 mt-2" onclick="showHome()">キャンセル</button>
         </div>
     </div>
 </div>
 
 <div id="settings-modal" class="modal-overlay">
-    <div class="modal-content-box">
-        <h5 class="text-white mb-4">設定 (v9.2)</h5>
+    <div class="modal-content-box text-center">
+        <h5 class="text-white mb-4">設定 (v9.3)</h5>
         <button class="btn btn-warning w-100 mb-3 fw-bold" onclick="location.reload(true)">最新に更新</button>
-        <button class="btn btn-outline-danger w-100 mb-4" onclick="location.href=location.href+'?v='+Date.now()">アイコン強制更新</button>
+        <button class="btn btn-outline-danger w-100 mb-4" onclick="forceIconUpdate()">アイコン強制更新</button>
         <button class="btn btn-secondary w-100" onclick="toggleSettings(false)">閉じる</button>
     </div>
 </div>
@@ -90,27 +89,46 @@
     let curBarcode = null;
     let scanner = null;
 
+    // レックス式: 起動時にアイコンURLをタイムスタンプで生成
+    (function initIcons() {
+        const timestamp = Date.now();
+        const iconUrl = `https://takecwatanabe-dev.github.io/Smart-Price-Book/icons/icon-512.png?v=93&t=${timestamp}`;
+        document.getElementById('favicon-link').href = iconUrl;
+        document.getElementById('apple-icon-link').href = iconUrl;
+    })();
+
     window.onload = () => { 
-        renderStoreList([]); 
-        initGPS(); 
-        renderHistory(); 
+        renderStoreListFromHistory(); // 1. まず過去の店を0.1秒で出す
+        initGPS();                   // 2. その後でGPS
+        renderHistory();             // 3. 履歴を出す
     };
+
+    function renderStoreListFromHistory() {
+        const historyStores = new Set();
+        Object.values(db.products).forEach(p => p.history?.forEach(h => { if(h.store) historyStores.add(h.store); }));
+        updateStoreUI([...historyStores]);
+    }
 
     function initGPS() {
         if (!navigator.geolocation) return;
+        const timeoutId = setTimeout(() => {}, 5000); // タイムアウト管理
+
         navigator.geolocation.getCurrentPosition(async (pos) => {
+            clearTimeout(timeoutId);
             try {
-                const res = await fetch(`https://map.yahooapis.jp/search/local/V1/localSearch?appid=${YAHOO_ID}&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&dist=0.1&output=json`);
+                const res = await fetch(`https://map.yahooapis.jp/search/local/V1/localSearch?appid=${encodeURIComponent(YAHOO_ID)}&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&dist=0.3&output=json`);
                 const data = await res.json();
-                renderStoreList(data.Feature ? data.Feature.map(f => f.Name) : []);
-            } catch(e) { renderStoreList([]); }
-        }, () => renderStoreList([]));
+                if (data.Feature) {
+                    const nearby = data.Feature.map(f => f.Name);
+                    const historyStores = new Set();
+                    Object.values(db.products).forEach(p => p.history?.forEach(h => historyStores.add(h.store)));
+                    updateStoreUI([...new Set([...nearby, ...historyStores])]);
+                }
+            } catch(e) { console.error("Yahoo API Error", e); }
+        }, () => {}, { timeout: 5000 });
     }
 
-    function renderStoreList(nearby) {
-        const historyStores = new Set();
-        Object.values(db.products).forEach(p => p.history?.forEach(h => historyStores.add(h.store)));
-        const all = [...new Set([...nearby, ...historyStores])];
+    function updateStoreUI(all) {
         if(!all.length) all.push("未設定");
         const listDiv = document.getElementById('store-list');
         listDiv.innerHTML = "";
@@ -131,9 +149,8 @@
         document.getElementById('camera-area').style.display='block';
         if(!scanner) scanner = new Html5Qrcode("interactive");
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (d) => { 
-            stopScanner(); 
-            curBarcode = d;
-            const p = db.products[d] || { name: "新しい商品", history: [] };
+            stopScanner(); curBarcode = d;
+            let p = db.products[d] || { name: "新しい商品", history: [] };
             if(p.name === "新しい商品") {
                 try {
                     const yRes = await fetch(`https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid=${YAHOO_ID}&jan_code=${d}`);
@@ -150,7 +167,7 @@
 
     function saveData() {
         const price = parseInt(document.getElementById('inputPrice').value);
-        if(!price || price <= 0) { alert("価格を入力してください"); return; }
+        if(!price || price <= 0) { alert("正しい価格を入力してください"); return; }
         const p = db.products[curBarcode] || { name: "", history: [] };
         p.name = document.getElementById('inputName').value;
         p.image = document.getElementById('previewImg').src;
@@ -168,11 +185,7 @@
             if(!data.history?.length) return;
             const last = data.history[data.history.length-1];
             const div = document.createElement('div'); div.className = 'price-card';
-            div.innerHTML = `<div class="d-flex align-items-center">
-                <img src="${data.image}" style="width:40px;height:40px;object-fit:contain;margin-right:10px;background:#fff;border-radius:4px;">
-                <div class="flex-grow-1 small"><b>${data.name}</b><br><span class="text-secondary">${last.store}</span></div>
-                <div class="text-danger fw-bold">${last.price}円</div>
-            </div>`;
+            div.innerHTML = `<div class="d-flex align-items-center"><img src="${data.image}" style="width:40px;height:40px;object-fit:contain;margin-right:10px;background:#fff;border-radius:4px;"><div class="flex-grow-1 small"><b>${data.name}</b><br><span class="text-secondary">${last.store}</span></div><div class="text-danger fw-bold">${last.price}円</div></div>`;
             list.appendChild(div);
         });
     }
@@ -180,6 +193,7 @@
     function stopScanner() { if(scanner) scanner.stop(); document.getElementById('camera-area').style.display='none'; }
     function showHome() { document.getElementById('main-view').style.display='block'; document.getElementById('form-view').style.display='none'; renderHistory(); }
     function toggleSettings(s) { document.getElementById('settings-modal').style.display = s ? 'flex' : 'none'; }
+    function forceIconUpdate() { location.href = location.href.split('?')[0] + '?upd=' + Date.now(); }
 </script>
 </body>
 </html>
