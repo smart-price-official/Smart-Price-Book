@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v8.2</title>
+    <title>Smart Price v8.3</title>
     
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/takecwatanabe-dev/Smart-Price-Book/main/icons/icon-512.png">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/takecwatanabe-dev/Smart-Price-Book/main/icons/icon-512.png">
@@ -18,9 +18,9 @@
     <style>
         body { font-family: sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; }
         .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; }
-        .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; }
+        .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 60px; }
         .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; }
-        .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; }
+        .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
         .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
         .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 10px; }
         .btn-menu { height: 110px; border-radius: 15px; font-weight: bold; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; border:none; }
@@ -31,7 +31,7 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center; }
         .modal-content { background: #1e1e1e; padding: 20px; border-radius: 15px; width: 90%; border: 1px solid #444; }
         input { width: 100%; padding: 12px; background: #2c2c2c; border: 1px solid #444; color: #fff; border-radius: 8px; margin-bottom: 10px; }
-        #version-display { font-size: 3rem; color: rgba(255,0,0,0.1); position: fixed; bottom: 80px; right: 20px; font-weight: 900; z-index: -1; }
+        #version-display { font-size: 4rem; color: rgba(255,0,0,0.1); position: fixed; bottom: 80px; right: 20px; font-weight: 900; z-index: -1; }
     </style>
 </head>
 <body>
@@ -43,17 +43,19 @@
 
 <div class="store-area">
     <div id="gps-status" style="font-size: 0.7rem; color: #888; margin-bottom: 5px;">📍 ストア検索中...</div>
-    <div id="store-list" class="store-list"></div>
+    <div id="store-list" class="store-list">
+        <span class="store-tag">位置情報を読み込み中...</span>
+    </div>
 </div>
 
 <div class="container p-3">
     <div id="mainView">
         <div class="row g-2 mb-4">
             <div class="col-7"><button class="btn btn-menu btn-scan" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i>スキャン</button></div>
-            <div class="col-5"><button class="btn btn-menu btn-manual" onclick="alert('手入力準備中')"><i class="bi bi-keyboard fs-1"></i>手入力</button></div>
+            <div class="col-5"><button class="btn btn-menu btn-manual" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i>手入力</button></div>
         </div>
         <div id="historyList"></div>
-        <div id="version-display">v8.2</div>
+        <div id="version-display">v8.3</div>
     </div>
 
     <div id="formView" style="display:none;">
@@ -76,6 +78,9 @@
 <div id="settingsModal" class="modal">
     <div class="modal-content">
         <h5 class="text-white mb-3">設定</h5>
+        <button class="btn btn-outline-danger w-100 mb-3 fw-bold" onclick="updateIconByBrowser()">
+            <i class="bi bi-palette"></i> 赤地アイコンに更新
+        </button>
         <button class="btn btn-warning w-100 mb-3 fw-bold" onclick="forceReload()">
             <i class="bi bi-arrow-clockwise"></i> アプリを最新に更新
         </button>
@@ -94,35 +99,65 @@
     let curStore = "未設定";
     let scanner = null;
 
-    window.onload = () => { initGPS(); renderHistory(); };
+    window.onload = () => { 
+        initGPS(); 
+        renderHistory(); 
+        // 起動時に過去の店もリストに載せる
+        renderStoreList([]);
+    };
 
-    // --- 【新機能】アプリ強制更新 ---
-    function forceReload() {
-        if(confirm("最新のプログラムを読み込みます。よろしいですか？")) {
-            location.reload(true); // キャッシュを無視してリロード
+    // アイコン更新のためにブラウザで開き直す
+    function updateIconByBrowser() {
+        if(confirm("ブラウザで開き直します。そこで「ホーム画面に追加」をやり直すとアイコンが赤くなります。")) {
+            window.open(window.location.href, '_blank');
         }
     }
 
+    function forceReload() {
+        if(confirm("プログラムを強制更新しますか？")) { location.reload(true); }
+    }
+
     function initGPS() {
+        if (!navigator.geolocation) {
+            document.getElementById('gps-status').innerText = "📍 GPS利用不可";
+            return;
+        }
         navigator.geolocation.getCurrentPosition(async (pos) => {
             document.getElementById('gps-status').innerText = "📍 付近の店舗";
-            const res = await fetch(`https://map.yahooapis.jp/search/local/V1/localSearch?appid=${YAHOO_ID}&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&dist=0.1&output=json`);
-            const data = await res.json();
-            const list = document.getElementById('store-list');
-            list.innerHTML = "";
-            const stores = data.Feature ? data.Feature.map(f => f.Name) : ["その他"];
-            stores.forEach((name, i) => {
-                const span = document.createElement('span');
-                span.className = 'store-tag' + (i===0 ? ' active' : '');
-                span.innerText = name;
-                if(i===0) curStore = name;
-                span.onclick = () => {
-                    document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active'));
-                    span.classList.add('active'); curStore = name;
-                };
-                list.appendChild(span);
-            });
-        }, () => { document.getElementById('gps-status').innerText = "📍 GPS利用不可"; });
+            try {
+                const res = await fetch(`https://map.yahooapis.jp/search/local/V1/localSearch?appid=${YAHOO_ID}&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&dist=0.1&output=json`);
+                const data = await res.json();
+                renderStoreList(data.Feature ? data.Feature.map(f => f.Name) : []);
+            } catch(e) { renderStoreList([]); }
+        }, () => { 
+            document.getElementById('gps-status').innerText = "📍 位置情報を取得できません";
+            renderStoreList([]);
+        });
+    }
+
+    function renderStoreList(nearby) {
+        const list = document.getElementById('store-list');
+        const historyStores = new Set();
+        // 過去のDBから店名を抽出
+        Object.values(db.products).forEach(p => {
+            if(p.history) p.history.forEach(h => historyStores.add(h.store));
+        });
+        
+        const allStores = [...new Set([...nearby, ...historyStores])];
+        if (allStores.length === 0) allStores.push("その他");
+
+        list.innerHTML = "";
+        allStores.forEach((name, i) => {
+            const span = document.createElement('span');
+            span.className = 'store-tag' + (i===0 ? ' active' : '');
+            span.innerText = name;
+            if(i===0) curStore = name;
+            span.onclick = () => {
+                document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active'));
+                span.classList.add('active'); curStore = name;
+            };
+            list.appendChild(span);
+        });
     }
 
     async function openForm(code) {
@@ -147,6 +182,7 @@
         const p = db.products[curBarcode] || { name: "", history: [] };
         p.name = document.getElementById('inputName').value;
         p.image = document.getElementById('previewImg').src;
+        if(!p.history) p.history = [];
         p.history.push({ price: Math.floor(price * 1.08), store: curStore, date: new Date().toLocaleDateString(), ts: Date.now() });
         db.products[curBarcode] = p;
         localStorage.setItem('smart_price_db', JSON.stringify(db));
@@ -156,12 +192,17 @@
     function renderHistory() {
         const list = document.getElementById('historyList'); list.innerHTML = "";
         const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-        items.sort((a,b) => b.history[b.history.length-1].ts - a.history[a.history.length-1].ts);
+        items.sort((a,b) => {
+            const aTs = a.history && a.history.length > 0 ? a.history[a.history.length-1].ts : 0;
+            const bTs = b.history && b.history.length > 0 ? b.history[b.history.length-1].ts : 0;
+            return bTs - aTs;
+        });
         items.forEach(it => {
+            if(!it.history || it.history.length === 0) return;
             const last = it.history[it.history.length-1];
             const div = document.createElement('div'); div.className = 'card p-2';
             div.onclick = () => openForm(it.code);
-            div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image}" style="width:40px;height:40px;object-fit:contain;margin-right:10px;"><div><div class="fw-bold small">${it.name}</div><div class="text-secondary small">${last.store}</div></div><div class="ms-auto text-danger fw-bold">${last.price}円</div></div>`;
+            div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image}" style="width:40px;height:40px;object-fit:contain;margin-right:10px;"><div><div class="fw-bold small text-truncate" style="max-width:200px;">${it.name}</div><div class="text-secondary small">${last.store}</div></div><div class="ms-auto text-danger fw-bold">${last.price}円</div></div>`;
             list.appendChild(div);
         });
     }
