@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v17.3</title>
+    <title>Smart Price v17.4</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -40,7 +40,7 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.3</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.4</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -71,7 +71,7 @@
                 </div>
             </div>
             <div class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;"><input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0"></div>
-            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して同期</button>
+            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">クラウドへ同期保存</button>
             <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
         </div>
     </div>
@@ -79,10 +79,10 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content text-center">
-        <h5 class="text-white mb-4">クラウド同期設定</h5>
+        <h5 class="text-white mb-4">クラウド同期設定 (v17.4)</h5>
         <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com/">
         <button id="migrateBtn" class="btn btn-warning w-100 py-3 fw-bold mb-3 shadow" onclick="startMigration()">
-            <i class="bi bi-lightning-fill"></i> 全データを強制移動
+            <i class="bi bi-lightning-fill"></i> スマホを空にしてクラウドへ移行
         </button>
         <div id="migrateStatus" class="small text-secondary mb-3"></div>
         <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
@@ -97,7 +97,7 @@
     let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
     let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
 
-    window.onload = () => { loadLocal(); renderStoreList(); renderHistory(); if(fbUrl) syncFirebase(); };
+    window.onload = () => { loadLocal(); renderStoreList(); if(fbUrl) syncFirebase(); else renderHistory(); };
 
     function loadLocal() { const saved = localStorage.getItem('smart_price_db'); if (saved) db = JSON.parse(saved); if (!db.products) db.products = {}; }
 
@@ -111,7 +111,14 @@
         try { 
             const res = await fetch(url); 
             const data = await res.json(); 
-            if (data && data.db) { db = data.db; localStorage.setItem('smart_price_db', JSON.stringify(db)); renderHistory(); } 
+            if (data && data.db) { 
+                db = data.db; 
+                // ローカルには「画像以外」の軽いデータだけを念のため残す（メモリ対策）
+                const lightDb = JSON.parse(JSON.stringify(db));
+                Object.values(lightDb.products).forEach(p => { if(p.image && p.image.length > 100) p.image = "cloud_sync"; });
+                localStorage.setItem('smart_price_db', JSON.stringify(lightDb)); 
+                renderHistory(); 
+            } 
         } catch(e) {} 
     }
 
@@ -119,8 +126,9 @@
         const inputUrl = document.getElementById('firebase-url').value.trim();
         if (!inputUrl) return alert("URLを入力してください");
         const status = document.getElementById('migrateStatus');
+        const targetUrl = getFinalUrl(inputUrl);
         try {
-            const res = await fetch(getFinalUrl(inputUrl), { 
+            const res = await fetch(targetUrl, { 
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ db: db }) 
             });
@@ -131,7 +139,6 @@
         } catch(e) { status.innerHTML = `<span class="text-danger">失敗: ${e.message}</span>`; }
     }
 
-    // 画像圧縮処理（安全装置を外しました）
     function handleImage(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -139,12 +146,12 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX = 120; // 画質を少し上げました
+                    const MAX = 150; // クラウド直送なので画質を戻しました
                     let w = img.width, h = img.height;
                     if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; }
                     canvas.width = w; canvas.height = h;
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    tempImgData = canvas.toDataURL('image/jpeg', 0.5); 
+                    tempImgData = canvas.toDataURL('image/jpeg', 0.6); 
                     document.getElementById('previewImg').src = tempImgData;
                 };
                 img.src = e.target.result;
@@ -153,9 +160,11 @@
         }
     }
 
+    // 【重要】スマホ本体のメモリを使わず、クラウドへ直接叩き込む
     async function saveData() {
         const btn = document.getElementById('saveBtn');
         btn.innerText = "同期中..."; btn.disabled = true;
+
         if (!db.products[curBarcode]) db.products[curBarcode] = { history: [] };
         const p = db.products[curBarcode];
         p.name = document.getElementById('inputName').value || "商品名なし";
@@ -166,26 +175,31 @@
 
         try {
             if (fbUrl) {
-                // クラウドへ保存
-                await fetch(getFinalUrl(fbUrl), { 
+                // クラウドを100%信頼して真っ先に保存
+                const res = await fetch(getFinalUrl(fbUrl), { 
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ db: db }) 
                 });
+                if(!res.ok) throw new Error("Cloud Error " + res.status);
+                
+                // クラウド成功時のみ：本体には「画像のない軽いデータ」だけを保存してメモリを1ミリも増やさない
+                const dbForLocal = JSON.parse(JSON.stringify(db));
+                Object.values(dbForLocal.products).forEach(item => {
+                    if(item.image && item.image.length > 100) item.image = "cloud_sync";
+                });
+                localStorage.setItem('smart_price_db', JSON.stringify(dbForLocal));
+                showHome();
+            } else {
+                alert("Firebaseの設定が必要です");
+                btn.innerText = "同期保存"; btn.disabled = false;
             }
-            // クラウド成功時、スマホ本体からは画像を消して軽量化（cloud_syncフラグ）
-            const dbForLocal = JSON.parse(JSON.stringify(db));
-            Object.values(dbForLocal.products).forEach(item => {
-                if(item.image && item.image.startsWith('data:')) item.image = "cloud_sync";
-            });
-            localStorage.setItem('smart_price_db', JSON.stringify(dbForLocal));
-            showHome();
         } catch(e) { 
-            alert("同期失敗！ルールの確認をお願いします。"); 
-            btn.innerText = "保存して同期"; btn.disabled = false; 
+            alert("同期失敗！\n理由: 通信環境またはFirebaseのルール設定を確認してください。"); 
+            btn.innerText = "クラウドへ同期保存"; btn.disabled = false; 
         }
     }
 
-    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image === 'cloud_sync' ? 'https://placehold.jp/24/333/ccc/68x68.png?text=OK' : (it.image || '')}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg}平 / ${low}最</div></div></div>`; list.appendChild(div); }); }
+    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image === 'cloud_sync' ? 'https://placehold.jp/24/333/ccc/68x68.png?text=Cloud' : (it.image || '')}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=Cloud'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg}平 / ${low}最</div></div></div>`; list.appendChild(div); }); }
     function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = (tempImgData === 'cloud_sync' ? '' : tempImgData); }
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
     function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
