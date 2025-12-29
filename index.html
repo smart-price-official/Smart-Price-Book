@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v16.4</title>
+    <title>Smart Price v16.5</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -40,14 +40,20 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v16.4</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v16.5</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
 <div class="store-area"><div id="store-list" class="store-list"></div></div>
 
 <div class="container p-3">
-    <div id="mainView"><div class="row g-2 mb-4"><div class="col-7"><button class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div><div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div></div><div id="historyList"></div></div>
+    <div id="mainView">
+        <div class="row g-2 mb-4">
+            <div class="col-7"><button class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
+            <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
+        </div>
+        <div id="historyList"></div>
+    </div>
 
     <div id="formView" style="display:none;">
         <div class="card p-3 shadow-lg">
@@ -60,10 +66,19 @@
                     </div>
                     <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
                 </div>
-                <div class="flex-grow-1"><input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名"><input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名"></div>
+                <div class="flex-grow-1">
+                    <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名">
+                    <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
+                </div>
             </div>
-            <div class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;"><input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0"></div>
-            <div id="statsBox" class="stats-strip p-2 mb-3 d-flex justify-content-around text-center small shadow-sm" onclick="toggleHistoryList()"><div>最安<br><span id="valLow" class="fw-bold text-danger">--</span></div><div>平均<br><span id="valAvg" class="fw-bold">--</span></div><div>前回<br><span id="valLast" class="fw-bold">--</span></div></div>
+            <div class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;">
+                <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0">
+            </div>
+            <div id="statsBox" class="stats-strip p-2 mb-3 d-flex justify-content-around text-center small shadow-sm" onclick="toggleHistoryList()">
+                <div>最安<br><span id="valLow" class="fw-bold text-danger">--</span></div>
+                <div>平均<br><span id="valAvg" class="fw-bold">--</span></div>
+                <div>前回<br><span id="valLast" class="fw-bold">--</span></div>
+            </div>
             <div id="subHistoryArea" class="mb-3 p-2 bg-dark rounded border border-secondary" style="display:none; max-height:200px; overflow-y:auto;"><div id="subHistoryList"></div></div>
             <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して同期</button>
             <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
@@ -73,11 +88,11 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content">
-        <h5 class="text-white mb-4 text-center">Firebase 接続補正版</h5>
-        <div class="small text-warning mb-2 text-center">コピーしたURLをそのまま貼ってください</div>
-        <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com">
+        <h5 class="text-white mb-4 text-center">Firebase 最終接続設定</h5>
+        <div class="small text-danger mb-2">【重要】URLの最後に「/smart_price.json」を手入力で付け加えてください</div>
+        <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com/smart_price.json">
         <button id="migrateBtn" class="btn btn-warning w-100 py-3 fw-bold mb-3 shadow" onclick="startMigration()">
-            <i class="bi bi-truck"></i> 全画像をクラウドへ移動(メモリ解放)
+            <i class="bi bi-truck"></i> クラウドへ強制移動(メモリ解放)
         </button>
         <div id="migrateStatus" class="small text-center mb-3"></div>
         <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
@@ -100,36 +115,25 @@
         if (!db.products) db.products = {};
     }
 
-    // URLの形式をFirebaseが受け付ける形に自動補正する関数
-    function fixUrl(url) {
-        let clean = url.trim();
-        if (!clean) return "";
-        if (clean.endsWith('/')) clean = clean.slice(0, -1);
-        if (!clean.endsWith('.json')) clean += '/smart_price.json';
-        return clean;
-    }
-
     async function syncFirebase() {
         if (!fbUrl) return;
         try {
-            const res = await fetch(fixUrl(fbUrl));
+            const res = await fetch(fbUrl);
             const data = await res.json();
             if (data) { db = data; localStorage.setItem('smart_price_db', JSON.stringify(db)); renderHistory(); }
         } catch(e) {}
     }
 
+    // 【完全直接モード】自動補正を廃止し、入力値をそのまま通信に使用
     async function startMigration() {
-        const rawUrl = document.getElementById('firebase-url').value;
-        if (!rawUrl) return alert("Firebase URLを先に入力してください");
+        const targetUrl = document.getElementById('firebase-url').value.trim();
+        if (!targetUrl) return alert("Firebase URLを入力してください");
         
         const btn = document.getElementById('migrateBtn');
         const status = document.getElementById('migrateStatus');
-        btn.disabled = true; status.innerHTML = `<span class="text-info">強制接続を試みています...</span>`;
-        
-        const targetUrl = fixUrl(rawUrl);
+        btn.disabled = true; status.innerHTML = `<span class="text-info">指定されたURLに接続中...</span>`;
         
         try {
-            // クラウドへ強制送信
             const res = await fetch(targetUrl, { 
                 method: 'PUT', 
                 body: JSON.stringify(db),
@@ -140,10 +144,10 @@
                 status.innerHTML = `<span class="text-danger">【鍵が閉まっています】Firebase画面の「ルール」を true に書き換えてください。</span>`;
                 btn.disabled = false; return;
             }
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error("HTTP " + res.status);
             
-            // 成功後、スマホ本体の画像を消してメモリを空ける
-            fbUrl = rawUrl; localStorage.setItem('smartPriceFirebaseUrl', rawUrl);
+            // 成功：URLを保存しメモリを解放
+            fbUrl = targetUrl; localStorage.setItem('smartPriceFirebaseUrl', targetUrl);
             const lightDb = JSON.parse(JSON.stringify(db));
             Object.values(lightDb.products).forEach(p => { if(p.image && p.image.startsWith('data:')) p.image = "cloud_sync"; });
             localStorage.setItem('smart_price_db', JSON.stringify(lightDb));
@@ -151,7 +155,7 @@
             status.innerHTML = `<span class="text-success">大成功！スマホの空き容量が復活しました。</span>`;
             setTimeout(() => location.reload(), 2000);
         } catch(e) {
-            status.innerHTML = `<span class="text-danger">接続失敗。URLに間違いがないか、Firebaseのルールを確認してください。</span>`;
+            status.innerHTML = `<span class="text-danger">失敗：${e.message}。URLが「.json」で終わっているか確認してください。</span>`;
             btn.disabled = false;
         }
     }
@@ -166,13 +170,13 @@
         if (pr > 0) p.history.push({ price: Math.floor(pr * 1.08), store: curStore, ts: Date.now() });
 
         try {
-            if (fbUrl) await fetch(fixUrl(fbUrl), { method: 'PUT', body: JSON.stringify(db) });
+            if (fbUrl) await fetch(fbUrl, { method: 'PUT', body: JSON.stringify(db) });
             localStorage.setItem('smart_price_db', JSON.stringify(db));
             showHome();
-        } catch(e) { alert("メモリ不足！設定から『全画像を移動』を成功させてください！"); }
+        } catch(e) { alert("同期エラー。クラウドURLを確認してください。"); }
     }
 
-    // --- UI/描画 ---
+    // --- UI/描画ロジック ---
     function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem; margin-left:2px;">円</span></div><div class="price-sub">${avg} <span style="font-size:0.5rem; color:#888;">平</span> / ${low} <span style="font-size:0.5rem; color:#888;">最</span></div></div></div>`; list.appendChild(div); }); }
     function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || ""; if(p.history?.length) { const prs = p.history.map(h=>h.price); document.getElementById('valLow').innerText = Math.min(...prs)+"円"; document.getElementById('valAvg').innerText = Math.floor(prs.reduce((a,b)=>a+b,0)/prs.length)+"円"; document.getElementById('valLast').innerText = prs[prs.length-1]+"円"; } }
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
