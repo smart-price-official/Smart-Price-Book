@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v15.9</title>
+    <title>Smart Price v16.0</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -33,14 +33,15 @@
         .laser { position: absolute; left: 5%; width: 90%; height: 3px; background: linear-gradient(to right, transparent, #ff0000, transparent); box-shadow: 0 0 15px 3px rgba(255, 0, 0, 0.8); animation: scanning 2s infinite ease-in-out; z-index: 2002; }
         @keyframes scanning { 0% { top: 15%; opacity: 0.2; } 50% { top: 85%; opacity: 1; } 100% { top: 15%; opacity: 0.2; } }
         .form-control-dark { background: #2c2c2c; border: 1px solid #444; color: #fff; border-radius: 8px; padding: 10px; }
-        .stats-strip { background: #eee; color: #333; border-radius: 8px; cursor: pointer; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: #1e1e1e; padding: 25px; border-radius: 20px; width: 95%; max-width: 450px; border: 1px solid #D50000; }
     </style>
 </head>
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v15.9</span></h5>
-    <button class="btn btn-sm btn-outline-light" onclick="location.reload(true)"><i class="bi bi-arrow-clockwise"></i></button>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v16.0</span></h5>
+    <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
 <div class="store-area"><div id="store-list" class="store-list"></div></div>
@@ -70,41 +71,43 @@
                     <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
                 </div>
             </div>
-
             <div class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;">
-                <label class="small text-danger fw-bold">購入価格(税抜)</label>
                 <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0">
             </div>
-
             <div id="statsBox" class="stats-strip p-2 mb-3 d-flex justify-content-around text-center small shadow-sm" onclick="toggleHistoryList()">
                 <div>最安<br><span id="valLow" class="fw-bold text-danger">--</span></div>
                 <div>平均<br><span id="valAvg" class="fw-bold">--</span></div>
                 <div>前回<br><span id="valLast" class="fw-bold">--</span></div>
-                <div class="pt-2"><i class="bi bi-chevron-down"></i></div>
             </div>
-
             <div id="subHistoryArea" class="mb-3 p-2 bg-dark rounded border border-secondary" style="display:none; max-height:200px; overflow-y:auto;"><div id="subHistoryList"></div></div>
-
-            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して戻る</button>
-            <button class="btn btn-outline-secondary w-100 mb-3" onclick="deleteFullItem()">完全に削除</button>
+            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して同期</button>
             <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
         </div>
     </div>
 </div>
 
-<div id="camera-area">
-    <div id="interactive"></div>
-    <div class="scan-frame"><div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div><div class="laser"></div></div>
-    <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg" style="z-index:2005; border-radius:50%; width:50px; height:50px;">×</button>
+<div id="settingsModal" class="modal">
+    <div class="modal-content">
+        <h5 class="text-white mb-4 text-center">Firebase クラウド移行</h5>
+        <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com/">
+        <button id="migrateBtn" class="btn btn-warning w-100 py-3 fw-bold mb-3 shadow" onclick="startMigration()">
+            <i class="bi bi-truck"></i> スマホ内の全画像をクラウドへ移動
+        </button>
+        <div id="migrateStatus" class="small text-center text-secondary mb-3"></div>
+        <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+    </div>
 </div>
+
+<div id="camera-area"><div id="interactive"></div><div class="scan-frame"><div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div><div class="laser"></div></div><button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button></div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
     let db = { products: {} };
     let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null;
+    let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
 
-    window.onload = () => { loadLocal(); renderStoreList(); renderHistory(); };
+    window.onload = () => { loadLocal(); renderStoreList(); renderHistory(); if(fbUrl) syncFirebase(); };
 
     function loadLocal() {
         const saved = localStorage.getItem('smart_price_db');
@@ -112,82 +115,74 @@
         if (!db.products) db.products = {};
     }
 
-    // メモリ限界対策：画像URL入力での代替機能を追加
-    function searchImageWeb() {
-        const name = document.getElementById('inputName').value;
-        const url = prompt("画像のURLを直接貼り付けるとメモリを節約できます（Google画像検索で右クリック→画像アドレスをコピー）", "");
-        if (url && url.startsWith('http')) {
-            tempImgData = url; 
-            document.getElementById('previewImg').src = url;
-            return;
-        }
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(name)}+商品画像&tbm=isch`, '_blank');
+    async function syncFirebase() {
+        if (!fbUrl) return;
+        try {
+            const res = await fetch(fbUrl + 'smart_price.json');
+            const data = await res.json();
+            if (data) { db = data; localStorage.setItem('smart_price_db', JSON.stringify(db)); renderHistory(); }
+        } catch(e) {}
     }
 
-    // アップロード画像の超極限圧縮 (80px x 80px)
-    function handleImage(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX = 80; // 80pxまで落とす（メモリ最優先）
-                    let w = img.width, h = img.height;
-                    if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; }
-                    canvas.width = w; canvas.height = h;
-                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    tempImgData = canvas.toDataURL('image/jpeg', 0.4); // 品質40%
-                    document.getElementById('previewImg').src = tempImgData;
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
+    // 【新機能】全画像強制移行エンジン
+    async function startMigration() {
+        if (!fbUrl) return alert("先にFirebase URLを入力して保存してください");
+        const btn = document.getElementById('migrateBtn');
+        const status = document.getElementById('migrateStatus');
+        btn.disabled = true;
+        
+        let count = 0;
+        const total = Object.keys(db.products).length;
+        
+        status.innerText = "移行を開始します...";
+        
+        try {
+            // Firebaseに現在の全データを一度アップロード
+            const res = await fetch(fbUrl + 'smart_price.json', { method: 'PUT', body: JSON.stringify(db) });
+            if (!res.ok) throw new Error();
+            
+            // 成功したら、ローカル保存用のデータから「画像の実体」を削除して軽量化
+            // (Firebase側には画像が残るが、localStorageからは消える)
+            const lightDb = JSON.parse(JSON.stringify(db));
+            Object.values(lightDb.products).forEach(p => { if(p.image && p.image.startsWith('data:')) p.image = "cloud_sync"; });
+            
+            localStorage.setItem('smart_price_db', JSON.stringify(lightDb));
+            status.innerHTML = `<span class="text-success">成功！スマホのメモリを解放しました。</span>`;
+            setTimeout(() => location.reload(), 2000);
+        } catch(e) {
+            status.innerHTML = `<span class="text-danger">エラー：Firebaseの設定を確認してください</span>`;
+            btn.disabled = false;
         }
     }
 
     async function saveData() {
         if (!db.products[curBarcode]) db.products[curBarcode] = { history: [] };
         const p = db.products[curBarcode];
-        p.name = document.getElementById('inputName').value || "名称未設定";
-        p.maker = document.getElementById('inputMaker').value || "";
-        p.image = tempImgData || p.image || "";
+        p.name = document.getElementById('inputName').value;
+        p.maker = document.getElementById('inputMaker').value;
+        p.image = tempImgData || p.image;
         const pr = document.getElementById('inputPrice').value;
         if (pr > 0) p.history.push({ price: Math.floor(pr * 1.08), store: curStore, ts: Date.now() });
 
         try {
+            if (fbUrl) await fetch(fbUrl + 'smart_price.json', { method: 'PUT', body: JSON.stringify(db) });
             localStorage.setItem('smart_price_db', JSON.stringify(db));
-            setTimeout(() => { showHome(); }, 150);
-        } catch(e) {
-            alert("やはりメモリが限界です！古い商品を3つほど『完全に削除』してください。その後、Firebaseの設定を強くおすすめします。");
-        }
+            showHome();
+        } catch(e) { alert("メモリ限界です！設定画面から『全画像を移動』ボタンを押してください！"); }
     }
 
-    function renderHistory() {
-        const list = document.getElementById('historyList'); list.innerHTML = "";
-        const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-        items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0));
-        items.forEach(it => {
-            if (!it.history?.length) return;
-            const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1];
-            const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices);
-            const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`;
-            div.onclick = () => openForm(it.code);
-            div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem; margin-left:2px;">円</span></div><div class="price-sub">${avg} <span style="font-size:0.5rem; color:#888;">平</span> / ${low} <span style="font-size:0.5rem; color:#888;">最</span></div></div></div>`;
-            list.appendChild(div);
-        });
-    }
-
+    // --- UI制御 ---
+    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg} <span style="font-size:0.5rem; color:#888;">平</span> / ${low} <span style="font-size:0.5rem; color:#888;">最</span></div></div></div>`; list.appendChild(div); }); }
+    function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || ""; document.getElementById('subHistoryArea').style.display='none'; if(p.history?.length) { const prs = p.history.map(h=>h.price); document.getElementById('valLow').innerText = Math.min(...prs)+"円"; document.getElementById('valAvg').innerText = Math.floor(prs.reduce((a,b)=>a+b,0)/prs.length)+"円"; document.getElementById('valLast').innerText = prs[prs.length-1]+"円"; } }
+    function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
+    function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
+    function saveSettings() { let url = document.getElementById('firebase-url').value.trim(); if(url && !url.endsWith('/')) url += '/'; localStorage.setItem('smartPriceFirebaseUrl', url); location.reload(); }
+    function showHome() { document.getElementById('mainView').style.display='block'; document.getElementById('formView').style.display='none'; renderHistory(); renderStoreList(); }
     function startScanner() { document.getElementById('camera-area').style.display='block'; if(!scanner) scanner = new Html5Qrcode("interactive"); scanner.start({facingMode:"environment"},{fps:15,qrbox:{width:280,height:180}},(t)=>{stopScanner();openForm(t);}).catch(()=>stopScanner()); }
     function stopScanner() { if(scanner) scanner.stop().then(()=>{document.getElementById('camera-area').style.display='none';}); else document.getElementById('camera-area').style.display='none'; }
-    function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || ""; document.getElementById('subHistoryArea').style.display='none'; updateStats(p); }
-    function updateStats(p) { if(p.history?.length) { const prices = p.history.map(h => h.price); document.getElementById('valLow').innerText = Math.min(...prices) + "円"; document.getElementById('valAvg').innerText = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length) + "円"; document.getElementById('valLast').innerText = prices[prices.length-1] + "円"; } }
-    function toggleHistoryList() { const area = document.getElementById('subHistoryArea'); area.style.display = (area.style.display==='none')?'block':'none'; if(area.style.display==='block') renderSubHistory(); }
-    function renderSubHistory() { const container = document.getElementById('subHistoryList'); container.innerHTML = ""; db.products[curBarcode].history.slice().reverse().forEach((h, i) => { const div = document.createElement('div'); div.className = "history-item d-flex justify-content-between small"; div.innerHTML = `<span>${h.price}円 (@${h.store})</span> <button class="btn btn-sm text-danger p-0" onclick="deleteHistoryEntry(${db.products[curBarcode].history.length-1-i})"><i class="bi bi-trash"></i></button>`; container.appendChild(div); }); }
-    function deleteHistoryEntry(idx) { if(confirm("削除？")) { db.products[curBarcode].history.splice(idx,1); saveData(); } }
-    function deleteFullItem() { if(confirm("全削除？")) { delete db.products[curBarcode]; saveData(); } }
     function renderStoreList() { const list = document.getElementById('store-list'); const historyStores = new Set(); Object.values(db.products).forEach(p => p.history?.forEach(h => { if(h.store) historyStores.add(h.store); })); const allStores = ["未設定", ...historyStores]; list.innerHTML = ""; [...new Set(allStores)].forEach(name => { const span = document.createElement('span'); span.className = 'store-tag' + (name === curStore ? ' active' : ''); span.innerText = name; span.onclick = () => { document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active')); span.classList.add('active'); curStore = name; }; list.appendChild(span); }); }
-    function showHome() { document.getElementById('mainView').style.display='block'; document.getElementById('formView').style.display='none'; renderHistory(); renderStoreList(); }
+    function handleImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX = 100; let w = img.width, h = img.height; if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); tempImgData = canvas.toDataURL('image/jpeg', 0.4); document.getElementById('previewImg').src = tempImgData; }; img.src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
+    function searchImageWeb() { window.open(`https://www.google.com/search?q=${encodeURIComponent(document.getElementById('inputName').value)}+商品画像&tbm=isch`, '_blank'); }
     function showVeggieMenu() { const v = prompt("商品名"); if(v) openForm("M_"+v, v); }
 </script>
 </body>
