@@ -3,21 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Price #01 (V17.3 Restore)</title>
+    <title>Smart Price #01</title>
     <style>
-        :root { --neon-blue: #00f3ff; --bg-dark: #121212; --card-bg: #1e1e1e; }
-        body { font-family: sans-serif; background-color: var(--bg-dark); color: #fff; margin: 0; padding: 20px; }
-        .container { width: 100%; max-width: 600px; margin: 0 auto; }
-        .header { text-align: center; border-bottom: 2px solid var(--neon-blue); margin-bottom: 30px; padding: 15px 0; }
+        :root {
+            --neon-blue: #00f3ff;
+            --bg-dark: #121212;
+            --card-bg: #1e1e1e;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue);
+            margin-bottom: 30px;
+        }
         h1 { margin: 0; font-size: 1.5rem; color: var(--neon-blue); }
-        
-        .form-group { background: var(--card-bg); padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        
-        .file-input-wrapper { margin: 10px 0; }
-        button { width: 100%; padding: 15px; background: var(--neon-blue); color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        
-        #listArea { margin-top: 30px; width: 100%; }
+        .form-group {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: var(--neon-blue);
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            box-shadow: 0 0 15px var(--neon-blue);
+            opacity: 0.9;
+        }
+        #listArea {
+            margin-top: 30px;
+            width: 100%;
+        }
         .item-card {
             background: var(--card-bg);
             padding: 15px;
@@ -27,24 +78,29 @@
             display: flex;
             align-items: center;
         }
-        .thumbnail { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; margin-right: 15px; border: 1px solid var(--neon-blue); }
+        .thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 15px;
+            border: 1px solid var(--neon-blue);
+        }
         .item-info { flex-grow: 1; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header"><h1>SMART PRICE #01</h1></div>
+    <div class="header">
+        <h1>SMART PRICE #01</h1>
+    </div>
 
     <div class="form-group">
         <input type="text" id="itemName" placeholder="商品名">
         <input type="text" id="maker" placeholder="メーカー">
         <input type="number" id="price" placeholder="価格 (円)">
-        
-        <div class="file-input-wrapper">
-            <input type="file" id="imageInput" accept="image/*">
-        </div>
-
+        <input type="file" id="imageInput" accept="image/*">
         <button onclick="addItem()">データを登録する</button>
     </div>
 
@@ -54,7 +110,7 @@
 <script>
     let currentImage = "";
 
-    // 画像圧縮処理（OSのメモリ制限対策）
+    // 画像選択時の処理（内部リサイズでメモリ対策）
     document.getElementById('imageInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -64,11 +120,10 @@
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 400; // 軽量化
+                const MAX_WIDTH = 400; 
                 const scale = MAX_WIDTH / img.width;
                 canvas.width = MAX_WIDTH;
                 canvas.height = img.height * scale;
-
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 currentImage = canvas.toDataURL('image/jpeg', 0.6);
@@ -85,7 +140,7 @@
         const date = new Date().toLocaleDateString();
 
         if(!name || !price) {
-            alert("未入力項目があります");
+            alert("商品名と価格を入力してください");
             return;
         }
 
@@ -93,10 +148,12 @@
         const card = document.createElement('div');
         card.className = 'item-card';
         
-        const imgHtml = currentImage ? `<img src="${currentImage}" class="thumbnail">` : `<div class="thumbnail" style="background:#333;"></div>`;
+        const imgPart = currentImage 
+            ? `<img src="${currentImage}" class="thumbnail">` 
+            : `<div class="thumbnail" style="background:#333;"></div>`;
 
         card.innerHTML = `
-            ${imgHtml}
+            ${imgPart}
             <div class="item-info">
                 <strong>${name}</strong> (${maker})<br>
                 価格: ¥${Number(price).toLocaleString()} <small style="float:right;">${date}</small>
@@ -105,7 +162,7 @@
 
         listArea.prepend(card);
 
-        // クリア
+        // 入力フォームのクリア
         document.getElementById('itemName').value = '';
         document.getElementById('maker').value = '';
         document.getElementById('price').value = '';
