@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v12.7</title>
+    <title>Smart Price v12.8</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -31,7 +31,7 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v12.7</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v12.8</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -78,14 +78,14 @@
 
             <div id="subHistoryArea" class="mb-3 p-2 bg-dark rounded border border-secondary" style="display:none; max-height:250px; overflow-y:auto;"><div id="subHistoryList"></div></div>
 
-            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3" onclick="saveData()">保存して戻る</button>
+            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して戻る</button>
             <button class="btn btn-outline-secondary w-100 mb-3" onclick="deleteFullItem()">完全に削除</button>
             <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
         </div>
     </div>
 </div>
 
-<div id="settingsModal" class="modal"><div class="modal-content text-center"><h5 class="text-white mb-4">Firebase設定</h5><input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://〜.firebaseio.com/"><button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">保存</button><button class="btn btn-link text-secondary mt-2" onclick="closeSettings()">閉じる</button></div></div>
+<div id="settingsModal" class="modal"><div class="modal-content text-center"><h5 class="text-white mb-4">Firebase クラウド設定</h5><input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://xxx.firebaseio.com/"><button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">設定を保存</button><button class="btn btn-link text-secondary mt-2" onclick="closeSettings()">閉じる</button></div></div>
 
 <script>
     let db = { products: {} };
@@ -105,7 +105,7 @@
             const res = await fetch(fbUrl + 'smart_price.json');
             const data = await res.json();
             if (data) { db = data; renderHistory(); renderStoreList(); }
-        } catch(e) {}
+        } catch(e) { console.warn("Firebase URL error"); }
     }
 
     function saveSettings() {
@@ -117,7 +117,7 @@
 
     async function saveData() {
         const btn = document.getElementById('saveBtn');
-        btn.innerText = "保存中..."; btn.disabled = true;
+        btn.innerText = "クラウドへ送信中..."; btn.disabled = true;
 
         if (!db.products[curBarcode]) db.products[curBarcode] = { history: [] };
         const p = db.products[curBarcode];
@@ -131,19 +131,21 @@
         }
 
         try {
-            // 【新機能】保存の直前に不要な一時ファイルを掃除して容量を空ける試み
+            // クラウド保存を優先
             if (fbUrl) {
-                await fetch(fbUrl + 'smart_price.json', { method: 'PUT', body: JSON.stringify(db) });
+                const res = await fetch(fbUrl + 'smart_price.json', { method: 'PUT', body: JSON.stringify(db) });
+                if(!res.ok) throw new Error();
             }
-            localStorage.setItem('smart_price_db', JSON.stringify(db));
+            // スマホ本体への保存（容量があれば）
+            try { localStorage.setItem('smart_price_db', JSON.stringify(db)); } catch(e) {}
             showHome();
         } catch(e) {
-            alert("本体容量がいっぱいです。商品を2〜3点『完全に削除』して整理してください。");
+            alert("保存エラー：Firebaseの設定画面で『ルール』が true になっているか確認してください。");
             btn.innerText = "保存して戻る"; btn.disabled = false;
         }
     }
 
-    // --- UI/基本機能 ---
+    // --- UI制御ロジック ---
     function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/60x60.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="text-white fw-bold fs-5">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="text-danger fw-bold" style="font-size:0.75rem; border-top:1px solid #444; margin-top:2px;">${avg}<span style="font-size:0.5rem; color:#888;">平</span> / ${low}<span style="font-size:0.5rem; color:#888;">最</span></div></div></div>`; list.appendChild(div); }); }
     function openForm(code, nameHint = "") { curBarcode = code; const p = db.products[code] || { name: nameHint || "", maker: "", history: [], image: "" }; document.getElementById('mainView').style.display = 'none'; document.getElementById('formView').style.display = 'block'; document.getElementById('inputName').value = p.name; document.getElementById('inputMaker').value = p.maker; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || "https://placehold.jp/24/333/ccc/80x80.png?text=なし"; document.getElementById('subHistoryArea').style.display = 'none'; updateStats(p); }
     function updateStats(p) { if (p.history?.length > 0) { const prices = p.history.map(h => h.price).filter(v => v > 0); document.getElementById('valLow').innerText = Math.min(...prices) + "円"; document.getElementById('valAvg').innerText = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length) + "円"; document.getElementById('valLast').innerText = prices[prices.length-1] + "円"; } }
@@ -159,7 +161,7 @@
     function handleImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX = 150; let w = img.width, h = img.height; if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); tempImgData = canvas.toDataURL('image/jpeg', 0.5); document.getElementById('previewImg').src = tempImgData; }; img.src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
     function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
-    function showVeggieMenu() { alert("準備中"); }
+    function showVeggieMenu() { alert("野菜メニュー準備中"); }
 </script>
 </body>
 </html>
