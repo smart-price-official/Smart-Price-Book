@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v17.2</title>
+    <title>Smart Price v17.3</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -40,7 +40,7 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.2</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v17.3</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -79,7 +79,7 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-content text-center">
-        <h5 class="text-white mb-4">Firebase 高速同期設定</h5>
+        <h5 class="text-white mb-4">クラウド同期設定</h5>
         <input type="text" id="firebase-url" class="form-control-dark w-100 mb-3" placeholder="https://xxx.firebaseio.com/">
         <button id="migrateBtn" class="btn btn-warning w-100 py-3 fw-bold mb-3 shadow" onclick="startMigration()">
             <i class="bi bi-lightning-fill"></i> 全データを強制移動
@@ -111,11 +111,7 @@
         try { 
             const res = await fetch(url); 
             const data = await res.json(); 
-            if (data && data.db) { 
-                db = data.db; 
-                localStorage.setItem('smart_price_db', JSON.stringify(db)); 
-                renderHistory(); 
-            } 
+            if (data && data.db) { db = data.db; localStorage.setItem('smart_price_db', JSON.stringify(db)); renderHistory(); } 
         } catch(e) {} 
     }
 
@@ -123,11 +119,9 @@
         const inputUrl = document.getElementById('firebase-url').value.trim();
         if (!inputUrl) return alert("URLを入力してください");
         const status = document.getElementById('migrateStatus');
-        const targetUrl = getFinalUrl(inputUrl);
         try {
-            const res = await fetch(targetUrl, { 
-                method: 'PUT', 
-                headers: { 'Content-Type': 'application/json' },
+            const res = await fetch(getFinalUrl(inputUrl), { 
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ db: db }) 
             });
             if (!res.ok) throw new Error("HTTP " + res.status);
@@ -137,7 +131,7 @@
         } catch(e) { status.innerHTML = `<span class="text-danger">失敗: ${e.message}</span>`; }
     }
 
-    // 【軽量化】画像をさらに小さく、品質を落としてFirebaseの制限を回避
+    // 画像圧縮処理（安全装置を外しました）
     function handleImage(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -145,12 +139,12 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX = 60; // 60pxまで極限圧縮（メモリと通信を最優先）
+                    const MAX = 120; // 画質を少し上げました
                     let w = img.width, h = img.height;
                     if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; }
                     canvas.width = w; canvas.height = h;
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    tempImgData = canvas.toDataURL('image/jpeg', 0.3); // 品質30%
+                    tempImgData = canvas.toDataURL('image/jpeg', 0.5); 
                     document.getElementById('previewImg').src = tempImgData;
                 };
                 img.src = e.target.result;
@@ -172,23 +166,27 @@
 
         try {
             if (fbUrl) {
-                const res = await fetch(getFinalUrl(fbUrl), { 
-                    method: 'PUT', 
-                    headers: { 'Content-Type': 'application/json' },
+                // クラウドへ保存
+                await fetch(getFinalUrl(fbUrl), { 
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ db: db }) 
                 });
-                if(!res.ok) throw new Error("Status " + res.status);
             }
-            localStorage.setItem('smart_price_db', JSON.stringify(db));
+            // クラウド成功時、スマホ本体からは画像を消して軽量化（cloud_syncフラグ）
+            const dbForLocal = JSON.parse(JSON.stringify(db));
+            Object.values(dbForLocal.products).forEach(item => {
+                if(item.image && item.image.startsWith('data:')) item.image = "cloud_sync";
+            });
+            localStorage.setItem('smart_price_db', JSON.stringify(dbForLocal));
             showHome();
         } catch(e) { 
-            alert("同期失敗！\n画像が大きすぎます。もっと小さな画像を使うか、Web検索画像を使ってください。"); 
+            alert("同期失敗！ルールの確認をお願いします。"); 
             btn.innerText = "保存して同期"; btn.disabled = false; 
         }
     }
 
-    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg}平 / ${low}最</div></div></div>`; list.appendChild(div); }); }
-    function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || ""; }
+    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image === 'cloud_sync' ? 'https://placehold.jp/24/333/ccc/68x68.png?text=OK' : (it.image || '')}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/68x68.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="price-sub">${avg}平 / ${low}最</div></div></div>`; list.appendChild(div); }); }
+    function openForm(code) { curBarcode = code; const p = db.products[code] || { history: [] }; document.getElementById('mainView').style.display='none'; document.getElementById('formView').style.display='block'; document.getElementById('inputName').value = p.name || ""; document.getElementById('inputMaker').value = p.maker || ""; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = (tempImgData === 'cloud_sync' ? '' : tempImgData); }
     function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
     function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
     function showHome() { document.getElementById('mainView').style.display='block'; document.getElementById('formView').style.display='none'; renderHistory(); renderStoreList(); }
