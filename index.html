@@ -3,64 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Price v17.5</title>
+    <title>Smart Price v17.6</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         body { font-family: sans-serif; background-color: #000000; color: #ffffff; padding: 15px; }
         .header { border-bottom: 3px solid #D50000; margin-bottom: 20px; padding-bottom: 10px; }
         h1 { color: #D50000; font-weight: bold; font-size: 1.6rem; margin: 0; }
+        
+        /* v13.0 伝統の1画面パネル形式 */
         .glass-panel { background: #1a1a1a; padding: 20px; border-radius: 4px; border: 1px solid #333; margin-bottom: 25px; }
         .form-label-custom { color: #bbb; font-size: 0.8rem; margin-bottom: 5px; }
         input { width: 100%; padding: 12px; margin: 8px 0; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
         input:focus { border-color: #D50000; outline: none; }
+        
+        /* アクションボタン：v13.0の配置を復元 */
         .action-row { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
-        .btn-red { flex: 1; background: #D50000; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; }
-        .btn-dark-custom { flex: 1; background: #333; color: white; border: 1px solid #444; padding: 12px; border-radius: 4px; }
+        .btn-red { flex: 1; background: #D50000; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; height: 50px; }
+        .btn-dark-custom { flex: 1; background: #333; color: white; border: 1px solid #444; padding: 12px; border-radius: 4px; display: flex; align-items: center; justify-content: center; height: 50px; cursor: pointer; }
+        
         #preview-box { width: 60px; height: 60px; background: #000; border: 1px dashed #D50000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        #preview-img { width: 100%; height: 100%; object-fit: contain; }
+        #preview-img { width: 100%; height: 100%; object-fit: contain; display: none; }
+
+        /* リスト表示 */
         .item-card { background: #1a1a1a; display: flex; border-radius: 4px; margin-bottom: 15px; border: 1px solid #333; overflow: hidden; }
         .card-img { width: 90px; height: 90px; border-right: 2px solid #D50000; object-fit: contain; background: #fff; }
         .card-body { flex: 1; padding: 10px 15px; }
         .mkr { color: #bbb; font-size: 0.8rem; }
         .name { font-size: 1.1rem; font-weight: bold; margin: 2px 0; color: #fff; }
         .prc { color: #D50000; font-size: 1.4rem; font-weight: bold; }
+
         #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
         #interactive { width: 100%; height: 100%; }
-        .settings-btn { position: absolute; top: 15px; right: 15px; color: #333; font-size: 1.5rem; }
+        .settings-btn { position: absolute; top: 15px; right: 15px; color: #333; font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="header d-flex justify-content-between align-items-center">
-        <h1>Smart Price v17.5</h1>
+        <h1>Smart Price v17.6</h1>
         <i class="bi bi-gear-fill settings-btn" onclick="openSettings()"></i>
     </div>
+
     <div class="glass-panel">
-        <div class="form-label-custom">INPUT DATA (Last Update: 2025-12-30 23:35)</div>
+        <div class="form-label-custom">INPUT DATA (Last Update: 2025-12-31 00:08)</div>
         <input type="text" id="itemName" placeholder="商品名を入力">
         <input type="text" id="maker" placeholder="メーカー・店舗">
         <input type="number" id="price" placeholder="価格 (円)">
+        
         <div class="action-row">
             <button class="btn-red" onclick="startScanner()"><i class="bi bi-upc-scan"></i> スキャン</button>
-            <label class="btn-dark-custom" style="text-align:center;">📷 写真<input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImage(this)"></label>
-            <div id="preview-box"><img id="preview-img" src=""></div>
+            <label class="btn-dark-custom">
+                📷 写真
+                <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
+            </label>
+            <div id="preview-box">
+                <img id="preview-img" src="">
+            </div>
         </div>
+
         <button class="btn-red w-100 py-3 mt-2" onclick="saveData()" style="font-size:1.2rem;">リストに追加して同期</button>
     </div>
-    <div id="listArea"></div>
+
+    <div id="listArea">
+        </div>
 </div>
-<div id="camera-area"><div id="interactive"></div><button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4">×</button></div>
+
+<div id="camera-area">
+    <div id="interactive"></div>
+    <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3">×</button>
+</div>
+
 <div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; align-items:center; justify-content:center;">
     <div style="background:#1a1a1a; padding:20px; border-radius:10px; width:90%; border:1px solid #D50000;">
-        <h5 class="text-white">Firebase URL (wit-ai-apps)</h5>
-        <input type="text" id="firebase-url" placeholder="https://xxx.firebaseio.com/">
-        <button class="btn btn-danger w-100 mt-3" onclick="closeSettings()">閉じる</button>
+        <h5 class="text-white">Firebase URL (wit-ai-apps用)</h5>
+        <input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary" placeholder="https://xxx.firebaseio.com/">
+        <button class="btn btn-danger w-100 mt-3" onclick="closeSettings()">設定を閉じて反映</button>
     </div>
 </div>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    /* Internal Logic Refinement: 17.5.202512302335 */
+    /* Internal Engine v17.6 */
     let db = { products: {} };
     let curBarcode = "MANUAL_" + Date.now();
     let tempImgData = "";
@@ -68,18 +93,23 @@
     let scanner = null;
 
     window.onload = () => { loadLocal(); if(fbUrl) syncFirebase(); renderHistory(); };
-    function loadLocal() { const saved = localStorage.getItem('smart_price_db'); if (saved) { try { db = JSON.parse(saved); } catch(e) { console.error("Data corruption"); } } }
-    function getSafeFbUrl(url) { if(!url) return ""; let clean = url.trim().replace(/\/+$/, ""); return clean.endsWith(".json") ? clean : clean + "/db.json"; }
+
+    function loadLocal() { const saved = localStorage.getItem('smart_price_db'); if (saved) { try { db = JSON.parse(saved); } catch(e) { console.error("Load Error"); } } }
+    
+    function getSafeFbUrl(url) { 
+        if(!url) return ""; 
+        let clean = url.trim().replace(/\/+$/, ""); 
+        return clean.endsWith(".json") ? clean : clean + "/db.json"; 
+    }
 
     async function syncFirebase() {
         const target = getSafeFbUrl(fbUrl);
         if (!target) return;
         try {
             const res = await fetch(target);
-            if (!res.ok) return;
             const data = await res.json();
             if (data && data.db) { db = data.db; renderHistory(); }
-        } catch(e) { console.warn("Firebase Offline: v17.5"); }
+        } catch(e) { console.warn("Offline Mode"); }
     }
 
     function handleImage(input) {
@@ -93,12 +123,11 @@
                     let w = img.width, h = img.height;
                     if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; }
                     canvas.width = w; canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                     tempImgData = canvas.toDataURL('image/jpeg', 0.6);
-                    document.getElementById('preview-img').src = tempImgData;
-                    // Memory Cleanup
-                    canvas.width = canvas.height = 0;
+                    const pImg = document.getElementById('preview-img');
+                    pImg.src = tempImgData;
+                    pImg.style.display = 'block';
                 };
                 img.src = e.target.result;
             };
@@ -110,23 +139,31 @@
         const name = document.getElementById('itemName').value;
         const price = document.getElementById('price').value;
         const maker = document.getElementById('maker').value || "---";
-        if (!name || !price) { alert("入力してください"); return; }
+
+        if (!name || !price) { alert("商品名と価格は必須です"); return; }
+
         if (!db.products[curBarcode]) db.products[curBarcode] = { history: [] };
         const p = db.products[curBarcode];
-        p.name = name; p.maker = maker;
+        p.name = name;
+        p.maker = maker;
         p.image = tempImgData || p.image;
         p.history.push({ price: Number(price), ts: Date.now() });
+
         localStorage.setItem('smart_price_db', JSON.stringify(db));
+        
         const target = getSafeFbUrl(fbUrl);
         if (target) {
             try {
-                const res = await fetch(target, { method: 'PUT', body: JSON.stringify({ db: db }) });
-                if(!res.ok) throw new Error();
-            } catch(e) { console.error("Cloud save failed, local only."); }
+                await fetch(target, { method: 'PUT', body: JSON.stringify({ db: db }) });
+            } catch(e) { console.error("Cloud Sync Failed"); }
         }
+
         renderHistory();
-        document.getElementById('itemName').value = ""; document.getElementById('price').value = "";
-        document.getElementById('preview-img').src = ""; tempImgData = "";
+        // 入力クリア：v13.0のアクション通り
+        document.getElementById('itemName').value = "";
+        document.getElementById('price').value = "";
+        document.getElementById('preview-img').style.display = 'none';
+        tempImgData = "";
         curBarcode = "MANUAL_" + Date.now();
     }
 
@@ -134,13 +171,26 @@
         const list = document.getElementById('listArea');
         list.innerHTML = "";
         const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-        items.sort((a,b) => (b.history[b.history.length-1]?.ts || 0) - (a.history[a.history.length-1]?.ts || 0));
+        // 新しい順に並び替え
+        items.sort((a,b) => {
+            const aTs = a.history[a.history.length-1]?.ts || 0;
+            const bTs = b.history[b.history.length-1]?.ts || 0;
+            return bTs - aTs;
+        });
+
         items.forEach(it => {
             const last = it.history[it.history.length-1];
             if(!last) return;
             const div = document.createElement('div');
             div.className = 'item-card';
-            div.innerHTML = `<img src="${it.image || ''}" class="card-img" onerror="this.src='https://placehold.jp/24/333/ccc/90x90.png?text=NoImage'"><div class="card-body"><div class="mkr">${it.maker}</div><div class="name">${it.name}</div><div class="prc">¥${last.price.toLocaleString()}</div></div>`;
+            div.innerHTML = `
+                <img src="${it.image || ''}" class="card-img" onerror="this.src='https://placehold.jp/24/333/ccc/90x90.png?text=NoImage'">
+                <div class="card-body">
+                    <div class="mkr">${it.maker}</div>
+                    <div class="name">${it.name}</div>
+                    <div class="prc">¥${last.price.toLocaleString()}</div>
+                </div>
+            `;
             list.appendChild(div);
         });
     }
@@ -149,21 +199,8 @@
         document.getElementById('camera-area').style.display='block';
         if(!scanner) scanner = new Html5Qrcode("interactive");
         scanner.start({facingMode:"environment"},{fps:10,qrbox:250},(t)=>{
-            curBarcode = t; stopScanner();
+            curBarcode = t;
+            stopScanner();
             if(db.products[t]) {
                 document.getElementById('itemName').value = db.products[t].name;
-                document.getElementById('maker').value = db.products[t].maker;
-            }
-        }).catch(()=>stopScanner());
-    }
-    function stopScanner() { if(scanner) { scanner.stop().catch(()=>{}); } document.getElementById('camera-area').style.display='none'; }
-    function openSettings() { document.getElementById('settingsModal').style.display='flex'; }
-    function closeSettings() { 
-        fbUrl = document.getElementById('firebase-url').value;
-        localStorage.setItem('smartPriceFirebaseUrl', fbUrl);
-        document.getElementById('settingsModal').style.display='none'; 
-        syncFirebase();
-    }
-</script>
-</body>
-</html>
+                document.getElementById('maker').value = db.products[t].maker
