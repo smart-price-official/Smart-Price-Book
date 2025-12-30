@@ -3,167 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#D50000">
-    <title>Smart Price v13.0</title>
+    <title>Smart Price v17.4</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-        body { font-family: sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; }
-        .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
-        .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 55px; }
-        .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; }
-        .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
-        .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
-        .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 10px; border-radius: 10px; overflow: hidden; }
-        .price-card { padding: 12px; border-left: 5px solid #444; }
-        .price-card.cheap { border-left-color: #ff5252; background: linear-gradient(90deg, #2a1a1a 0%, #1e1e1e 100%); }
-        .prod-thumb { width: 65px; height: 65px; object-fit: contain; background: #fff; border-radius: 8px; margin-right: 12px; }
-        .stats-strip { background: #eee; color: #333; border-radius: 8px; cursor: pointer; }
-        .history-item { border-bottom: 1px solid #444; padding: 10px 5px; color: #fff; }
-        .btn-discount { border: 1px solid #D50000; color: #ff5252; background: none; font-size: 0.8rem; padding: 5px 10px; border-radius: 5px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
-        .modal-content { background: #1e1e1e; padding: 20px; border-radius: 20px; width: 95%; max-width: 500px; border: 1px solid #D50000; }
+        body { font-family: sans-serif; background-color: #000000; color: #ffffff; padding: 15px; }
+        .header { border-bottom: 3px solid #D50000; margin-bottom: 20px; padding-bottom: 10px; }
+        h1 { color: #D50000; font-weight: bold; font-size: 1.6rem; margin: 0; }
+        .glass-panel { background: #1a1a1a; padding: 20px; border-radius: 4px; border: 1px solid #333; margin-bottom: 25px; }
+        .form-label-custom { color: #bbb; font-size: 0.8rem; margin-bottom: 5px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        input:focus { border-color: #D50000; outline: none; }
+        .action-row { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
+        .btn-red { flex: 1; background: #D50000; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; }
+        .btn-dark-custom { flex: 1; background: #333; color: white; border: 1px solid #444; padding: 12px; border-radius: 4px; }
+        #preview-box { width: 60px; height: 60px; background: #000; border: 1px dashed #D50000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #preview-img { width: 100%; height: 100%; object-fit: contain; }
+        .item-card { background: #1a1a1a; display: flex; border-radius: 4px; margin-bottom: 15px; border: 1px solid #333; overflow: hidden; }
+        .card-img { width: 90px; height: 90px; border-right: 2px solid #D50000; object-fit: contain; background: #fff; }
+        .card-body { flex: 1; padding: 10px 15px; }
+        .mkr { color: #bbb; font-size: 0.8rem; }
+        .name { font-size: 1.1rem; font-weight: bold; margin: 2px 0; color: #fff; }
+        .prc { color: #D50000; font-size: 1.4rem; font-weight: bold; }
+        #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
+        #interactive { width: 100%; height: 100%; }
+        .settings-btn { position: absolute; top: 15px; right: 15px; color: #333; font-size: 1.5rem; }
     </style>
 </head>
 <body>
-
-<header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v13.0</span></h5>
-    <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
-</header>
-
-<div class="store-area"><div id="store-list" class="store-list"></div></div>
-
-<div class="container p-3">
-    <div id="mainView">
-        <div class="row g-2 mb-4">
-            <div class="col-7"><button class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="alert('スキャン')"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
-            <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
-        </div>
-        <div id="historyList"></div>
+<div class="container">
+    <div class="header d-flex justify-content-between align-items-center">
+        <h1>Smart Price v17.4</h1>
+        <i class="bi bi-gear-fill settings-btn" onclick="openSettings()"></i>
     </div>
-
-    <div id="formView" style="display:none;">
-        <div class="card p-3 shadow-lg">
-            <div class="d-flex mb-3">
-                <div style="position:relative; width:90px; height:90px; margin-right:12px;">
-                    <img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;">
-                    <div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
-                        <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
-                        <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
-                    </div>
-                    <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
-                </div>
-                <div class="flex-grow-1">
-                    <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名">
-                    <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
-                </div>
-            </div>
-
-            <div class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;">
-                <label class="small text-danger fw-bold">購入価格(税抜)</label>
-                <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0" oninput="calcTax()">
-                <div id="taxResult" class="text-end text-danger fw-bold mt-1 small">税込 -- 円</div>
-            </div>
-
-            <div id="statsBox" class="stats-strip p-2 mb-3 d-flex justify-content-around text-center small shadow-sm" onclick="toggleHistoryList()">
-                <div>最安<br><span id="valLow" class="fw-bold text-danger">--</span></div>
-                <div>平均<br><span id="valAvg" class="fw-bold">--</span></div>
-                <div>前回<br><span id="valLast" class="fw-bold">--</span></div>
-                <div class="pt-2"><i class="bi bi-chevron-down"></i></div>
-            </div>
-
-            <div id="subHistoryArea" class="mb-3 p-2 bg-dark rounded border border-secondary" style="display:none; max-height:250px; overflow-y:auto;"><div id="subHistoryList"></div></div>
-
-            <button id="saveBtn" class="btn btn-danger w-100 py-3 fw-bold fs-5 mb-3 shadow" onclick="saveData()">保存して戻る</button>
-            <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
+    <div class="glass-panel">
+        <div class="form-label-custom">INPUT DATA (Last Update: 2025-12-30 23:25)</div>
+        <input type="text" id="itemName" placeholder="商品名を入力">
+        <input type="text" id="maker" placeholder="メーカー・店舗">
+        <input type="number" id="price" placeholder="価格 (円)">
+        <div class="action-row">
+            <button class="btn-red" onclick="startScanner()"><i class="bi bi-upc-scan"></i> スキャン</button>
+            <label class="btn-dark-custom" style="text-align:center;">📷 写真<input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImage(this)"></label>
+            <div id="preview-box"><img id="preview-img" src=""></div>
         </div>
+        <button class="btn-red w-100 py-3 mt-2" onclick="saveData()" style="font-size:1.2rem;">リストに追加して同期</button>
+    </div>
+    <div id="listArea"></div>
+</div>
+<div id="camera-area"><div id="interactive"></div><button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4">×</button></div>
+<div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; align-items:center; justify-content:center;">
+    <div style="background:#1a1a1a; padding:20px; border-radius:10px; width:90%; border:1px solid #D50000;">
+        <h5 class="text-white">Firebase URL (wit-ai-apps)</h5>
+        <input type="text" id="firebase-url" placeholder="https://xxx.firebaseio.com/">
+        <button class="btn btn-danger w-100 mt-3" onclick="closeSettings()">閉じる</button>
     </div>
 </div>
-
-<div id="settingsModal" class="modal"><div class="modal-content text-center"><h5 class="text-white mb-4">Firebase 設定</h5><div class="alert alert-warning small py-1">URLは自動補正されます</div><input type="text" id="firebase-url" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://〜.firebaseio.com/"><button class="btn btn-danger w-100 py-2 fw-bold" onclick="saveSettings()">URLを保存</button><button class="btn btn-link text-secondary w-100 mt-2" onclick="closeSettings()">閉じる</button></div></div>
-
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
+    /* Logic Revision: 17.4.202512302325 */
     let db = { products: {} };
-    let curBarcode = null, curStore = "未設定", tempImgData = null;
+    let curBarcode = "MANUAL_" + Date.now();
+    let tempImgData = "";
     let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
+    let scanner = null;
 
-    window.onload = () => { loadLocal(); renderStoreList(); renderHistory(); if(fbUrl) loadFirebase(); };
+    window.onload = () => { loadLocal(); if(fbUrl) syncFirebase(); renderHistory(); };
+    function loadLocal() { const saved = localStorage.getItem('smart_price_db'); if (saved) db = JSON.parse(saved); }
+    function getSafeFbUrl(url) { if(!url) return ""; let clean = url.trim().replace(/\/+$/, ""); return clean.endsWith(".json") ? clean : clean + "/db.json"; }
 
-    function loadLocal() {
-        const saved = localStorage.getItem('smart_price_db');
-        if (saved) db = JSON.parse(saved);
-        if (!db.products) db.products = {};
-    }
-
-    // 【重要】URLを正しい形式に直してFirebaseに接続する
-    async function loadFirebase() {
-        if(!fbUrl) return;
+    async function syncFirebase() {
+        const target = getSafeFbUrl(fbUrl);
+        if (!target) return;
         try {
-            const cleanUrl = fbUrl.replace(/\/rules$/, "").replace(/\/?$/, "/") + 'smart_price.json';
-            const res = await fetch(cleanUrl);
+            const res = await fetch(target);
             const data = await res.json();
-            if (data) { db = data; renderHistory(); renderStoreList(); }
-        } catch(e) {}
+            if (data && data.db) { db = data.db; renderHistory(); }
+        } catch(e) { console.error("Firebase Sync Error at 23:25"); }
     }
 
-    function saveSettings() {
-        let rawUrl = document.getElementById('firebase-url').value.trim();
-        // ルール画面のURLが貼られた場合、自動でデータ通信用のURLに変換する
-        let fixedUrl = rawUrl.split('/rules')[0];
-        if(!fixedUrl.endsWith('/')) fixedUrl += '/';
-        localStorage.setItem('smartPriceFirebaseUrl', fixedUrl);
-        location.reload();
+    function handleImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX = 400;
+                    let w = img.width, h = img.height;
+                    if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    tempImgData = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById('preview-img').src = tempImgData;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
     }
 
     async function saveData() {
-        const btn = document.getElementById('saveBtn');
-        btn.innerText = "保存中..."; btn.disabled = true;
-
+        const name = document.getElementById('itemName').value;
+        const price = document.getElementById('price').value;
+        const maker = document.getElementById('maker').value || "---";
+        if (!name || !price) { alert("入力してください"); return; }
         if (!db.products[curBarcode]) db.products[curBarcode] = { history: [] };
         const p = db.products[curBarcode];
-        p.name = document.getElementById('inputName').value || "名称未設定";
-        p.maker = document.getElementById('inputMaker').value || "";
+        p.name = name; p.maker = maker;
         p.image = tempImgData || p.image;
-        const priceVal = document.getElementById('inputPrice').value;
-        if (priceVal > 0) {
-            p.history.push({ price: Math.floor(priceVal * 1.08), store: curStore, ts: Date.now() });
+        p.history.push({ price: Number(price), ts: Date.now() });
+        localStorage.setItem('smart_price_db', JSON.stringify(db));
+        const target = getSafeFbUrl(fbUrl);
+        if (target) {
+            try {
+                await fetch(target, { method: 'PUT', body: JSON.stringify({ db: db }) });
+            } catch(e) { alert("同期失敗。設定を確認してください。"); }
         }
-
-        try {
-            if (fbUrl) {
-                const cleanUrl = fbUrl.replace(/\/?$/, "/") + 'smart_price.json';
-                const res = await fetch(cleanUrl, { method: 'PUT', body: JSON.stringify(db) });
-                if(!res.ok) throw new Error();
-            }
-            localStorage.setItem('smart_price_db', JSON.stringify(db));
-            showHome();
-        } catch(e) {
-            alert("保存失敗：FirebaseのURLが正しいか確認してください。");
-            btn.innerText = "保存して戻る"; btn.disabled = false;
-        }
+        renderHistory();
+        document.getElementById('itemName').value = ""; document.getElementById('price').value = "";
+        document.getElementById('preview-img').src = ""; tempImgData = "";
+        curBarcode = "MANUAL_" + Date.now();
     }
 
-    // --- UI/基本機能 (v10.5 準拠) ---
-    function renderHistory() { const list = document.getElementById('historyList'); list.innerHTML = ""; const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] })); items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0)); items.forEach(it => { if (!it.history?.length) return; const prices = it.history.map(h => h.price); const last = it.history[it.history.length-1]; const avg = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length); const low = Math.min(...prices); const div = document.createElement('div'); div.className = `card price-card ${last.price <= avg ? 'cheap' : ''}`; div.onclick = () => openForm(it.code); div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || ''}" class="prod-thumb" onerror="this.src='https://placehold.jp/24/333/ccc/60x60.png?text=なし'"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.65rem;">${it.maker || ''} / ${last.store}</div></div><div class="text-end ms-2"><div class="text-white fw-bold fs-5">${last.price}<span style="font-size:0.6rem;">円</span></div><div class="text-danger fw-bold" style="font-size:0.75rem; border-top:1px solid #444; margin-top:2px;">${avg}<span style="font-size:0.5rem; color:#888;">平</span> / ${low}<span style="font-size:0.5rem; color:#888;">最</span></div></div></div>`; list.appendChild(div); }); }
-    function openForm(code, nameHint = "") { curBarcode = code; const p = db.products[code] || { name: nameHint || "", maker: "", history: [], image: "" }; document.getElementById('mainView').style.display = 'none'; document.getElementById('formView').style.display = 'block'; document.getElementById('inputName').value = p.name; document.getElementById('inputMaker').value = p.maker; document.getElementById('inputPrice').value = ""; tempImgData = p.image || ""; document.getElementById('previewImg').src = tempImgData || "https://placehold.jp/24/333/ccc/80x80.png?text=なし"; document.getElementById('subHistoryArea').style.display = 'none'; updateStats(p); }
-    function updateStats(p) { if (p.history?.length > 0) { const prices = p.history.map(h => h.price).filter(v => v > 0); document.getElementById('valLow').innerText = Math.min(...prices) + "円"; document.getElementById('valAvg').innerText = Math.floor(prices.reduce((a,b)=>a+b,0)/prices.length) + "円"; document.getElementById('valLast').innerText = prices[prices.length-1] + "円"; } }
-    function toggleHistoryList() { const area = document.getElementById('subHistoryArea'); if(area.style.display === 'none') { area.style.display = 'block'; renderSubHistory(); } else { area.style.display = 'none'; } }
-    function renderSubHistory() { const container = document.getElementById('subHistoryList'); container.innerHTML = ""; const p = db.products[curBarcode]; if(!p?.history) return; p.history.slice().reverse().forEach((h, idx) => { const realIdx = p.history.length - 1 - idx; const div = document.createElement('div'); div.className = "history-item d-flex justify-content-between align-items-center"; div.innerHTML = `<div class="flex-grow-1" onclick="editEntry(${realIdx})"><div class="d-flex justify-content-between pe-3"><span class="fw-bold fs-5">${h.price}円</span><span class="store-name" style="color:#ffc107;">${h.store || '不明'}</span></div><div class="small text-secondary">${new Date(h.ts).toLocaleString()}</div></div><button class="btn btn-sm text-danger" onclick="deleteHistoryEntry(${realIdx})"><i class="bi bi-trash"></i></button>`; container.appendChild(div); }); }
-    function editEntry(idx) { const p = db.products[curBarcode]; const h = p.history[idx]; const newP = prompt("修正後の価格(税込)", h.price); if(newP) { h.price = parseInt(newP); saveData(); } }
-    function deleteHistoryEntry(idx) { if(confirm("削除？")) { db.products[curBarcode].history.splice(idx,1); saveData(); } }
-    function searchImageWeb() { window.open(`https://www.google.com/search?q=${encodeURIComponent(document.getElementById('inputName').value)}+商品画像&tbm=isch`, '_blank'); }
-    function renderStoreList() { const list = document.getElementById('store-list'); const historyStores = new Set(); Object.values(db.products).forEach(p => p.history?.forEach(h => { if(h.store) historyStores.add(h.store); })); const allStores = ["未設定", ...historyStores]; list.innerHTML = ""; [...new Set(allStores)].forEach(name => { const span = document.createElement('span'); span.className = 'store-tag' + (name === curStore ? ' active' : ''); span.innerText = name; span.onclick = () => { document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active')); span.classList.add('active'); curStore = name; }; list.appendChild(span); }); }
-    function showHome() { document.getElementById('mainView').style.display = 'block'; document.getElementById('formView').style.display = 'none'; renderHistory(); renderStoreList(); }
-    function calcTax() { let p = document.getElementById('inputPrice').value; document.getElementById('taxResult').innerText = p ? `税込 ${Math.floor(p*1.08)} 円` : "税込 -- 円"; }
-    function handleImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX = 150; let w = img.width, h = img.height; if (w > h) { h *= MAX/w; w = MAX; } else { w *= MAX/h; h = MAX; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); tempImgData = canvas.toDataURL('image/jpeg', 0.5); document.getElementById('previewImg').src = tempImgData; }; img.src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
-    function openSettings() { document.getElementById('settingsModal').style.display='flex'; document.getElementById('firebase-url').value = fbUrl; }
-    function closeSettings() { document.getElementById('settingsModal').style.display='none'; }
-    function showVeggieMenu() { alert("準備中"); }
+    function renderHistory() {
+        const list = document.getElementById('listArea');
+        list.innerHTML = "";
+        const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
+        items.sort((a,b) => b.history[b.history.length-1].ts - a.history[a.history.length-1].ts);
+        items.forEach(it => {
+            const last = it.history[it.history.length-1];
+            const div = document.createElement('div');
+            div.className = 'item-card';
+            div.innerHTML = `<img src="${it.image || ''}" class="card-img" onerror="this.src='https://placehold.jp/24/333/ccc/90x90.png?text=NoImage'"><div class="card-body"><div class="mkr">${it.maker}</div><div class="name">${it.name}</div><div class="prc">¥${last.price.toLocaleString()}</div></div>`;
+            list.appendChild(div);
+        });
+    }
+
+    function startScanner() {
+        document.getElementById('camera-area').style.display='block';
+        if(!scanner) scanner = new Html5Qrcode("interactive");
+        scanner.start({facingMode:"environment"},{fps:10,qrbox:250},(t)=>{
+            curBarcode = t; stopScanner();
+            if(db.products[t]) {
+                document.getElementById('itemName').value = db.products[t].name;
+                document.getElementById('maker').value = db.products[t].maker;
+            }
+        }).catch(()=>stopScanner());
+    }
+    function stopScanner() { if(scanner) scanner.stop(); document.getElementById('camera-area').style.display='none'; }
+    function openSettings() { document.getElementById('settingsModal').style.display='flex'; }
+    function closeSettings() { 
+        fbUrl = document.getElementById('firebase-url').value;
+        localStorage.setItem('smartPriceFirebaseUrl', fbUrl);
+        document.getElementById('settingsModal').style.display='none'; 
+        syncFirebase();
+    }
 </script>
 </body>
 </html>
