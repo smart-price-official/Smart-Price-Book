@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#D50000">
-    <title>Smart Price v19.5e</title>
+    <title>Smart Price v19.6</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -46,7 +46,7 @@
 <body>
 
 <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.5e</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.6</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -148,7 +148,7 @@
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    /* Build Engine: 20260101_0051_cat-killer */
+    /* Build Engine: v19.6 (Restored Scanner Integration) */
     const CITY_STORE_PRESET = {
         "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
         "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
@@ -229,16 +229,10 @@
             document.getElementById('inputName').value = "";
             document.getElementById('inputMaker').value = "";
             
-            // 指示: __NONE__ リセット後に change を dispatch
             catSelect.value = "__NONE__";
             catSelect.selectedIndex = 0;
             catSelect.dispatchEvent(new Event("change", { bubbles:true }));
-
-            // 指示: requestAnimationFrame でも再度 __NONE__ を上書き
-            requestAnimationFrame(()=>{ 
-                catSelect.value="__NONE__"; 
-                catSelect.selectedIndex=0; 
-            });
+            requestAnimationFrame(()=>{ catSelect.value="__NONE__"; catSelect.selectedIndex=0; });
 
             document.getElementById('previewImg').src = "https://placehold.jp/24/333/ccc/68x68.png?text=NoImage";
             tempImgData = null;
@@ -274,25 +268,30 @@
         renderDetailHistory(exists ? p.history : []);
     }
 
-    /* 手入力強化: trim & return */
+    /** * CRITICAL FIX for Scanner 
+     */
+    function startScanner() {
+        if(isScanning) return; isScanning = true;
+        document.getElementById('camera-area').style.display='block'; showToast("カメラ起動中…");
+        if(!scanner) scanner = new Html5Qrcode("interactive");
+        scanner.start({facingMode:"environment"},{fps:15,qrbox:{width:280,height:180}},(t)=>{ 
+            showToast("読み取りOK"); 
+            stopScanner(); 
+            openForm(t); // ★ここでフォームを開くように修正しました
+        }).then(() => { showToast("バーコードを枠内へ"); }).catch(() => { showToast("起動失敗"); stopScanner(); });
+    }
+
     async function showVeggieMenu() { 
         const v = await customPrompt("商品コードまたは名称を入力"); 
-        if(v && v.trim() !== "") { 
-            openForm("M_"+v.trim()); 
-        } else {
-            return; // 空入力は無視
-        }
+        if(v && v.trim() !== "") { openForm("M_"+v.trim()); }
     }
 
     function showHome() { 
         document.getElementById('mainView').style.display='block'; 
         document.getElementById('formView').style.display='none'; 
-        
-        // 指示: initCategorySelect() を呼んで select を作り直し
         initCategorySelect();
         const cs = document.getElementById("inputCategory");
         if(cs) { cs.value="__NONE__"; cs.selectedIndex=0; }
-        
         renderHistory(); renderStoreList(); 
     }
 
@@ -368,14 +367,7 @@
         } else { showToast("価格を入力してください"); }
     }
 
-    function startScanner() {
-        if(isScanning) return; isScanning = true;
-        document.getElementById('camera-area').style.display='block'; showToast("カメラ起動中…");
-        if(!scanner) scanner = new Html5Qrcode("interactive");
-        scanner.start({facingMode:"environment"},{fps:15,qrbox:{width:280,height:180}},(t)=>{ showToast("読み取りOK"); stopScanner(); openForm(t); }).catch(() => { showToast("起動失敗"); stopScanner(); });
-    }
     function stopScanner() { if(scanner) scanner.stop().finally(()=>{ document.getElementById('camera-area').style.display='none'; isScanning = false; }); else { document.getElementById('camera-area').style.display='none'; isScanning = false; } }
-
     async function startMigration() { 
         const btn = document.getElementById('syncBtn'); const u = document.getElementById('fb-url-input').value.trim(); 
         db.config.homeCity = document.getElementById('home-city-input').value.trim(); showToast("保存中…");
@@ -383,7 +375,6 @@
         if(!u) { showToast("設定保存しました"); btn.disabled = false; btn.innerText = "設定保存と同期"; closeSettings(); renderStoreList(); return; }
         try { const res = await fetch(getSafeUrl(u), { method: 'PUT', body: JSON.stringify(wasWrapped ? {db:db}:db) }); if(res.ok) { fbUrl = u; localStorage.setItem('smartPriceFirebaseUrl', u); showToast("完了"); setTimeout(() => location.reload(), 600); } else { throw new Error(); } } catch(e){ showToast("同期失敗"); btn.disabled = false; btn.innerText = "設定保存と同期"; }
     }
-
     function renderDetailHistory(history) {
         const div = document.getElementById('detailHistory'); div.innerHTML = "";
         [...history].reverse().forEach((h, idx) => {
@@ -395,7 +386,6 @@
             div.appendChild(row);
         });
     }
-
     function editHistoryMode(idx) {
         editingHistIdx = idx; const h = db.products[curBarcode].history[idx];
         if (navigator.vibrate) navigator.vibrate(20);
@@ -408,7 +398,6 @@
         document.getElementById('priceSection').scrollIntoView({behavior: 'smooth'});
         setTimeout(() => document.getElementById('inputPrice').focus(), 500);
     }
-
     function renderStats(history, editingInfo = null) {
         const box = document.getElementById('statsBox');
         if (!history || history.length === 0) { box.innerHTML = "過去データなし"; return; }
@@ -418,7 +407,6 @@
         html += `<div class="stats-row"><div class="stat-item">平均購入<span class="stat-val">${avg}円</span></div><div class="stat-item">最安値<span class="stat-val text-danger">${low}円</span></div><div class="stat-item">前回価格<span class="stat-val">${last}円</span></div></div>`;
         box.innerHTML = html;
     }
-
     function renderHistory() {
         const list = document.getElementById('historyList'); list.innerHTML = "";
         const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
@@ -434,7 +422,6 @@
             list.appendChild(div);
         });
     }
-
     function customPrompt(msg, def = "") { return new Promise(res => { document.getElementById('dialogMsg').innerText = msg; const iArea = document.getElementById('dialogInputArea'); iArea.style.display = "block"; const i = document.getElementById('dialogInput'); i.value = def; document.getElementById('dialogCancel').style.display = "block"; document.getElementById('dialogModal').style.display = "flex"; document.getElementById('dialogOk').onclick = () => { iArea.style.display="none"; document.getElementById('dialogModal').style.display="none"; res(i.value); }; document.getElementById('dialogCancel').onclick = () => { iArea.style.display="none"; document.getElementById('dialogModal').style.display="none"; res(null); }; }); }
     function customConfirm(msg, ok="OK", cancel="やめる") { return new Promise(res => { document.getElementById('dialogMsg').innerText = msg; const c = document.getElementById('dialogCancel'); c.style.display = "block"; c.innerText = cancel; const o = document.getElementById('dialogOk'); o.innerText = ok; document.getElementById('dialogModal').style.display = "flex"; o.onclick = () => { document.getElementById('dialogModal').style.display = "none"; res(true); }; c.onclick = () => { document.getElementById('dialogModal').style.display = "none"; res(false); }; }); }
     function getSafeUrl(url) { let c = url.trim().replace(/\/rules$/, "").replace(/\/+$/, ""); return c.endsWith('smart_price.json') ? c : c + '/smart_price.json'; }
