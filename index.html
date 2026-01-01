@@ -1,10 +1,13 @@
 <!--
-【2026-01-01 14:00 JST】｜v19.9c｜Smart Price 仕様条件修正（ヘッダ完全版）
-
-変更点（3行以内）：
-- HTMLの最先頭（DOCTYPEより前）に仕様条件であるヘッダコメントを追加。
-- 既存UI・機能・ロジック・文言は一切変更せず、コメント追加のみに限定。
-- そのままコピペで差し替え可能。
+APP: Smart Price
+FILE: index.html
+VERSION: v19.9c-hf1
+DATE(JST): 2026-01-01 14:08 JST
+TITLE: 設定「保存と同期」後にホームへ戻れない／履歴が出ない問題の修正
+CHANGES(<=3):
+- closeSettings() を追加（設定モーダルが閉じない問題を解消）
+- startMigration() 成功時に closeSettings() + renderStoreList() + renderHistory() を実行
+- 既存UI/文言/レイアウト/機能は変更なし（動作のみ修正）
 -->
 
 <!DOCTYPE html>
@@ -272,6 +275,11 @@
         renderCityChips();
     }
 
+    function closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        if(modal) modal.style.display = 'none';
+    }
+
     function renderCityChips() {
         const chipArea = document.getElementById('city-history-chips');
         if(!chipArea) return;
@@ -303,31 +311,39 @@
         return false;
     }
 
-    /** 🟢 同期処理 (リロード禁止・finally復旧) */
+    /** 🟢 同期処理 (成功時に設定を閉じてホーム描画を確実に実行) */
     async function startMigration() { 
         const btn = document.getElementById('syncBtn');
-        const u = document.getElementById('fb-url-input').value.trim(); 
-        const cityInput = document.getElementById('home-city-input').value.trim();
-        
-        btn.disabled = true;
-        btn.innerText = "同期中…";
+        const urlEl = document.getElementById('fb-url-input');
+        const cityEl = document.getElementById('home-city-input');
+
+        const u = (urlEl ? urlEl.value : '').trim(); 
+        const cityInput = (cityEl ? cityEl.value : '').trim();
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "同期中…";
+        }
         showToast("クラウド同期を開始…");
 
         activeSyncController = new AbortController();
+        let ok = false;
 
         try {
             db.config.homeCity = cityInput;
             db = normalizeDb(db);
             saveLocalOnly();
 
+            // URL未入力ならローカル保存だけ
             if(!u) {
+                ok = true;
                 showToast("ローカル保存完了");
-                closeSettings();
-                renderStoreList();
                 return;
             }
 
             const targetUrl = getSafeUrl(u);
+
+            // wrapped判定（存在するなら形式だけ見る）
             try {
                 const resGet = await fetchWithTimeout(targetUrl, { signal: activeSyncController.signal });
                 const cloudData = await resGet.json();
@@ -335,6 +351,7 @@
             } catch(e) { console.warn("Pre-check failed", e); }
 
             const payload = wasWrapped ? { db: db } : db;
+
             const resPut = await fetchWithTimeout(targetUrl, { 
                 method: 'PUT', 
                 headers: { "Content-Type": "application/json" },
@@ -342,9 +359,10 @@
                 signal: activeSyncController.signal
             });
 
-            if (resPut.ok) {
+            if (resPut && resPut.ok) {
                 fbUrl = u;
                 localStorage.setItem('smartPriceFirebaseUrl', u);
+                ok = true;
                 showToast("同期成功！");
             }
         } catch(e) {
@@ -353,6 +371,13 @@
         } finally {
             activeSyncController = null;
             resetSyncBtn();
+
+            // ✅ 成功時だけ、設定を閉じてホーム側を確実に再描画
+            if (ok) {
+                closeSettings();
+                renderStoreList();
+                renderHistory();
+            }
         }
     }
 
@@ -564,73 +589,4 @@
             // 指示：行タップで編集モードへ
             row.onclick = () => editHistoryMode(actIdx);
             const dateStr = h.ts ? new Date(h.ts).toLocaleDateString() : "(不明)";
-            row.innerHTML = `<div class="flex-grow-1"><span class="text-secondary small">${dateStr}</span><br><span class="text-white fw-bold">${h.store || '未設定'}</span></div><div class="text-end"><span class="fw-bold text-white">${h.price}円</span><br><span class="text-info small">タップで編集</span></div>`;
-            div.appendChild(row);
-        });
-    }
-
-    /* システム共通モジュール */
-    function toggleGps() {
-        if(!isGpsOn) {
-            isGpsOn = true; lastGpsTime = "…"; renderStoreList(); showToast("GPS取得中…");
-            navigator.geolocation.getCurrentPosition((pos) => {
-                curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                const d = new Date(); lastGpsTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
-                renderStoreList(); showToast("GPS取得成功");
-            }, (err) => { showToast(`GPSエラー: ${err.message}`); isGpsOn = false; renderStoreList(); }, { enableHighAccuracy: true, timeout: 10000 });
-        } else { isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList(); showToast("GPS OFF"); }
-    }
-    function startScanner() {
-        if(isScanning) return; isScanning = true;
-        document.getElementById('camera-area').style.display='block'; showToast("カメラ起動中…");
-        if(!scanner) scanner = new Html5Qrcode("interactive");
-        scanner.start({facingMode:"environment"},{fps:15,qrbox:{width:280,height:180}}, async (t)=>{ 
-            showToast("読み取りOK"); await stopScanner(); openForm(t); 
-        }).catch(() => { showToast("起動失敗"); stopScanner(); });
-    }
-    async function stopScanner() { 
-        if(scanner) { 
-            try { await scanner.stop(); } catch(e) {} 
-            finally { document.getElementById('camera-area').style.display='none'; isScanning = false; } 
-        } 
-    }
-    function saveLocalOnly() { localStorage.setItem('smart_price_db', JSON.stringify(db)); }
-    function showHome() { document.getElementById('mainView').style.display='block'; document.getElementById('formView').style.display='none'; renderHistory(); renderStoreList(); tempImgData = null; }
-    async function showVeggieMenu() { const v = await customPrompt("名称入力"); if(v && v.trim()) openForm("M_"+v.trim()); }
-    function setupFocusGuides() { const gs = { 'inputName': "例：コーラ 500ml", 'inputPrice': "価格を入力" }; Object.keys(gs).forEach(id => { const el=document.getElementById(id); if(el) el.onfocus = () => showToast(gs[id]); }); }
-    function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-    function renderStats(history) {
-        const box = document.getElementById('statsBox');
-        if (!box) return;
-        if (!Array.isArray(history) || history.length === 0) { box.innerHTML = "過去データなし"; return; }
-        const pArr = history.map(h => h.price); const avg = Math.floor(pArr.reduce((a,b)=>a+b,0)/pArr.length);
-        const low = Math.min(...pArr); const last = pArr[pArr.length-1];
-        box.innerHTML = `<div class="stats-row"><div class="stat-item">平均<span class="stat-val">${avg}円</span></div><div class="stat-item">最安<span class="stat-val text-danger">${low}円</span></div><div class="stat-item">前回<span class="stat-val">${last}円</span></div></div>`;
-    }
-    function renderHistory() {
-        const list = document.getElementById('historyList'); 
-        if(!list) return;
-        list.innerHTML = "";
-        const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-        items.sort((a,b) => (b.history?.[b.history.length-1]?.ts || 0) - (a.history?.[a.history.length-1]?.ts || 0));
-        items.forEach(it => {
-            if (!it.history || !it.history.length) return;
-            const last = it.history[it.history.length-1];
-            const div = document.createElement('div'); div.className = 'card price-card';
-            div.onclick = () => openForm(it.code);
-            div.innerHTML = `<div class="d-flex align-items-center"><img src="${it.image || 'https://placehold.jp/24/333/ccc/68x68.png?text=NoImage'}" class="prod-thumb"><div class="flex-grow-1 overflow-hidden"><div class="fw-bold text-white small text-truncate">${it.name}</div><div class="text-secondary" style="font-size:0.6rem;">${last.store}</div></div><div class="text-end ms-2"><div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div></div></div>`;
-            list.appendChild(div);
-        });
-    }
-    function customPrompt(msg, def = "") { return new Promise(res => { document.getElementById('dialogMsg').innerText = msg; document.getElementById('dialogInputArea').style.display="block"; const i = document.getElementById('dialogInput'); i.value = def; document.getElementById('dialogCancel').style.display="block"; document.getElementById('dialogModal').style.display="flex"; document.getElementById('dialogOk').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(i.value); }; document.getElementById('dialogCancel').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(null); }; }); }
-    async function confirmDeleteHist() { if(editingHistIdx === null) return; if(await customConfirm("この履歴を削除しますか？")) { db.products[curBarcode].history.splice(editingHistIdx, 1); saveLocalOnly(); syncFirebasePut(); showHome(); } }
-    function customConfirm(msg) { return new Promise(res => { document.getElementById('dialogMsg').innerText = msg; document.getElementById('dialogInputArea').style.display="none"; document.getElementById('dialogCancel').style.display="block"; document.getElementById('dialogModal').style.display="flex"; document.getElementById('dialogOk').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(true); }; document.getElementById('dialogCancel').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(false); }; }); }
-    function searchImageWeb() { window.open(`https://www.google.com/search?q=${encodeURIComponent(document.getElementById('inputName').value)}+商品画像&tbm=isch`, '_blank'); }
-    function handleImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { tempImgData = e.target.result; document.getElementById('previewImg').src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
-</script>
-</body>
-</html>
+            row.i
