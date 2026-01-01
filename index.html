@@ -7,25 +7,23 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#D50000" />
-  <title>Smart Price v19.9c-hf4</title>
+  <title>Smart Price v19.9c-hf5</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
 
   <!--
   APP: Smart Price
   FILE: index.html
-  VERSION: v19.9c-hf4
-  BUILD: 2026-01-01_1737_hf4-auto-merge
-  DATE(JST): 2026-01-01 17:37 JST
-  TITLE: Firebase保存場所のズレを自動統合して購入履歴を復旧（/db/db ⇄ /smart_price）、同期後ホーム復帰、店名手入力追加、Chromeキャッシュ対策
+  VERSION: v19.9c-hf5
+  BUILD: 2026-01-01_2348_hf5-openSettings-fix
+  DATE(JST): 2026-01-01 23:48 JST
+  TITLE: openSettings/startScanner が未定義で落ちる問題の恒久修正（onclick 互換・window へ公開）
   CHANGES:
-  - 過去データ(/db/db/products 等)と新データ(/smart_price/products)の保存場所ズレを検出し、自動で統合・集約
-  - 起動時/同期時に候補パスを探索して最もデータが多いものを採用→ローカルとマージ→/smart_priceへ保存
-  - 同期成功後、設定画面で停止せずホームへ戻し、購入履歴を即描画
-  - 店名選択が効かない端末向けに店名手入力欄を追加（選択時は自動反映）
-  - ?b= の変更検知で ServiceWorker/Cache を自動削除（Chromeの古いUI残り対策）
+  - openSettings/startScanner/closeSettings/startMigration/stopScanner 等を必ず window に公開（onclick で確実に動く）
+  - startScanner はカメラ起動（html5-qrcode）＋失敗時は画像選択へフォールバック
+  - 設定（市・Firebase URL）保存→同期→ホーム復帰までの導線を安定化
   AUTHOR: Yui
-  BUILD_PARAM: ?b=2026-01-01_1737_hf4-auto-merge
+  BUILD_PARAM: ?b=2026-01-01_2348_hf5-openSettings-fix
   DEBUG_PARAM: &debug=1
   POLICY: SINGLE_FILE
   -->
@@ -76,7 +74,7 @@
 
 <body>
   <header class="header d-flex justify-content-between align-items-center">
-    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf4</span></h5>
+    <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf5</span></h5>
     <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
   </header>
 
@@ -193,8 +191,8 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     /* 🟢 Version Labels & Debug Flags */
-    const APP_VERSION = "v19.9c-hf4";
-    const BUILD_ID    = "2026-01-01_1737_hf4-auto-merge";
+    const APP_VERSION = "v19.9c-hf5";
+    const BUILD_ID    = "2026-01-01_2348_hf5-openSettings-fix";
     const IS_DEBUG    = /[?&]debug=1/.test(location.search);
 
     const DEFAULT_CONFIG = { categories: ["飲料","食品","日用品","薬","その他"], lastTax: "ex", homeCity: "", homeCities: [] };
@@ -218,15 +216,12 @@
         const last = localStorage.getItem("smart_price_last_build") || "";
         if (last === b) return;
         localStorage.setItem("smart_price_last_build", b);
-
         if (IS_DEBUG) showToast("cache clear...");
 
-        // Service Worker 解除
         if ('serviceWorker' in navigator) {
           const regs = await navigator.serviceWorker.getRegistrations();
           for (const r of regs) { try { await r.unregister(); } catch(e) {} }
         }
-        // Cache API 削除
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
@@ -248,23 +243,6 @@
       setTimeout(() => { t.style.opacity = 0; }, 3000);
     }
 
-    /* 🟢 ボタン復旧ロジック */
-    function resetSyncBtn() {
-      const btn = document.getElementById('syncBtn');
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = "設定保存と同期";
-      }
-    }
-    window.addEventListener("pageshow", resetSyncBtn);
-    window.addEventListener("beforeunload", resetSyncBtn);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        resetSyncBtn();
-        if (activeSyncController) activeSyncController.abort();
-      }
-    });
-
     /* ===== AbortSignal.any 互換（Chrome以外でも安全） ===== */
     function anySignal(signals) {
       try {
@@ -282,7 +260,6 @@
       return ctrl.signal;
     }
 
-    /** 🟢 fetchヘルパ（タイムアウト＋外部signal統合） */
     async function fetchWithTimeout(resource, options = {}, timeout = 12000) {
       const internal = new AbortController();
       const tid = setTimeout(() => internal.abort(), timeout);
@@ -298,7 +275,109 @@
       }
     }
 
-    /** 🟢 DB正規化：旧キー(items/purchases/hist)吸収 */
+    /* ===== ダイアログ（alert禁止運用） ===== */
+    function dialogShow({ title="Smart Price", msg="", input=false, def="", cancel=false, okText="OK", cancelText="やめる" }) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('dialogModal');
+        const titleEl = document.getElementById('dialogTitle');
+        const msgEl = document.getElementById('dialogMsg');
+        const inputArea = document.getElementById('dialogInputArea');
+        const inputEl = document.getElementById('dialogInput');
+        const okBtn = document.getElementById('dialogOk');
+        const cancelBtn = document.getElementById('dialogCancel');
+
+        if (!modal || !titleEl || !msgEl || !inputArea || !inputEl || !okBtn || !cancelBtn) {
+          // 最終フォールバック
+          if (input) {
+            const v = prompt(msg, def);
+            resolve({ ok: v !== null, value: v });
+          } else if (cancel) {
+            resolve({ ok: confirm(msg), value: "" });
+          } else {
+            alert(msg);
+            resolve({ ok: true, value: "" });
+          }
+          return;
+        }
+
+        titleEl.textContent = title;
+        msgEl.textContent = msg;
+
+        inputArea.style.display = input ? "block" : "none";
+        inputEl.value = def || "";
+        cancelBtn.style.display = cancel ? "block" : "none";
+        cancelBtn.textContent = cancelText;
+        okBtn.textContent = okText;
+
+        const cleanup = () => {
+          okBtn.onclick = null;
+          cancelBtn.onclick = null;
+          modal.style.display = "none";
+        };
+
+        okBtn.onclick = () => {
+          const val = input ? inputEl.value : "";
+          cleanup();
+          resolve({ ok: true, value: val });
+        };
+        cancelBtn.onclick = () => {
+          cleanup();
+          resolve({ ok: false, value: "" });
+        };
+
+        modal.style.display = "flex";
+        if (input) setTimeout(() => { try { inputEl.focus(); } catch(e){} }, 50);
+      });
+    }
+
+    async function customPrompt(msg, def="") {
+      const r = await dialogShow({ msg, input: true, def, cancel: true, okText: "OK", cancelText: "やめる" });
+      return r.ok ? (r.value || "").trim() : "";
+    }
+    async function customConfirm(msg) {
+      const r = await dialogShow({ msg, cancel: true, okText: "OK", cancelText: "やめる" });
+      return !!r.ok;
+    }
+
+    /* 🟢 ボタン復旧ロジック（同期中の固まり防止） */
+    function resetSyncBtn() {
+      const btn = document.getElementById('syncBtn');
+      if (btn) { btn.disabled = false; btn.innerText = "設定保存と同期"; }
+    }
+    window.addEventListener("pageshow", resetSyncBtn);
+    window.addEventListener("beforeunload", resetSyncBtn);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        resetSyncBtn();
+        if (activeSyncController) activeSyncController.abort();
+      }
+    });
+
+    /* ===== 文字処理 ===== */
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    }
+    function fmtDate(ts) {
+      const d = new Date(Number(ts || Date.now()));
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const da = String(d.getDate()).padStart(2,"0");
+      return `${y}/${m}/${da}`;
+    }
+
+    /* ===== 距離（km） ===== */
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const toRad = (v) => v * Math.PI / 180;
+      const R = 6371;
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    /* ===== DB正規化 ===== */
     function normalizeDb(input) {
       let o = (input && typeof input === "object") ? input : {};
       if (!o.products && o.items && typeof o.items === "object") o.products = o.items;
@@ -317,11 +396,9 @@
           else if (Array.isArray(p.hist)) p.history = p.hist;
           else p.history = [];
         }
-        // historyの各要素の最低限整形
         p.history = p.history.map(h => {
           const x = (h && typeof h === "object") ? h : {};
           if (typeof x.price !== "number") x.price = Number(x.price || 0);
-          if (!x.ts) x.ts = x.date ? Number(x.date) : x.ts;
           if (!x.ts) x.ts = Date.now();
           if (typeof x.store !== "string") x.store = (x.store == null ? "" : String(x.store));
           return x;
@@ -341,44 +418,28 @@
         const saved = localStorage.getItem('smart_price_db');
         if (saved) db = JSON.parse(saved);
         db = normalizeDb(db);
-
-        const elIn = document.getElementById('taxIn');
-        const elEx = document.getElementById('taxEx');
-        if (db.config.lastTax === "in" && elIn) elIn.checked = true;
-        else if (elEx) elEx.checked = true;
       } catch(e) {
         db = normalizeDb({});
       }
     }
-
     function saveLocalOnly() { localStorage.setItem('smart_price_db', JSON.stringify(db)); }
 
-    /* ===== Firebase URL 生成（候補パスも作る） ===== */
+    /* ===== Firebase URL/パス探索（必要最低限） ===== */
     function sanitizeFbRoot(u) {
       if (!u) return "";
-      let s = String(u).trim();
-      s = s.replace(/\/+$/,"");
-      s = s.replace(/\.json$/,"");
-
-      // 入力が /smart_price や /db 等を含んでいても root に戻す
+      let s = String(u).trim().replace(/\/+$/,"").replace(/\.json$/,"");
       const cutList = ["/smart_price", "/db/db", "/db"];
-      for (const cut of cutList) {
-        if (s.endsWith(cut)) s = s.slice(0, -cut.length);
-      }
-      s = s.replace(/\/+$/,"");
-      return s;
+      for (const cut of cutList) if (s.endsWith(cut)) s = s.slice(0, -cut.length);
+      return s.replace(/\/+$/,"");
     }
-
     function fbUrlFor(root, path) {
       const r = sanitizeFbRoot(root);
       if (!r) return "";
-      if (path === ".") return `${r}/.json`;          // ルート
-      return `${r}/${path}.json`;                    // ノード
+      if (path === ".") return `${r}/.json`;
+      return `${r}/${path}.json`;
     }
-
     function unwrapDb(data) {
-      let d = data;
-      let depth = 0;
+      let d = data, depth = 0;
       while (d && typeof d === "object" && !Array.isArray(d) && depth < 5) {
         const hasProducts = !!(d.products || d.items);
         if (hasProducts) break;
@@ -387,14 +448,6 @@
       }
       return d;
     }
-
-    function productCount(o) {
-      try {
-        const x = normalizeDb(o);
-        return Object.keys(x.products || {}).length;
-      } catch(e) { return 0; }
-    }
-
     async function fetchCloudAt(url) {
       try {
         const res = await fetchWithTimeout(url, {}, 12000);
@@ -402,12 +455,11 @@
         const raw = unwrapDb(data);
         const norm = normalizeDb(raw);
         const cnt = Object.keys(norm.products || {}).length;
-        return { ok: true, norm, cnt, raw: data };
+        return { ok: true, norm, cnt };
       } catch(e) {
         return { ok: false, err: e };
       }
     }
-
     async function fetchBestCloudDb(rootUrl) {
       const root = sanitizeFbRoot(rootUrl);
       const candidates = [
@@ -424,12 +476,10 @@
         if (!c.url) continue;
         const r = await fetchCloudAt(c.url);
         if (!r.ok) continue;
-
         if (c.key === "smart_price") smart = { cnt: r.cnt, norm: r.norm };
         if (r.cnt > best.cnt) best = { key: c.key, cnt: r.cnt, norm: r.norm };
       }
 
-      // smart_price より best が多いなら「ズレ保存」を検出
       const needsMigration = (best.key && best.key !== "smart_price" && best.cnt > (smart.cnt >= 0 ? smart.cnt : 0));
       return { best, smart, needsMigration };
     }
@@ -445,7 +495,6 @@
         return x;
       }).filter(h => h.price > 0);
 
-      // 重複除去：ts/price/store が同じものは1つに
       const seen = new Set();
       const out = [];
       for (const h of all) {
@@ -462,31 +511,21 @@
       const L = normalizeDb(localDb);
       const C = normalizeDb(cloudDb);
       const out = normalizeDb({});
-
-      // config はローカル優先（市・カテゴリなど）
       out.config = { ...C.config, ...L.config };
       out.config.categories = Array.from(new Set([...(C.config.categories||[]), ...(L.config.categories||[])]));
       out.config.homeCities = Array.from(new Set([...(L.config.homeCities||[]), ...(C.config.homeCities||[])]));
-      if (L.config.homeCity) {
-        out.config.homeCities = [L.config.homeCity, ...out.config.homeCities.filter(x => x !== L.config.homeCity)].slice(0,5);
-      }
+      if (L.config.homeCity) out.config.homeCities = [L.config.homeCity, ...out.config.homeCities.filter(x => x !== L.config.homeCity)].slice(0,5);
 
-      // products は union
       const keys = new Set([...Object.keys(C.products||{}), ...Object.keys(L.products||{})]);
       for (const code of keys) {
         const cp = C.products[code] || {};
         const lp = L.products[code] || {};
         const p = { ...cp, ...lp };
-
-        // history は統合
         p.history = mergeHistory(cp.history, lp.history);
-
-        // 基本情報が片方にしか無い場合は補完
         p.name = lp.name || cp.name || p.name || "";
         p.category = lp.category || cp.category || p.category || "";
         p.maker = lp.maker || cp.maker || p.maker || "";
         p.image = lp.image || cp.image || p.image || "";
-
         out.products[code] = p;
       }
       return normalizeDb(out);
@@ -495,30 +534,29 @@
     async function writeCanonicalSmartPrice(rootUrl, payloadDb, signal) {
       const root = sanitizeFbRoot(rootUrl);
       const url = fbUrlFor(root, "smart_price");
-      const body = JSON.stringify(payloadDb);
       await fetchWithTimeout(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body,
+        body: JSON.stringify(payloadDb),
         signal
       }, 15000);
       return true;
     }
 
-    /* ===== UI関連 ===== */
+    /* ===== UI ===== */
     function initCategorySelect() {
       db = normalizeDb(db);
       const sel = document.getElementById('inputCategory');
       if(!sel) return;
       sel.innerHTML =
         `<option value="__NONE__">カテゴリを選ぶ</option>` +
-        db.config.categories.map(c => `<option value="${c}">${c}</option>`).join('') +
+        db.config.categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
         `<option value="ADD">+ 追記</option>`;
 
       sel.onchange = async () => {
         if(sel.value === "ADD") {
           const n = await customPrompt("新しいカテゴリ名");
-          if(n) { db.config.categories.push(n); initCategorySelect(); sel.value = n; }
+          if(n) { db.config.categories.push(n); initCategorySelect(); sel.value = n; saveLocalOnly(); }
           else { sel.selectedIndex = 0; }
         }
       };
@@ -527,6 +565,7 @@
     function setCurStore(name) {
       const n = (name || "").trim();
       curStore = n ? n : "未設定";
+      localStorage.setItem("smart_price_curStore", curStore);
 
       const ind = document.getElementById('curStoreIndicator');
       if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
@@ -540,17 +579,13 @@
       const list = document.getElementById('store-list');
       if(!list) return;
 
-      // 近所候補（GPS ONかつ lat/lng 入っている履歴のみ距離判定）
       const nearHistoryStores = new Set();
       const freqHistoryStores = {};
 
       Object.values(db.products).forEach(p => (p.history||[]).forEach(h => {
         if(!h.store || h.store === "未設定") return;
-
-        // 出現回数は常にカウント（距離に関係なし）
         freqHistoryStores[h.store] = (freqHistoryStores[h.store] || 0) + 1;
 
-        // 近所判定は GPS ON かつ 現在地あり かつ 履歴にlat/lngあり
         if(isGpsOn && curPos && h.lat && h.lng) {
           const d = getDistance(curPos.lat, curPos.lng, h.lat, h.lng);
           if(d <= 2.0) nearHistoryStores.add(h.store);
@@ -573,7 +608,6 @@
         span.innerText = name;
         span.onclick = () => {
           setCurStore(name);
-          // ハイライト更新
           renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
         };
         list.appendChild(span);
@@ -641,9 +675,7 @@
         shown++;
       });
 
-      if (shown === 0) {
-        list.innerHTML = `<div class="text-secondary small text-center py-4">購入履歴がまだありません</div>`;
-      }
+      if (shown === 0) list.innerHTML = `<div class="text-secondary small text-center py-4">購入履歴がまだありません</div>`;
 
       if (IS_DEBUG) {
         const prodCount = Object.keys(db.products || {}).length;
@@ -657,4 +689,455 @@
       if(!div) return;
       div.innerHTML = "";
       const safeHistory = Array.isArray(history) ? history : [];
-      [...safeHistory].reverse().forEach((h, i
+      if (!safeHistory.length) {
+        div.innerHTML = `<div class="text-secondary small text-center py-2">履歴がありません</div>`;
+        return;
+      }
+
+      [...safeHistory].map((h, idx) => ({ h, idx }))
+        .sort((a,b)=> (b.h.ts||0) - (a.h.ts||0))
+        .forEach(({h, idx}) => {
+          const row = document.createElement('div');
+          row.className = 'history-row';
+          row.onclick = () => selectHistoryIndex(idx);
+
+          row.innerHTML = `
+            <div class="text-secondary" style="font-size:0.7rem;">
+              ${escapeHtml(fmtDate(h.ts))} / ${escapeHtml(h.store || "未設定")}
+            </div>
+            <div class="fw-bold text-white">${Number(h.price||0)}円</div>
+          `;
+          div.appendChild(row);
+        });
+    }
+
+    function selectHistoryIndex(idx) {
+      const p = db.products[curBarcode] || {};
+      if (!p.history || !p.history[idx]) return;
+      editingHistIdx = idx;
+
+      const h = p.history[idx];
+      const priceEl = document.getElementById('inputPrice');
+      if (priceEl) priceEl.value = Number(h.price || 0);
+
+      setCurStore(h.store || curStore);
+
+      const delBtn = document.getElementById('delHistBtn');
+      if (delBtn) delBtn.style.display = "block";
+      showToast("編集モード：この履歴を更新/削除できます");
+    }
+
+    function showHome() {
+      const mv = document.getElementById('mainView');
+      const fv = document.getElementById('formView');
+      if (mv) mv.style.display = "block";
+      if (fv) fv.style.display = "none";
+      curBarcode = null;
+      editingHistIdx = null;
+
+      const delBtn = document.getElementById('delHistBtn');
+      if (delBtn) delBtn.style.display = "none";
+      renderHistory();
+    }
+
+    function openForm(code) {
+      db = normalizeDb(db);
+      curBarcode = String(code || "").trim();
+      if (!curBarcode) return;
+
+      if (!db.products[curBarcode]) db.products[curBarcode] = { name:"", category:"", maker:"", image:"", history:[] };
+
+      const p = db.products[curBarcode];
+
+      const mv = document.getElementById('mainView');
+      const fv = document.getElementById('formView');
+      if (mv) mv.style.display = "none";
+      if (fv) fv.style.display = "block";
+
+      editingHistIdx = null;
+      const delBtn = document.getElementById('delHistBtn');
+      if (delBtn) delBtn.style.display = "none";
+
+      const nameEl = document.getElementById('inputName');
+      const makerEl = document.getElementById('inputMaker');
+      const imgEl = document.getElementById('previewImg');
+
+      if (nameEl) nameEl.value = p.name || "";
+      if (makerEl) makerEl.value = p.maker || "";
+      if (imgEl) imgEl.src = p.image || "";
+
+      initCategorySelect();
+      const catEl = document.getElementById('inputCategory');
+      if (catEl) {
+        catEl.value = p.category || "__NONE__";
+        if (catEl.value === "" || catEl.value === "__NONE__") catEl.selectedIndex = 0;
+      }
+
+      const storeManual = document.getElementById('storeManualInput');
+      const manualVal = (storeManual?.value || "").trim();
+      renderStoreList([manualVal]);
+
+      renderStats(p.history || []);
+      renderDetailHistory(p.history || []);
+
+      setCurStore(localStorage.getItem("smart_price_curStore") || curStore);
+
+      const priceEl = document.getElementById('inputPrice');
+      if (priceEl) priceEl.value = "";
+    }
+
+    async function showVeggieMenu() {
+      const v = await customPrompt("バーコード（数字）を入力（空なら仮IDで作成）");
+      const code = v ? v.replace(/[^\d]/g,"") : `M${Date.now()}`;
+      openForm(code);
+    }
+
+    async function confirmDeleteHist() {
+      if (!curBarcode || !db.products[curBarcode]) return;
+      const p = db.products[curBarcode];
+      if (!p.history || !p.history.length) return;
+
+      let idx = editingHistIdx;
+      if (idx == null) idx = p.history.length - 1;
+
+      const ok = await customConfirm("この履歴を削除します。よろしいですか？");
+      if (!ok) return;
+
+      p.history.splice(idx, 1);
+      editingHistIdx = null;
+
+      const delBtn = document.getElementById('delHistBtn');
+      if (delBtn) delBtn.style.display = "none";
+
+      db.products[curBarcode] = p;
+      saveLocalOnly();
+      renderStats(p.history || []);
+      renderDetailHistory(p.history || []);
+      showToast("削除しました");
+      renderHistory();
+    }
+
+    function currentTaxMode() {
+      const inEl = document.getElementById('taxIn');
+      return (inEl && inEl.checked) ? "in" : "ex";
+    }
+
+    async function saveData() {
+      if (!curBarcode) return;
+
+      db = normalizeDb(db);
+      const p = db.products[curBarcode] || { name:"", category:"", maker:"", image:"", history:[] };
+
+      const name = (document.getElementById('inputName')?.value || "").trim();
+      const maker = (document.getElementById('inputMaker')?.value || "").trim();
+      const category = (document.getElementById('inputCategory')?.value || "").trim();
+      const price = Number(document.getElementById('inputPrice')?.value || 0);
+      const disc = Number(document.getElementById('inputDisc')?.value || 0);
+      const taxMode = currentTaxMode();
+
+      const manualStore = (document.getElementById('storeManualInput')?.value || "").trim();
+      if (manualStore) setCurStore(manualStore);
+
+      if (!price || price <= 0) { showToast("価格を入力してください"); return; }
+
+      p.name = name || p.name || "";
+      p.maker = maker || p.maker || "";
+      if (category && category !== "__NONE__" && category !== "ADD") p.category = category;
+      if (tempImgData) p.image = tempImgData;
+
+      const entry = {
+        ts: Date.now(),
+        price: Math.floor(price),
+        store: curStore || "未設定",
+        tax: taxMode,
+        disc: disc || 0
+      };
+      if (curPos && typeof curPos.lat === "number" && typeof curPos.lng === "number") {
+        entry.lat = curPos.lat;
+        entry.lng = curPos.lng;
+      }
+
+      if (!Array.isArray(p.history)) p.history = [];
+
+      if (editingHistIdx != null && p.history[editingHistIdx]) {
+        // 更新
+        const old = p.history[editingHistIdx];
+        p.history[editingHistIdx] = { ...old, ...entry, ts: old.ts || entry.ts };
+        editingHistIdx = null;
+        const delBtn = document.getElementById('delHistBtn');
+        if (delBtn) delBtn.style.display = "none";
+        showToast("更新しました");
+      } else {
+        // 追加
+        p.history.push(entry);
+        showToast("保存しました");
+      }
+
+      db.products[curBarcode] = p;
+      db.config.lastTax = taxMode;
+      saveLocalOnly();
+
+      renderStats(p.history);
+      renderDetailHistory(p.history);
+      renderHistory();
+    }
+
+    function handleImage(input) {
+      try {
+        if (!input || !input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          tempImgData = e.target.result;
+          const img = document.getElementById('previewImg');
+          if (img) img.src = tempImgData;
+        };
+        reader.readAsDataURL(file);
+      } catch(e) {}
+    }
+
+    function searchImageWeb() {
+      const q = encodeURIComponent((document.getElementById('inputName')?.value || "").trim());
+      if (!q) { showToast("商品名を入れてください"); return; }
+      window.open(`https://www.google.com/search?q=${q}+商品画像&tbm=isch`, "_blank");
+    }
+
+    /* ===== 設定モーダル ===== */
+    function buildCityChips() {
+      const wrap = document.getElementById('city-history-chips');
+      if (!wrap) return;
+      wrap.innerHTML = "";
+      const cities = (db.config.homeCities || []).slice(0,5);
+      cities.forEach(c => {
+        const s = document.createElement('span');
+        s.className = "city-chip";
+        s.textContent = c;
+        s.onclick = () => { const inp = document.getElementById('home-city-input'); if (inp) inp.value = c; };
+        wrap.appendChild(s);
+      });
+    }
+
+    function openSettings() {
+      const m = document.getElementById('settingsModal');
+      if (!m) return;
+      const city = document.getElementById('home-city-input');
+      const fb = document.getElementById('fb-url-input');
+      if (city) city.value = db.config.homeCity || "";
+      if (fb) fb.value = fbUrl || "";
+      buildCityChips();
+      m.style.display = "flex";
+    }
+
+    function closeSettings() {
+      const m = document.getElementById('settingsModal');
+      if (m) m.style.display = "none";
+    }
+
+    async function startMigration() {
+      const btn = document.getElementById('syncBtn');
+      const city = (document.getElementById('home-city-input')?.value || "").trim();
+      const url = (document.getElementById('fb-url-input')?.value || "").trim();
+
+      db = normalizeDb(db);
+      if (city) db.config.homeCity = city;
+      db.config.homeCities = city ? [city, ...(db.config.homeCities||[]).filter(x=>x!==city)].slice(0,5) : (db.config.homeCities||[]);
+      saveLocalOnly();
+
+      fbUrl = url;
+      localStorage.setItem('smartPriceFirebaseUrl', fbUrl);
+
+      renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+      buildCityChips();
+
+      if (!fbUrl) { showToast("Firebase URL を入れてください"); return; }
+
+      try {
+        if (btn) { btn.disabled = true; btn.innerText = "同期中..."; }
+        showToast("同期中...");
+
+        activeSyncController = new AbortController();
+
+        const { best, smart, needsMigration } = await fetchBestCloudDb(fbUrl);
+        const cloud = best && best.norm ? best.norm : normalizeDb({});
+        const merged = mergeDb(db, cloud);
+
+        if (needsMigration && IS_DEBUG) showToast("保存場所ズレ検出：smart_price に統一します");
+
+        await writeCanonicalSmartPrice(fbUrl, merged, activeSyncController.signal);
+
+        db = normalizeDb(merged);
+        saveLocalOnly();
+
+        renderHistory();
+        renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+
+        closeSettings();
+        showHome();
+        showToast("同期完了");
+      } catch(e) {
+        showToast("同期失敗（URL/権限/通信を確認）");
+      } finally {
+        activeSyncController = null;
+        if (btn) { btn.disabled = false; btn.innerText = "設定保存と同期"; }
+      }
+    }
+
+    /* ===== GPS ===== */
+    function toggleGps() {
+      isGpsOn = !isGpsOn;
+      if (!isGpsOn) {
+        curPos = null;
+        lastGpsTime = "";
+        renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+        return;
+      }
+      if (!navigator.geolocation) {
+        showToast("この端末はGPS非対応です");
+        isGpsOn = false;
+        renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const d = new Date();
+          lastGpsTime = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+          renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+        },
+        () => {
+          showToast("GPS取得に失敗しました");
+          isGpsOn = false;
+          renderStoreList([ (document.getElementById('storeManualInput')?.value||"").trim() ]);
+        },
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 }
+      );
+    }
+
+    /* ===== スキャン（openSettings/startScanner 未定義対策の本丸） ===== */
+    function sanitizeScannedText(t) {
+      const s = String(t || "").trim();
+      const digits = s.replace(/[^\d]/g,"");
+      if (digits.length >= 8 && digits.length <= 18) return digits;
+      return s;
+    }
+
+    async function startScanner() {
+      if (isScanning) return;
+      isScanning = true;
+
+      const area = document.getElementById('camera-area');
+      if (area) area.style.display = "block";
+
+      try {
+        if (!window.Html5Qrcode) throw new Error("html5-qrcode not loaded");
+
+        scanner = new Html5Qrcode("interactive");
+
+        const config = { fps: 10, qrbox: { width: 260, height: 160 } };
+        // 1Dバーコード対応は環境差があるので、無理ならQRとして動かす（落ちないのが最優先）
+        if (window.Html5QrcodeSupportedFormats) {
+          const F = window.Html5QrcodeSupportedFormats;
+          const formats = [];
+          if (F.EAN_13) formats.push(F.EAN_13);
+          if (F.EAN_8) formats.push(F.EAN_8);
+          if (F.CODE_128) formats.push(F.CODE_128);
+          if (F.CODE_39) formats.push(F.CODE_39);
+          if (F.UPC_A) formats.push(F.UPC_A);
+          if (F.UPC_E) formats.push(F.UPC_E);
+          if (F.QR_CODE) formats.push(F.QR_CODE);
+          if (formats.length) config.formatsToSupport = formats;
+        }
+
+        await scanner.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            const code = sanitizeScannedText(decodedText);
+            stopScanner();
+            openForm(code);
+          },
+          () => {}
+        );
+      } catch(e) {
+        // 失敗時は画像選択へ逃がす（落とさない）
+        stopScanner(true);
+        showToast("スキャン起動に失敗：画像選択に切替");
+        const input = document.getElementById('imgInput');
+        if (input) input.click();
+      }
+    }
+
+    async function stopScanner(quiet=false) {
+      try {
+        if (scanner) {
+          try { await scanner.stop(); } catch(e) {}
+          try { await scanner.clear(); } catch(e) {}
+        }
+      } finally {
+        scanner = null;
+        isScanning = false;
+        const area = document.getElementById('camera-area');
+        if (area) area.style.display = "none";
+        if (!quiet) showToast("スキャン終了");
+      }
+    }
+
+    /* ===== 初期化 ===== */
+    function initOnce() {
+      applyVersionLabels();
+      loadLocal();
+      db = normalizeDb(db);
+
+      setCurStore(localStorage.getItem("smart_price_curStore") || "未設定");
+      initCategorySelect();
+      buildCityChips();
+
+      const fb = document.getElementById('fb-url-input');
+      if (fb) fb.value = fbUrl || "";
+
+      const manual = document.getElementById('storeManualInput');
+      if (manual) {
+        manual.addEventListener("change", () => {
+          const v = (manual.value || "").trim();
+          if (v) setCurStore(v);
+          renderStoreList([v]);
+        });
+        manual.addEventListener("blur", () => {
+          const v = (manual.value || "").trim();
+          if (v) setCurStore(v);
+          renderStoreList([v]);
+        });
+      }
+
+      renderStoreList([ (manual?.value||"").trim() ]);
+      renderHistory();
+    }
+
+    (async () => {
+      await maybeClearPwaCacheByBuildParam();
+      initOnce();
+    })();
+
+    /* ===== onclick 用：必ず window に公開（これが hf5 の核心） ===== */
+    window.openSettings = openSettings;
+    window.closeSettings = closeSettings;
+    window.startMigration = startMigration;
+
+    window.startScanner = startScanner;
+    window.stopScanner = stopScanner;
+
+    window.showVeggieMenu = showVeggieMenu;
+    window.openForm = openForm;
+    window.showHome = showHome;
+
+    window.toggleHistoryList = toggleHistoryList;
+    window.confirmDeleteHist = confirmDeleteHist;
+    window.saveData = saveData;
+
+    window.handleImage = handleImage;
+    window.searchImageWeb = searchImageWeb;
+
+    window.toggleGps = toggleGps;
+  </script>
+</body>
+</html>
