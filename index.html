@@ -309,6 +309,8 @@
                 body: JSON.stringify(payload), signal: activeSyncController.signal
             });
             fbUrl = u; localStorage.setItem('smartPriceFirebaseUrl', u); showToast("同期成功");
+            closeSettings();
+            showHome();
         } catch(e) {
             const msg = (e.name === 'AbortError') ? "タイムアウト" : `通信失敗(${e.message})`;
             showToast(`同期失敗: ${msg}`);
