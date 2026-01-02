@@ -1,18 +1,19 @@
 <!--
 APP: Smart Price
 FILE: index.html
-VERSION: v19.9c-hf7
-DATE(JST): 2026-01-02 10:32 JST
-TITLE: スマホ同期失敗（保存容量）対策＋Web版導線復活＋履歴編集で店名修正導線
+VERSION: v19.9c-hf8
+DATE(JST): 2026-01-02 11:46 JST
+TITLE: スマホ画像未表示の解決（thumbs同期＋IDB保存）＋店名手入力固定＋履歴選択赤枠＋サブカテゴリ復活
 CHANGES:
-- localStorage容量超過でも落ちない（自動で画像を落として軽量保存へ切替）
-- Firebaseへ送るJSONからdata画像を自動除去（同期を止めない・DB肥大化防止）
-- 設定に「ブラウザ版へ（URL表示）」追加（大きいURL枠＋コピー）
-- 履歴編集時に「店名を変更（上へ）」ボタン＋自動スクロールで修正可能に
+- 画像サムネを Firebase の thumbs に同期、端末側は IndexedDB 保存（localStorage圧迫回避）
+- 既存の data:image は初回起動で IndexedDB へ移行してローカルDBを軽量化
+- 店名「＋店名入力」を左側に固定して見失わない
+- 購入履歴の編集中行を赤枠で分かるように復活
+- カテゴリ→サブカテゴリ（optgroup）復活、足りない分は＋追記で追加可
 AUTHOR: Yui
-BUILD_PARAM: ?b=2026-01-02_1032_hf7
+BUILD_PARAM: ?b=2026-01-02_1146_hf8
 DEBUG_PARAM: &debug=1
-POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ）
+POLICY: 見た目は極力維持（フォーム内のサブカテゴリ1行のみ追加）
 -->
 
 <!DOCTYPE html>
@@ -24,7 +25,7 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9c-hf7</title>
+  <title>Smart Price v19.9c-hf8</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -32,7 +33,7 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
     .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
     .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 55px; }
-    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; }
+    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
     .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
     .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
     .store-tag.gps-btn { border: 1px solid #ff5252; color: #ff5252; }
@@ -40,30 +41,42 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     .store-tag.add-store { border: 1px dashed #777; color: #ddd; background: #262626; }
     .store-tag.add-store:active { background: #333; }
     .gps-status { font-size: 0.6rem; margin-left: 4px; opacity: 0.9; }
+
     .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 10px; border-radius: 12px; overflow: hidden; }
     .price-card { padding: 12px; border-left: 4px solid #444; cursor: pointer; }
     .price-card.cheap { border-left-color: #ff5252; background: linear-gradient(90deg, #2a1a1a 0%, #1e1e1e 100%); }
     .prod-thumb { width: 68px; height: 68px; object-fit: contain; background: #fff; border-radius: 8px; margin-right: 12px; }
     .price-main { font-size: 1.25rem; font-weight: bold; color: #fff; line-height: 1; }
+
     .stats-strip { display: flex; flex-direction: column; background: #262626; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.75rem; border: 1px solid #333; }
     .stats-row { display: flex; justify-content: space-around; width: 100%; }
     .stat-item { text-align: center; flex: 1; color: #aaa; }
     .stat-val { display: block; font-weight: bold; color: #fff; font-size: 0.9rem; }
+
     .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    .history-row.selected { background: rgba(213,0,0,0.14); }
+    .history-row.selected {
+      background: rgba(213,0,0,0.10);
+      box-shadow: inset 0 0 0 2px #D50000; /* ✅赤枠で分かる */
+      border-radius: 10px;
+      padding-left: 10px; padding-right: 10px;
+      margin-top: 8px;
+    }
+
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
     .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 180px; z-index: 2001; box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); }
     .laser { position: absolute; left: 5%; width: 90%; height: 2px; background: #ff0000; box-shadow: 0 0 10px 2px #ff0000; animation: scanning 2s infinite ease-in-out; z-index: 2002; }
     @keyframes scanning { 0% { top: 15%; opacity: 0.2; } 50% { top: 85%; opacity: 1; } 100% { top: 15%; opacity: 0.2; } }
+
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: #1e1e1e; padding: 25px; border-radius: 20px; width: 95%; max-width: 450px; border: 1px solid #D50000; }
+
     .toast-msg { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: rgba(50,50,50,0.95); color: #fff; padding: 10px 25px; border-radius: 25px; font-size: 0.85rem; z-index: 5000; opacity: 0; transition: 0.3s; pointer-events: none; border: 1px solid #777; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
     .city-chips { display: flex; overflow-x: auto; gap: 5px; padding: 5px 0; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
     .city-chip { font-size: 0.75rem; padding: 4px 12px; border-radius: 15px; background: #333; color: #ccc; border: 1px solid #555; white-space: nowrap; cursor: pointer; }
     .city-chip:active { background: #D50000; color: white; }
 
-    /* Web modal URL表示を見やすく */
     .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
   </style>
@@ -71,7 +84,7 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf7</span></h5>
+  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf8</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -88,9 +101,8 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
   <div id="formView" style="display:none;">
     <div class="card p-3 shadow-lg">
-      <div id="curStoreIndicator" class="text-danger small fw-bold mb-2 text-center" style="opacity:0.8;"></div>
+      <div id="curStoreIndicator" class="text-danger small fw-bold mb-2 text-center" style="opacity:0.9;"></div>
 
-      <!-- ✅ 履歴編集時だけ出す：店名を変えやすく -->
       <div class="text-center mb-2">
         <button id="storeJumpBtn" class="btn btn-sm btn-outline-secondary w-100" style="display:none;" onclick="jumpToStoreChips()">店名を変更（上に移動）</button>
       </div>
@@ -108,6 +120,10 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
           <div class="flex-grow-1">
             <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名（内容量）">
             <select id="inputCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px;"></select>
+
+            <!-- ✅ サブカテゴリ復活（最小追加） -->
+            <select id="inputSubCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px;"></select>
+
             <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
           </div>
         </div>
@@ -181,14 +197,12 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
     <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
 
-    <!-- ✅ Web版導線（復活） -->
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
 
     <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
   </div>
 </div>
 
-<!-- ✅ Web版URL表示モーダル（深い層） -->
 <div id="webModal" class="modal">
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
@@ -219,15 +233,88 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf7";
-  const BUILD_ID = "2026-01-02_1032_hf7";
+  const APP_VERSION = "v19.9c-hf8";
+  const BUILD_ID = "2026-01-02_1146_hf8";
+
+  // ✅ 画像は IndexedDB 保存（スマホでも容量OK）
+  const IMG_DB_NAME = "smart_price_images_v1";
+  const IMG_STORE = "images";
 
   const DEFAULT_CONFIG = {
-    categories: ["飲料","食品","日用品","薬","その他"],
+    categories: ["食品","飲料","お酒","日用品","薬","その他"],
     lastTax: "ex",
     homeCity: "",
     homeCities: [],
-    customStores: []
+    customStores: [],
+    customSubCats: {} // { "食品": ["○○"], ... }
+  };
+
+  // ✅ サブカテゴリ（Amazon/Rakutenベース：使う頻度高いもの中心＋その他）
+  const SUBCAT = {
+    "飲料": [
+      { label: "飲料", options: ["水・炭酸水","炭酸飲料","お茶","コーヒー","紅茶","ジュース","スポーツ飲料","乳飲料","粉末ドリンク","その他"] }
+    ],
+    "お酒": [
+      { label: "お酒", options: ["ビール","発泡酒","チューハイ","ワイン","日本酒","焼酎","ウイスキー","リキュール","その他"] }
+    ],
+    "日用品": [
+      { label: "日用品", options: ["洗剤","ティッシュ","トイレットペーパー","キッチン用品","衛生用品","スキンケア","ヘアケア","化粧品","その他"] }
+    ],
+    "薬": [
+      { label: "薬", options: ["風邪","胃腸","皮膚","目","痛み止め","のど","アレルギー","サプリ","その他"] }
+    ],
+    "その他": [
+      { label: "その他", options: ["その他"] }
+    ],
+    "食品": [
+      { label: "菓子・スナック", options: ["チョコ","クッキー","せんべい","スナック菓子","飴","ガム","ナッツ","その他"] },
+      { label: "アイスクリーム・氷菓", options: ["アイス","氷菓","その他"] },
+
+      { label: "米・雑穀（楽天）", options: ["白米","玄米","発芽玄米","麦","もち麦","もち米","雑穀・雑穀米","ジャスミンライス","ご飯パック","餅","セット・詰め合わせ","その他"] },
+
+      { label: "麺類・パスタ（楽天）", options: ["ラーメン","つけ麺","長崎ちゃんぽん","沖縄そば","うどん","ほうとう","きしめん","そば","そうめん","ひやむぎ","焼きそば","冷麺","パスタ","ライスヌードル","セット・詰め合わせ","その他"] },
+
+      { label: "パン・ジャム・シリアル（楽天）", options: ["パン","シリアル","ジャム・はちみつ","クルトン","セット・詰め合わせ","その他"] },
+
+      { label: "精肉・肉加工品（楽天）", options: ["牛肉","豚肉","鶏肉","羊肉","鴨肉","猪肉","鹿肉","馬肉","挽肉","その他肉類","精肉セット","加工品","セット・詰め合わせ","その他"] },
+
+      { label: "魚介類・水産加工品（楽天）", options: ["アジ","イカ","イワシ","エビ","カツオ","カニ","サケ","サバ","サンマ","タイ","タコ","タラ","ブリ","マグロ","貝類","海藻類","魚卵","加工品","セット・詰め合わせ","その他"] },
+
+      { label: "野菜・きのこ（楽天）", options: ["キャベツ","きゅうり","大根","たまねぎ","じゃがいも","にんじん","ねぎ","白菜","ほうれん草","トマト","ナス","生姜","にんにく","その他野菜","豆類","きのこ","カット野菜","セット・詰め合わせ","その他"] },
+
+      { label: "フルーツ・果物（楽天）", options: ["いちご","みかん","りんご","バナナ","ぶどう","スイカ","メロン","キウイ","オレンジ","ブルーベリー","マンゴー","パイナップル","その他"] },
+
+      { label: "乳製品・卵・代替（Amazon/楽天）", options: ["牛乳","ヨーグルト","チーズ","バター","マーガリン","生クリーム","卵","植物由来代替品","その他"] },
+
+      { label: "豆腐・納豆・こんにゃく・練り物（Amazon/楽天）", options: ["豆腐","納豆","こんにゃく・しらたき","練り物","その他"] },
+
+      { label: "漬物・佃煮・煮豆（Amazon/楽天）", options: ["漬物","梅干し","キムチ","佃煮","煮豆","その他"] },
+
+      { label: "惣菜・チルド食品（Amazon/楽天）", options: ["和風惣菜","洋風惣菜","中華惣菜","韓国惣菜","アジアン惣菜","弁当","鍋セット","カレー","その他"] },
+
+      { label: "冷凍食品（Amazon）", options: ["冷凍食品","冷凍野菜","冷凍肉","冷凍魚介","その他"] },
+
+      { label: "レトルト・料理の素（Amazon）", options: ["レトルト","料理の素","その他"] },
+
+      { label: "缶詰（楽天）", options: ["水産物加工品","肉加工品","野菜・きのこ","フルーツ・果物","惣菜","セット・詰め合わせ","その他"] },
+
+      { label: "瓶詰（楽天）", options: ["水産物加工品","肉加工品","野菜・きのこ","フルーツ・果物","惣菜","セット・詰め合わせ","その他"] },
+
+      { label: "乾物（楽天）", options: ["海苔","鰹節","だし昆布","乾燥わかめ","春雨","ごま","きな粉","干ししいたけ","切干大根","高野豆腐","その他"] },
+
+      { label: "粉類（楽天）", options: ["片栗粉","小麦粉","コーンスターチ","天ぷら粉","パン粉","そば粉","米粉","から揚げ粉","お好み焼粉","その他"] },
+
+      { label: "調味料・食用油・ドレッシング（Amazon/楽天）", options: ["砂糖・甘味料","しお","酢","しょうゆ","みそ","料理酒","みりん","油","だし","めんつゆ","ポン酢","ソース・たれ","ケチャップ","ドレッシング","マヨネーズ","スパイス","料理の素","その他"] },
+
+      { label: "ベビーフード（Amazon）", options: ["ベビーフード","その他"] },
+      { label: "健康食品・介護用食品（Amazon）", options: ["健康食品","介護用食品","その他"] },
+      { label: "ミールキット（Amazon）", options: ["ミールキット","その他"] },
+      { label: "朝食用シリアル（Amazon）", options: ["朝食用シリアル","その他"] },
+      { label: "グルメギフト（Amazon）", options: ["グルメギフト","その他"] },
+      { label: "肉代用品（Amazon）", options: ["肉代用品","その他"] },
+
+      { label: "食品（その他）", options: ["その他"] }
+    ]
   };
 
   const CITY_STORE_PRESET = {
@@ -237,18 +324,23 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
   };
 
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "未設定", tempImgData = null, scanner = null, editingHistIdx = null, isScanning = false;
+  let curBarcode = null, curStore = "未設定", scanner = null, editingHistIdx = null, isScanning = false;
   let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
   let isGpsOn = false, curPos = null, lastGpsTime = "";
   let activeSyncController = null;
 
-  window.onload = () => {
+  window.onload = async () => {
     loadLocal();
     db = normalizeDb(db);
+
+    // ✅ 既存の data:image を IndexedDBへ移行（スマホ容量対策）
+    await migrateEmbeddedImagesToIDB();
+
     initCategorySelect();
+    initSubCategorySelect("食品", "その他");
     renderStoreList();
-    renderHistory();
-    if (fbUrl) syncFirebase();
+    await renderHistory();
+    if (fbUrl) await syncFirebase();
     setupFocusGuides();
   };
 
@@ -296,9 +388,13 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
     if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
     if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
+    if (!o.config.customSubCats || typeof o.config.customSubCats !== "object") o.config.customSubCats = {};
 
     Object.keys(o.products).forEach(code => {
-      if (!Array.isArray(o.products[code].history)) o.products[code].history = [];
+      const p = o.products[code] || {};
+      if (!Array.isArray(p.history)) p.history = [];
+      if (typeof p.hasImage !== "boolean") p.hasImage = false;
+      o.products[code] = p;
     });
 
     if (o.config.homeCity) {
@@ -316,33 +412,12 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
   function histTs(h) {
     if (!h || typeof h !== "object") return 0;
     const v = (h.ts ?? h.timestamp ?? h.time ?? 0);
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
+    let n = Number(v);
+    if (!Number.isFinite(n)) return 0;
 
-  function stripDataImages(d) {
-    const out = JSON.parse(JSON.stringify(d));
-    Object.keys(out.products || {}).forEach(k => {
-      const p = out.products[k];
-      if (p && typeof p.image === "string" && p.image.startsWith("data:")) {
-        delete p.image; // クラウドにも端末にも残さない（容量対策）
-      }
-    });
-    return out;
-  }
-
-  function makeSlimDb(d) {
-    const out = JSON.parse(JSON.stringify(d));
-    Object.keys(out.products || {}).forEach(k => {
-      const p = out.products[k];
-      if (!p) return;
-      if (typeof p.image === "string" && p.image.startsWith("data:")) delete p.image;
-      // 念のため履歴が多すぎる場合は上限（基本は不要だけど保険）
-      if (Array.isArray(p.history) && p.history.length > 500) {
-        p.history = p.history.slice(-500);
-      }
-    });
-    return normalizeDb(out);
+    // ✅ 秒で入ってる古いデータも救う
+    if (n > 1000000000 && n < 1000000000000) n = n * 1000;
+    return n;
   }
 
   function saveLocalOnly() {
@@ -354,25 +429,21 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
         showToast("端末保存に失敗しました", 10000);
         return false;
       }
-      // 容量超過：画像を落として軽量保存に切替
-      const slim = makeSlimDb(db);
+      // 容量超過：最終手段として履歴上限だけ絞る（画像はIDBなので基本ここは軽い）
       try {
+        const slim = JSON.parse(JSON.stringify(db));
+        Object.keys(slim.products || {}).forEach(k => {
+          const p = slim.products[k];
+          if (Array.isArray(p.history) && p.history.length > 500) p.history = p.history.slice(-500);
+        });
+        localStorage.removeItem('smart_price_db');
         localStorage.setItem('smart_price_db', JSON.stringify(slim));
-        db = slim;
-        showToast("端末容量が足りないため、画像は保存しないモードに切替えました", 10000);
+        db = normalizeDb(slim);
+        showToast("端末容量を整理して復旧しました", 7000);
         return true;
       } catch (e2) {
-        // さらに厳しい場合は一旦同キーを消して軽量版を書き戻す（履歴は残す）
-        try {
-          localStorage.removeItem('smart_price_db');
-          localStorage.setItem('smart_price_db', JSON.stringify(slim));
-          db = slim;
-          showToast("端末容量を整理して、軽量データで復旧しました（画像は保存しません）", 10000);
-          return true;
-        } catch (e3) {
-          showToast("端末保存が完全に失敗しました（容量不足）", 10000);
-          return false;
-        }
+        showToast("端末保存が完全に失敗しました（容量不足）", 10000);
+        return false;
       }
     }
   }
@@ -415,89 +486,109 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     return base ? `${base}/smart_price.json` : "";
   }
 
-  async function syncFirebasePut() {
-    if(!fbUrl) return;
-    try {
-      const targetUrl = getSafeUrl(fbUrl);
-      const payload = stripDataImages(db); // ✅ クラウドへdata画像は送らない
-      await fetchWithTimeout(targetUrl, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-    } catch(e){ console.error("Auto PUT Error", e); }
+  // =========================
+  // ✅ IndexedDB（画像保存）
+  // =========================
+  function openImgDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IMG_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const dbi = req.result;
+        if (!dbi.objectStoreNames.contains(IMG_STORE)) {
+          dbi.createObjectStore(IMG_STORE, { keyPath: "code" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
   }
 
-  async function startMigration() {
-    const btn = document.getElementById('syncBtn');
-    const urlEl = document.getElementById('fb-url-input');
-    const cityEl = document.getElementById('home-city-input');
+  async function idbPutImage(code, dataUrl) {
+    if (!code || !dataUrl) return;
+    const dbi = await openImgDB();
+    return new Promise((resolve, reject) => {
+      const tx = dbi.transaction(IMG_STORE, "readwrite");
+      tx.objectStore(IMG_STORE).put({ code, dataUrl, updated: Date.now() });
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
 
-    const u = (urlEl ? urlEl.value : '').trim();
-    const cityInput = (cityEl ? cityEl.value : '').trim();
+  async function idbGetImage(code) {
+    if (!code) return null;
+    const dbi = await openImgDB();
+    return new Promise((resolve) => {
+      const tx = dbi.transaction(IMG_STORE, "readonly");
+      const req = tx.objectStore(IMG_STORE).get(code);
+      req.onsuccess = () => resolve(req.result ? req.result.dataUrl : null);
+      req.onerror = () => resolve(null);
+    });
+  }
 
-    if (btn) { btn.disabled = true; btn.innerText = "同期中…"; }
-    showToast("同期を開始…", 3000);
+  async function idbDelImage(code) {
+    if (!code) return;
+    const dbi = await openImgDB();
+    return new Promise((resolve) => {
+      const tx = dbi.transaction(IMG_STORE, "readwrite");
+      tx.objectStore(IMG_STORE).delete(code);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  }
 
-    activeSyncController = new AbortController();
-
-    try {
-      db.config.homeCity = cityInput;
-      db = normalizeDb(db);
-
-      // ✅ 端末保存が失敗しても同期処理を止めない
-      saveLocalOnly();
-
-      if(!u) {
-        showToast("ローカル保存完了", 3000);
-        closeSettings(); showHome();
-        return;
+  async function migrateEmbeddedImagesToIDB() {
+    let changed = false;
+    for (const code of Object.keys(db.products || {})) {
+      const p = db.products[code];
+      if (p && typeof p.image === "string" && p.image.startsWith("data:image")) {
+        try {
+          await idbPutImage(code, p.image);
+          p.hasImage = true;
+          delete p.image; // localStorage軽量化
+          changed = true;
+        } catch(e) {}
       }
-
-      const targetUrl = getSafeUrl(u);
-
-      // 先にPUT（クラウド更新）※data画像は除外
-      const payload = stripDataImages(db);
-      const resPut = await fetchWithTimeout(targetUrl, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: activeSyncController.signal
-      });
-
-      if (resPut && resPut.ok) {
-        fbUrl = u;
-        localStorage.setItem('smartPriceFirebaseUrl', u);
-        showToast("同期成功！", 3000);
-        closeSettings(); showHome();
-      }
-    } catch(e) {
-      const msg = (e.name === 'AbortError') ? "タイムアウト/中断" : `通信失敗(${e.message})`;
-      showToast(`同期失敗（${msg}）`, 10000);
-      console.error("Migration error:", e);
-    } finally {
-      activeSyncController = null;
-      resetSyncBtn();
     }
+    if (changed) saveLocalOnly();
   }
 
-  async function syncFirebase() {
-    if(!fbUrl) return;
-    try {
-      const targetUrl = getSafeUrl(fbUrl);
-      const res = await fetchWithTimeout(targetUrl, {}, 10000);
-      const cloud = await res.json();
-      if (cloud && cloud.products) {
-        db = normalizeDb(cloud);
-        saveLocalOnly();
-        renderHistory();
-        renderStoreList();
-      }
-    } catch(e){
-      console.error("Firebase Sync Error", e);
+  async function makeThumbFromFile(file, maxSize=260, quality=0.72) {
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => rej(new Error("read failed"));
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error("img load failed"));
+      i.src = dataUrl;
+    });
+
+    const w = img.width, h = img.height;
+    const scale = Math.min(1, maxSize / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = cw; canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, cw, ch);
+
+    // サイズを見ながら少し圧縮（目安：80KB程度）
+    let q = quality;
+    let out = canvas.toDataURL("image/jpeg", q);
+    while (out.length > 120000 && q > 0.45) { // 文字数で概算（dataURL）
+      q -= 0.05;
+      out = canvas.toDataURL("image/jpeg", q);
     }
+    return out;
   }
 
+  // =========================
+  // ✅ カテゴリ / サブカテゴリ
+  // =========================
   function initCategorySelect() {
     db = normalizeDb(db);
     const sel = document.getElementById('inputCategory');
@@ -505,22 +596,108 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     sel.innerHTML = `<option value="__NONE__">カテゴリを選ぶ</option>` +
       db.config.categories.map(c => `<option value="${c}">${c}</option>`).join('') +
       `<option value="ADD">+ 追記</option>`;
+
     sel.onchange = async () => {
       if(sel.value === "ADD") {
         const n = await customPrompt("新しいカテゴリ名");
-        if(n) { db.config.categories.push(n); initCategorySelect(); sel.value = n; saveLocalOnly(); syncFirebasePut(); }
-        else { sel.selectedIndex = 0; }
+        if(n) {
+          db.config.categories.push(n);
+          initCategorySelect();
+          sel.value = n;
+          saveLocalOnly();
+        } else {
+          sel.selectedIndex = 0;
+        }
+      }
+      initSubCategorySelect(sel.value, "その他");
+    };
+  }
+
+  function getSubcatGroups(cat) {
+    const base = SUBCAT[cat] || [{ label: cat, options: ["その他"] }];
+    const extra = (db.config.customSubCats && Array.isArray(db.config.customSubCats[cat])) ? db.config.customSubCats[cat] : [];
+    return { base, extra };
+  }
+
+  function initSubCategorySelect(cat, currentVal) {
+    const sel = document.getElementById("inputSubCategory");
+    if (!sel) return;
+
+    sel.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "__NONE_SUB__";
+    opt0.textContent = "サブカテゴリを選ぶ";
+    sel.appendChild(opt0);
+
+    const { base, extra } = getSubcatGroups(cat);
+
+    base.forEach(g => {
+      const og = document.createElement("optgroup");
+      og.label = g.label;
+      (g.options || []).forEach(s => {
+        const o = document.createElement("option");
+        o.value = s;
+        o.textContent = s;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    });
+
+    if (extra.length) {
+      const og2 = document.createElement("optgroup");
+      og2.label = "追記（自分で増やした）";
+      extra.forEach(s => {
+        const o = document.createElement("option");
+        o.value = s; o.textContent = s;
+        og2.appendChild(o);
+      });
+      sel.appendChild(og2);
+    }
+
+    const optAdd = document.createElement("option");
+    optAdd.value = "ADD_SUB";
+    optAdd.textContent = "+ サブカテゴリを追記";
+    sel.appendChild(optAdd);
+
+    // 既存値を反映
+    if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
+      sel.value = currentVal;
+    } else {
+      // デフォルトは「その他」を選びやすく
+      if ([...sel.options].some(o => o.value === "その他")) sel.value = "その他";
+      else sel.value = "__NONE_SUB__";
+    }
+
+    sel.onchange = async () => {
+      if (sel.value === "ADD_SUB") {
+        const catSel = document.getElementById("inputCategory");
+        const c = catSel ? catSel.value : cat;
+        if (!c || c === "__NONE__") { showToast("先にカテゴリを選んでください", 3000); sel.value="__NONE_SUB__"; return; }
+        const n = await customPrompt(`「${c}」のサブカテゴリ名`);
+        if (n && n.trim()) {
+          const v = n.trim();
+          if (!db.config.customSubCats) db.config.customSubCats = {};
+          if (!Array.isArray(db.config.customSubCats[c])) db.config.customSubCats[c] = [];
+          db.config.customSubCats[c] = [v, ...db.config.customSubCats[c].filter(x => x !== v)].slice(0, 50);
+          saveLocalOnly();
+          initSubCategorySelect(c, v);
+          showToast("サブカテゴリを追加しました", 2000);
+        } else {
+          initSubCategorySelect(c, "その他");
+        }
       }
     };
   }
 
+  // =========================
+  // ✅ 店名リスト
+  // =========================
   function addCustomStore(name) {
     db = normalizeDb(db);
     const s = (name || "").trim();
     if (!s) return;
     db.config.customStores = [s, ...(db.config.customStores || []).filter(x => x !== s)].slice(0, 20);
     saveLocalOnly();
-    syncFirebasePut();
   }
 
   async function promptAddStore() {
@@ -554,6 +731,13 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
     list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
 
+    // ✅ 「＋店名入力」を左側に固定（見失わない）
+    const addBtn = document.createElement('span');
+    addBtn.className = 'store-tag add-store';
+    addBtn.innerText = '＋店名入力';
+    addBtn.onclick = () => promptAddStore();
+    list.appendChild(addBtn);
+
     finalSet.forEach(name => {
       const span = document.createElement('span');
       span.className = 'store-tag' + (name === curStore ? ' active' : '');
@@ -567,15 +751,23 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
       };
       list.appendChild(span);
     });
-
-    const addBtn = document.createElement('span');
-    addBtn.className = 'store-tag add-store';
-    addBtn.innerText = '＋店名入力';
-    addBtn.onclick = () => promptAddStore();
-    list.appendChild(addBtn);
   }
 
-  function renderHistory() {
+  // =========================
+  // ✅ 履歴表示（画像はIDBから）
+  // =========================
+  async function getBestImageSrc(code, p) {
+    // 外部URL（http/https）はそのまま
+    if (p && typeof p.image === "string" && p.image && !p.image.startsWith("data:image")) return p.image;
+
+    // IDB優先
+    const data = await idbGetImage(code);
+    if (data) return data;
+
+    return "https://placehold.jp/24/333/ccc/68x68.png?text=NoImage";
+  }
+
+  async function renderHistory() {
     const list = document.getElementById('historyList');
     if(!list) return;
     list.innerHTML = "";
@@ -583,15 +775,18 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
     items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
 
-    items.forEach(it => {
-      if (!it.history || !it.history.length) return;
+    for (const it of items) {
+      if (!it.history || !it.history.length) continue;
       const last = it.history[it.history.length-1];
+
       const div = document.createElement('div');
       div.className = 'card price-card';
       div.onclick = () => openForm(it.code);
+
+      const imgSrc = await getBestImageSrc(it.code, it);
       div.innerHTML = `
         <div class="d-flex align-items-center">
-          <img src="${it.image || 'https://placehold.jp/24/333/ccc/68x68.png?text=NoImage'}" class="prod-thumb">
+          <img src="${imgSrc}" class="prod-thumb">
           <div class="flex-grow-1 overflow-hidden">
             <div class="fw-bold text-white small text-truncate">${it.name || ''}</div>
             <div class="text-secondary" style="font-size:0.6rem;">${last.store || '未設定'}</div>
@@ -601,9 +796,125 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
           </div>
         </div>`;
       list.appendChild(div);
-    });
+    }
   }
 
+  // =========================
+  // ✅ Firebase 同期（thumbs対応）
+  // =========================
+  async function buildPayloadWithThumbs(limit=80) {
+    const payload = JSON.parse(JSON.stringify(db));
+    payload = normalizeDb(payload);
+
+    // localStorage軽量化のため products内のdata:imageは持たない（IDB運用）
+    Object.keys(payload.products || {}).forEach(k => {
+      if (payload.products[k] && typeof payload.products[k].image === "string" && payload.products[k].image.startsWith("data:image")) {
+        delete payload.products[k].image;
+      }
+    });
+
+    // ✅ thumbs を付けて端末間で画像を同期
+    payload.thumbs = {};
+    const codes = Object.keys(payload.products || {}).slice(0, limit);
+    for (const code of codes) {
+      const p = payload.products[code];
+      if (p && p.hasImage) {
+        const d = await idbGetImage(code);
+        if (d && typeof d === "string" && d.startsWith("data:image")) {
+          payload.thumbs[code] = d;
+        }
+      }
+    }
+
+    return payload;
+  }
+
+  async function startMigration() {
+    const btn = document.getElementById('syncBtn');
+    const urlEl = document.getElementById('fb-url-input');
+    const cityEl = document.getElementById('home-city-input');
+
+    const u = (urlEl ? urlEl.value : '').trim();
+    const cityInput = (cityEl ? cityEl.value : '').trim();
+
+    if (btn) { btn.disabled = true; btn.innerText = "同期中…"; }
+    showToast("同期を開始…", 3000);
+
+    activeSyncController = new AbortController();
+
+    try {
+      db.config.homeCity = cityInput;
+      db = normalizeDb(db);
+      saveLocalOnly();
+
+      if(!u) {
+        showToast("ローカル保存完了", 3000);
+        closeSettings(); showHome();
+        return;
+      }
+
+      const targetUrl = getSafeUrl(u);
+
+      // ✅ thumbs込みでPUT（画像も同期）
+      const payload = await buildPayloadWithThumbs(120);
+
+      const resPut = await fetchWithTimeout(targetUrl, {
+        method: 'PUT',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: activeSyncController.signal
+      });
+
+      if (resPut && resPut.ok) {
+        fbUrl = u;
+        localStorage.setItem('smartPriceFirebaseUrl', u);
+        showToast("同期成功！", 3000);
+        closeSettings(); showHome();
+      }
+    } catch(e) {
+      const msg = (e.name === 'AbortError') ? "タイムアウト/中断" : `失敗(${e.message})`;
+      showToast(`同期失敗（${msg}）`, 10000);
+      console.error("Migration error:", e);
+    } finally {
+      activeSyncController = null;
+      resetSyncBtn();
+    }
+  }
+
+  async function syncFirebase() {
+    if(!fbUrl) return;
+    try {
+      const targetUrl = getSafeUrl(fbUrl);
+      const res = await fetchWithTimeout(targetUrl, {}, 10000);
+      const cloud = await res.json();
+
+      // ✅ thumbs があればIDBへ保存（localStorageへは入れない）
+      if (cloud && cloud.thumbs && typeof cloud.thumbs === "object") {
+        const thumbs = cloud.thumbs;
+        for (const code of Object.keys(thumbs)) {
+          const d = thumbs[code];
+          if (typeof d === "string" && d.startsWith("data:image")) {
+            await idbPutImage(code, d);
+            if (cloud.products && cloud.products[code]) cloud.products[code].hasImage = true;
+          }
+        }
+      }
+      if (cloud && cloud.thumbs) delete cloud.thumbs;
+
+      if (cloud && cloud.products) {
+        db = normalizeDb(cloud);
+        saveLocalOnly();
+        await renderHistory();
+        renderStoreList();
+      }
+    } catch(e){
+      console.error("Firebase Sync Error", e);
+    }
+  }
+
+  // =========================
+  // ✅ 画面遷移 / フォーム
+  // =========================
   async function openForm(code) {
     const calcArea = document.getElementById('calcOptionArea');
     const saveBtn = document.getElementById('saveBtn');
@@ -630,14 +941,20 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
       document.getElementById('inputName').value = "";
       document.getElementById('inputMaker').value = "";
       document.getElementById('inputCategory').value = "__NONE__";
+      initSubCategorySelect("食品", "その他");
       document.getElementById('previewImg').src = "https://placehold.jp/24/333/ccc/68x68.png?text=NoImage";
     } else {
       document.getElementById('inputName').value = p.name || "";
       document.getElementById('inputMaker').value = p.maker || "";
+
       const catVal = p.category || "__NONE__";
       const catSelect = document.getElementById('inputCategory');
       catSelect.value = ([...catSelect.options].some(o => o.value === catVal)) ? catVal : "__NONE__";
-      document.getElementById('previewImg').src = p.image || "https://placehold.jp/24/333/ccc/68x68.png?text=NoImage";
+
+      initSubCategorySelect(catVal, p.subcategory || "その他");
+
+      const imgSrc = await getBestImageSrc(code, p);
+      document.getElementById('previewImg').src = imgSrc || "https://placehold.jp/24/333/ccc/68x68.png?text=NoImage";
     }
 
     renderDetailHistory(exists ? p.history : []);
@@ -674,7 +991,7 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
       row.onclick = () => editHistoryMode(actIdx);
 
       const t = histTs(h);
-      const dateStr = t ? new Date(t).toLocaleString() : "(不明)";
+      const dateStr = t ? new Date(t).toLocaleString('ja-JP') : "(不明)";
       row.innerHTML = `
         <div class="flex-grow-1">
           <span class="text-secondary small">${dateStr}</span><br>
@@ -711,7 +1028,6 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
     renderDetailHistory(p.history);
 
-    // ✅ ここが肝：編集時は上（店名チップ）へ戻して迷子を防ぐ
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast("店名は上のチップで変更できます", 3000);
     document.getElementById('priceSection').scrollIntoView({behavior: 'smooth'});
@@ -724,22 +1040,21 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
 
   async function saveData() {
     if (curStore === "未設定") { showToast("店名を選んでください", 3000); return; }
-    if (document.getElementById('inputCategory').value === "__NONE__") { showToast("カテゴリを選んでください", 3000); return; }
 
-    const p = db.products[curBarcode] || { history: [] };
-    p.name = document.getElementById('inputName').value || "名称なし";
-    p.category = document.getElementById('inputCategory').value;
-    p.maker = document.getElementById('inputMaker').value || "";
+    const cat = document.getElementById('inputCategory').value;
+    if (cat === "__NONE__") { showToast("カテゴリを選んでください", 3000); return; }
 
-    // ✅ data画像は保存しない（容量対策）
-    const currentSrc = document.getElementById('previewImg').src;
-    if (tempImgData && typeof tempImgData === "string" && !tempImgData.startsWith("data:")) {
-      p.image = tempImgData;
-    } else if (currentSrc && !currentSrc.includes("placehold.jp") && !currentSrc.startsWith("data:")) {
-      p.image = currentSrc;
-    } else {
-      if (p.image && typeof p.image === "string" && p.image.startsWith("data:")) delete p.image;
+    const sub = document.getElementById('inputSubCategory').value;
+    if (sub === "__NONE_SUB__") {
+      // 迷うのが嫌なので、ここは軽く促すだけ
+      showToast("サブカテゴリは「その他」でOKです", 2500);
     }
+
+    const p = db.products[curBarcode] || { history: [], hasImage: false };
+    p.name = document.getElementById('inputName').value || "名称なし";
+    p.category = cat;
+    p.subcategory = (sub && sub !== "__NONE_SUB__" && sub !== "ADD_SUB") ? sub : "その他";
+    p.maker = document.getElementById('inputMaker').value || "";
 
     const val = Number(document.getElementById('inputPrice').value);
 
@@ -761,12 +1076,17 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
       return;
     }
 
+    // ✅ IDBに画像があれば hasImage をtrue
+    try {
+      const img = await idbGetImage(curBarcode);
+      p.hasImage = !!img;
+    } catch(e) {}
+
     db.products[curBarcode] = p;
     db = normalizeDb(db);
 
     saveLocalOnly();
-    syncFirebasePut();
-    renderHistory();
+    await renderHistory();
     showHome();
   }
 
@@ -820,12 +1140,11 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     }
   }
 
-  function showHome() {
+  async function showHome() {
     document.getElementById('mainView').style.display='block';
     document.getElementById('formView').style.display='none';
-    renderHistory();
+    await renderHistory();
     renderStoreList();
-    tempImgData = null;
     editingHistIdx = null;
   }
 
@@ -846,16 +1165,22 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     window.open(`https://www.google.com/search?q=${encodeURIComponent(document.getElementById('inputName').value)}+商品画像&tbm=isch`, '_blank');
   }
 
-  function handleImage(input) {
-    // 画像は端末保存容量を圧迫しやすいので、ここではプレビューのみ（data保存はしない方針）
+  async function handleImage(input) {
+    if (!curBarcode) { showToast("先に商品を開いてください", 3000); return; }
     if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        tempImgData = e.target.result; // プレビュー用
-        document.getElementById('previewImg').src = e.target.result;
-        showToast("画像は端末容量節約のため、永続保存しない設定です", 3000);
-      };
-      reader.readAsDataURL(input.files[0]);
+      try {
+        const thumb = await makeThumbFromFile(input.files[0], 260, 0.72);
+        await idbPutImage(curBarcode, thumb);
+        const p = db.products[curBarcode] || { history: [], hasImage: false };
+        p.hasImage = true;
+        db.products[curBarcode] = p;
+        saveLocalOnly();
+        document.getElementById('previewImg').src = thumb;
+        showToast("画像を保存しました（スマホでも表示できます）", 2500);
+      } catch(e) {
+        console.error(e);
+        showToast("画像の保存に失敗しました", 5000);
+      }
     }
   }
 
@@ -878,7 +1203,6 @@ POLICY: 見た目は極力維持（導線追加は設定内/編集補助のみ�
     if(!ok) return;
     db.products[curBarcode].history.splice(editingHistIdx, 1);
     saveLocalOnly();
-    syncFirebasePut();
     showHome();
   }
 
