@@ -1381,6 +1381,13 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   });
 })();
 </script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+  });
+}
+</script>
 
 </body>
 </html>
