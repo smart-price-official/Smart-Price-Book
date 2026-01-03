@@ -1,19 +1,22 @@
 <!--
 APP: Smart Price
 FILE: index.html
-VERSION: v19.9c-hf12-pwa1-imgfix1
+VERSION: v19.9c-hf12-pwa1-imgfix3
 DATE(JST): 2026-01-03 18:41 JST
-TITLE: サブカテゴリ修正＋PWA対応＋ホーム画像表示改善（last優先対応）
+TITLE: サブカテゴリ修正＋PWA対応＋ホーム画像表示改善（IndexedDB初期化強化）
 CHANGES:
 - サブカテゴリ：categoryTreeが空の場合、DEFAULT_CATEGORY_TREEから補完
 - normalizeDb：categoryTreeの初期化と補完を強化
 - PWA：manifest.jsonにstart_url/scope追加、sw.js新規作成、SW登録コード追加
 - ホーム画像：保存時にimageKeyを必ず作成、renderHistoryでappend後バインド、openFormで統一
-- ホーム画像：spBindItemImageにlastも渡し、last優先で画像を表示（同一端末内で確実に表示）
-- バージョン：v19.9c-hf11 → v19.9c-hf12-pwa1 → v19.9c-hf12-pwa1-imgfix1
+- ホーム画像：spBindItemImageにlastも渡し、last優先で画像を表示
+- 画像参照永続化：normalizeDbでlast.imageKeyをproductへ移植、makeSlimDbでimageKeyは残す（imageDataのみ削除）
+- IndexedDB初期化強化：openImgDbで保存箱の確実な作成、idbPut/idbGetで保存箱存在確認とエラーハンドリング強化
+- 画像選択UI改善：handleImageでキャンセル/失敗時にURL入力へ自動遷移しない（ユーザー操作のみ）
+- バージョン：v19.9c-hf11 → v19.9c-hf12-pwa1 → v19.9c-hf12-pwa1-imgfix1 → v19.9c-hf12-pwa1-imgfix2 → v19.9c-hf12-pwa1-imgfix3
 AUTHOR: Yui / Rex
-BUILD_ID: 2026-01-03_1841_hf12-pwa1-imgfix1
-BUILD_PARAM: ?b=2026-01-03_1841_hf12-pwa1-imgfix1
+BUILD_ID: 2026-01-03_1841_hf12-pwa1-imgfix3
+BUILD_PARAM: ?b=2026-01-03_1841_hf12-pwa1-imgfix3
 DEBUG_PARAM: &debug=1
 POLICY: 見た目は極力維持（機能復活は最小UIで）
 -->
@@ -27,7 +30,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9c-hf12-pwa1-imgfix1</title>
+  <title>Smart Price v19.9c-hf12-pwa1-imgfix3</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -88,7 +91,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf12-pwa1-imgfix1</span></h5>
+  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf12-pwa1-imgfix3</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -233,8 +236,8 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf12-pwa1-imgfix1";
-  const BUILD_ID = "2026-01-03_1841_hf12-pwa1-imgfix1";
+  const APP_VERSION = "v19.9c-hf12-pwa1-imgfix3";
+  const BUILD_ID = "2026-01-03_1841_hf12-pwa1-imgfix3";
 
   // ========= Debug =========
   function isDebug() {
@@ -309,10 +312,38 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       const req = indexedDB.open(IMG_DB_NAME, 1);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        if (!db.objectStoreNames.contains(IMG_STORE)) db.createObjectStore(IMG_STORE);
+        // ✅ 保存箱が存在しない場合は必ず作成（既存ユーザーでも安全）
+        if (!db.objectStoreNames.contains(IMG_STORE)) {
+          try {
+            db.createObjectStore(IMG_STORE);
+          } catch (err) {
+            console.warn('[IDB] createObjectStore failed:', err);
+          }
+        }
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        // ✅ 保存箱が存在することを確認（念のため）
+        if (db && !db.objectStoreNames.contains(IMG_STORE)) {
+          // 保存箱が無い場合は再作成を試みる
+          try {
+            db.close();
+            indexedDB.deleteDatabase(IMG_DB_NAME);
+            imgDbPromise = null; // リセット
+            resolve(openImgDb()); // 再帰呼び出し
+            return;
+          } catch (err) {
+            console.warn('[IDB] recreate failed:', err);
+            resolve(null);
+            return;
+          }
+        }
+        resolve(db);
+      };
+      req.onerror = (e) => {
+        console.warn('[IDB] open failed:', e);
+        resolve(null);
+      };
     });
     return imgDbPromise;
   }
@@ -320,22 +351,50 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   async function idbPut(key, blob) {
     const dbi = await openImgDb();
     if (!dbi) return false;
+    // ✅ 保存箱の存在確認
+    if (!dbi.objectStoreNames.contains(IMG_STORE)) {
+      console.warn('[IDB] objectStore not found:', IMG_STORE);
+      return false;
+    }
     return new Promise((res) => {
-      const tx = dbi.transaction(IMG_STORE, "readwrite");
-      tx.objectStore(IMG_STORE).put(blob, key);
-      tx.oncomplete = () => res(true);
-      tx.onerror = () => res(false);
+      try {
+        const tx = dbi.transaction(IMG_STORE, "readwrite");
+        const store = tx.objectStore(IMG_STORE);
+        store.put(blob, key);
+        tx.oncomplete = () => res(true);
+        tx.onerror = (e) => {
+          console.warn('[IDB] put failed:', e);
+          res(false);
+        };
+      } catch (err) {
+        console.warn('[IDB] transaction failed:', err);
+        res(false);
+      }
     });
   }
 
   async function idbGet(key) {
     const dbi = await openImgDb();
     if (!dbi) return null;
+    // ✅ 保存箱の存在確認
+    if (!dbi.objectStoreNames.contains(IMG_STORE)) {
+      console.warn('[IDB] objectStore not found:', IMG_STORE);
+      return null;
+    }
     return new Promise((res) => {
-      const tx = dbi.transaction(IMG_STORE, "readonly");
-      const req = tx.objectStore(IMG_STORE).get(key);
-      req.onsuccess = () => res(req.result || null);
-      req.onerror = () => res(null);
+      try {
+        const tx = dbi.transaction(IMG_STORE, "readonly");
+        const store = tx.objectStore(IMG_STORE);
+        const req = store.get(key);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = (e) => {
+          console.warn('[IDB] get failed:', e);
+          res(null);
+        };
+      } catch (err) {
+        console.warn('[IDB] transaction failed:', err);
+        res(null);
+      }
     });
   }
 
@@ -564,6 +623,18 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       if (typeof p.image === 'string' && (p.image.startsWith('http://') || p.image.startsWith('https://'))) {
         p.imageUrl = p.image;
         delete p.image;
+      }
+      // ✅ 画像参照の移植：last.imageKeyがあればproductへコピー（永続化）
+      if (Array.isArray(p.history) && p.history.length > 0 && !p.imageKey) {
+        const last = p.history[p.history.length - 1];
+        if (last && typeof last === 'object') {
+          if (last.imageKey && typeof last.imageKey === 'string') {
+            p.imageKey = last.imageKey;
+          } else if (last.imageUrl && typeof last.imageUrl === 'string' && 
+                     (last.imageUrl.startsWith('http://') || last.imageUrl.startsWith('https://'))) {
+            p.imageUrl = last.imageUrl;
+          }
+        }
       }
     });
 
@@ -938,10 +1009,12 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         </div>`;
       list.appendChild(div);
 
-      // ✅ 画像をバインド（append後、divの中から拾う、lastも渡す）
+      // ✅ 画像をバインド（append後、divの中から拾う、lastも渡す、例外で必ずplaceholderに戻す）
       const imgEl = div.querySelector('img.prod-thumb');
       if (imgEl) {
-        spBindItemImage(imgEl, it, last).catch(()=>{ imgEl.src = placeholderImg(); });
+        spBindItemImage(imgEl, it, last).catch((e) => {
+          if (imgEl) imgEl.src = placeholderImg();
+        });
       }
     });
   }
@@ -1246,31 +1319,39 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
   // ✅ 端末内画像として保存 → ホームで表示（同期しない）
   async function handleImage(input) {
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      showToast("画像を保存中…", 2000);
+    if (!input || !input.files || !input.files[0]) {
+      // ✅ 画像選択がキャンセルされた場合は何もしない（URL入力へ自動遷移しない）
+      return;
+    }
+    const file = input.files[0];
+    showToast("画像を保存中…", 2000);
 
-      const blob = await fileToThumbBlob(file, 256, 0.78);
-      if (!blob) {
-        showToast("画像の読み込みに失敗しました", 8000);
-        return;
-      }
-      const key = `img_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const ok = await idbPut(key, blob);
+    const blob = await fileToThumbBlob(file, 256, 0.78);
+    if (!blob) {
+      showToast("画像の読み込みに失敗しました", 8000);
+      // ✅ 失敗時もURL入力へ自動遷移しない
+      return;
+    }
+    const key = `img_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const ok = await idbPut(key, blob);
 
-      const prev = document.getElementById('previewImg');
+    const prev = document.getElementById('previewImg');
+    if (prev) {
       try {
         const url = URL.createObjectURL(blob);
         prev.src = url;
-      } catch(e) {}
-
-      if (!ok) {
-        showToast("端末の画像保存に失敗しました（設定/容量を確認）", 10000);
-        return;
+      } catch(e) {
+        console.warn('[Image] createObjectURL failed:', e);
       }
-      tempImgData = { type:'key', key };
-      showToast("画像をこの端末に保存しました（同期はしません）", 5000);
     }
+
+    if (!ok) {
+      showToast("端末の画像保存に失敗しました（設定/容量を確認）", 10000);
+      // ✅ 失敗時もURL入力へ自動遷移しない
+      return;
+    }
+    tempImgData = { type:'key', key };
+    showToast("画像をこの端末に保存しました（同期はしません）", 5000);
   }
 
   function customPrompt(msg, def = "") {
