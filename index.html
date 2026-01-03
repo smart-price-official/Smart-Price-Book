@@ -1,20 +1,19 @@
 <!--
 APP: Smart Price
 FILE: index.html
-VERSION: v19.9c-hf12
-DATE(JST): 2026-01-02 13:18 JST
-TITLE: 画像復活（IndexedDB保存）＋サブカテゴリ復活＋Edge対策（同期安全化）
+VERSION: v19.9c-hf12-pwa2-imgfix4
+DATE(JST): 2026-01-03 17:38 JST
+TITLE: 同期“引っ越し”安定化（クラウド上書き禁止でimageKey保持）＋fetchタイムアウト修正＋PWA更新強化
 CHANGES:
-- 画像：端末内IndexedDBに保存してホームで表示（Firebaseには送らない）
-- 旧data:imageは端末内で自動移行（残っている端末は復活可能）
-- 同期：PUT前にクラウド確認、PUT後にGETで再読込（Edgeの空表示対策）
-- 履歴編集の選択行：赤枠の縁取り（見失わない）
-- カテゴリ→サブカテゴリを復活（その他・追記あり）
-- debug=1 のとき JSエラーをトーストで表示（切り分け用）
+- 【最重要】syncFirebase(GET)でクラウドDBを“丸ごと上書き”しない：productsをマージして端末内imageKeyを保持
+- startMigrationでもPUT前にクラウドを読み、ローカルとマージしてから送信（端末間のデータ取りこぼし減）
+- fetchWithTimeoutのタイムアウトがsignal指定時に効かない不具合を修正（同期が固まるのを抑止）
+- PWA/先祖帰り対策：bパラメータ無しなら現行BUILDを付ける（無限リダイレクトはしない）
+- PWA更新強化：Service Workerを再登録＆update（sw.jsはStep2で差し替え）
 AUTHOR: Yui
-BUILD_PARAM: ?b=2026-01-02_1318_hf11
+BUILD_PARAM: ?b=2026-01-03_1738_hf12
 DEBUG_PARAM: &debug=1
-POLICY: 見た目は極力維持（機能復活は最小UIで）
+POLICY: 見た目は極力維持（内部だけ安定化）
 -->
 
 <!DOCTYPE html>
@@ -22,11 +21,11 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?b=2026-01-03_1738_hf12">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9c-hf11</title>
+  <title>Smart Price v19.9c-hf12-pwa2-imgfix4</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -87,7 +86,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf11</span></h5>
+  <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf12</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -232,8 +231,33 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf11";
-  const BUILD_ID = "2026-01-02_1318_hf11";
+  const APP_VERSION = "v19.9c-hf12-pwa2-imgfix4";
+  const BUILD_ID = "2026-01-03_1738_hf12";
+
+  // ========= bパラメータ（先祖帰り抑止：b無しだけ付与） =========
+  (function ensureBuildParamOnce(){
+    try {
+      const u = new URL(location.href);
+      if (!u.searchParams.get('b')) {
+        u.searchParams.set('b', BUILD_ID);
+        // debugは維持
+        location.replace(u.toString());
+      }
+    } catch(e){}
+  })();
+
+  // ========= PWA / Service Worker（更新強め） =========
+  (function setupServiceWorker(){
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+        if (reg && reg.update) reg.update();
+      } catch(e) {
+        // 失敗してもアプリは動かす
+      }
+    });
+  })();
 
   // ========= Debug =========
   function isDebug() {
@@ -249,7 +273,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     });
   }
 
-  // ========= Category Tree（Amazon/Rakutenを実用レベルに整理＋追記可） =========
+  // ========= Category Tree =========
   const DEFAULT_CATEGORY_TREE = {
     "ドリンク": ["水・ミネラルウォーター","炭酸飲料","乳飲料","コーヒー","紅茶","お茶","スポーツドリンク","ジュース","粉末ドリンク","その他"],
     "お酒": ["ビール","発泡酒","チューハイ","日本酒","焼酎","ワイン","ウイスキー","梅酒","その他"],
@@ -281,7 +305,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   };
 
   const DEFAULT_CONFIG = {
-    // 互換のため残す（実体は categoryTree）
     categories: [],
     categoryTree: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)),
     lastTax: "ex",
@@ -384,7 +407,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     imgEl.src = url;
-    // メモリ解放（置換時）
     if (imgEl.dataset && imgEl.dataset.objurl) {
       try { URL.revokeObjectURL(imgEl.dataset.objurl); } catch(e) {}
     }
@@ -397,55 +419,13 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
   let scanner = null, editingHistIdx = null, isScanning = false;
 
-  // ✅ ここは必ず let（const にすると "Assignment to constant variable" の原因になる）
+  // ✅ ここは必ず let
   let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
 
   let isGpsOn = false, curPos = null, lastGpsTime = "";
   let activeSyncController = null;
 
-  window.onload = async () => {
-    loadLocal();
-    db = normalizeDb(db);
-
-    // 旧data:imageが残っている端末は、IndexedDBへ移行して画像復活
-    await migrateLegacyImagesToIdb();
-
-    initCategorySelect();
-    renderStoreList();
-    renderHistory();
-
-    if (fbUrl) {
-      await syncFirebase(); // Edge対策：起動時にクラウド読み直し
-      renderHistory();
-      renderStoreList();
-    }
-
-    setupFocusGuides();
-
-    if (isDebug()) {
-      setTimeout(() => {
-        showToast(`DEBUG:${APP_VERSION} / ${BUILD_ID}`, 4000);
-      }, 300);
-    }
-  };
-
-  window.addEventListener("pageshow", resetSyncBtn);
-  window.addEventListener("beforeunload", resetSyncBtn);
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      resetSyncBtn();
-      if (activeSyncController) activeSyncController.abort();
-    }
-  });
-
-  function resetSyncBtn() {
-    const btn = document.getElementById('syncBtn');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerText = "設定保存と同期";
-    }
-  }
-
+  // ========= util =========
   function showToast(msg, ms = 4000) {
     const t = document.getElementById('toast');
     if (!t) return;
@@ -464,14 +444,30 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     );
   }
 
+  function histTs(h) {
+    if (!h || typeof h !== "object") return 0;
+    const v = (h.ts ?? h.timestamp ?? h.time ?? 0);
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function lastHistoryTs(p) {
+    try {
+      const h = (p && Array.isArray(p.history) && p.history.length) ? p.history[p.history.length-1] : null;
+      return histTs(h);
+    } catch(e){ return 0; }
+  }
+
+  function deepClone(x) {
+    try { return JSON.parse(JSON.stringify(x)); } catch(e){ return x; }
+  }
+
   function normalizeDb(input) {
     let o = (input && typeof input === "object") ? input : {};
     if (!o.products || typeof o.products !== "object") o.products = {};
     if (!o.config || typeof o.config !== "object") o.config = {};
 
-    // categoryTree を正として整形
     if (!o.config.categoryTree || typeof o.config.categoryTree !== "object") {
-      // 旧 categories しかない場合
       if (Array.isArray(o.config.categories) && o.config.categories.length) {
         const tree = {};
         o.config.categories.forEach(c => { tree[c] = ["その他"]; });
@@ -480,7 +476,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         o.config.categoryTree = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE));
       }
     }
-    // categories は表示用のキー配列（互換）
     o.config.categories = Object.keys(o.config.categoryTree);
 
     if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
@@ -492,7 +487,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       const p = o.products[code];
       if (!p || typeof p !== 'object') return;
       if (!Array.isArray(p.history)) p.history = [];
-      // 旧 image → imageUrl へ寄せる（httpだけ）
       if (typeof p.image === 'string' && (p.image.startsWith('http://') || p.image.startsWith('https://'))) {
         p.imageUrl = p.image;
         delete p.image;
@@ -511,37 +505,25 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     return o;
   }
 
-  function histTs(h) {
-    if (!h || typeof h !== "object") return 0;
-    const v = (h.ts ?? h.timestamp ?? h.time ?? 0);
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-
   function makeSlimDb(d) {
     const out = JSON.parse(JSON.stringify(d));
     Object.keys(out.products || {}).forEach(k => {
       const p = out.products[k];
       if (!p) return;
-      // Firebaseには絶対送らないもの
       if (typeof p.image === "string" && p.image.startsWith("data:")) delete p.image;
-      // 互換のため残ってたら整理
       if (typeof p.imageUrl === "string" && p.imageUrl.startsWith("data:")) delete p.imageUrl;
-      // history上限保険
       if (Array.isArray(p.history) && p.history.length > 500) p.history = p.history.slice(-500);
     });
     return normalizeDb(out);
   }
 
   function stripForCloud(d) {
-    // ✅ クラウドへ送るのは「文字情報＋履歴＋画像URLのみ」
     const out = JSON.parse(JSON.stringify(d));
     Object.keys(out.products || {}).forEach(k => {
       const p = out.products[k];
       if (!p) return;
-      delete p.image;     // 旧
-      delete p.imageKey;  // 端末内のみ（送っても無意味なので落とす）
-      // imageUrl は残す（http/httpsのみ）
+      delete p.image;
+      delete p.imageKey; // 端末内のみ
       if (typeof p.imageUrl === "string" && p.imageUrl.startsWith("data:")) delete p.imageUrl;
     });
     return out;
@@ -591,18 +573,32 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     }
   }
 
+  // ========= fetch timeout（signalがあってもタイムアウト効かせる） =========
   async function fetchWithTimeout(resource, options = {}, timeout = 12000) {
-    const internalController = new AbortController();
-    const signal = options.signal || internalController.signal;
-    const id = setTimeout(() => internalController.abort(), timeout);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      try { controller.abort(); } catch(e){}
+    }, timeout);
+
+    // 外からのabortも受ける
+    if (options.signal) {
+      if (options.signal.aborted) {
+        try { controller.abort(); } catch(e){}
+      } else {
+        try {
+          options.signal.addEventListener('abort', () => {
+            try { controller.abort(); } catch(e){}
+          }, { once:true });
+        } catch(e){}
+      }
+    }
+
     try {
-      const response = await fetch(resource, { cache: 'no-store', ...options, signal });
-      clearTimeout(id);
+      const response = await fetch(resource, { cache: 'no-store', ...options, signal: controller.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -616,6 +612,104 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
   function getSafeUrl(url) {
     const base = getBaseUrl(url);
     return base ? `${base}/smart_price.json` : "";
+  }
+
+  // ========= DB merge（クラウド上書き禁止） =========
+  function mergeHistory(localH, cloudH) {
+    const a = Array.isArray(localH) ? localH : [];
+    const b = Array.isArray(cloudH) ? cloudH : [];
+    const map = new Map();
+
+    function put(h){
+      if (!h || typeof h !== 'object') return;
+      const ts = histTs(h);
+      const price = Number(h.price);
+      const store = String(h.store || '');
+      const key = `${ts}|${price}|${store}`;
+      if (!map.has(key)) map.set(key, h);
+    }
+    a.forEach(put);
+    b.forEach(put);
+
+    const out = Array.from(map.values()).sort((x,y) => histTs(x) - histTs(y));
+    return out.length > 500 ? out.slice(-500) : out;
+  }
+
+  function mergeProduct(localP, cloudP) {
+    const lp = (localP && typeof localP === 'object') ? localP : { history: [] };
+    const cp = (cloudP && typeof cloudP === 'object') ? cloudP : { history: [] };
+
+    const lts = lastHistoryTs(lp);
+    const cts = lastHistoryTs(cp);
+
+    // 新しい履歴を持つ側を“本体”に
+    const base = deepClone((lts >= cts) ? lp : cp);
+    const other = deepClone((lts >= cts) ? cp : lp);
+
+    // historyは必ずマージ
+    base.history = mergeHistory(lp.history, cp.history);
+
+    // 文字系：空なら補完
+    const fields = ['name','maker','category','subCategory','imageUrl'];
+    fields.forEach(k => {
+      if ((!base[k] || String(base[k]).trim() === '') && other[k]) base[k] = other[k];
+    });
+
+    // 端末内画像キー：ローカルを最優先で保持
+    if (lp.imageKey) base.imageKey = lp.imageKey;
+    // 旧imageは整理
+    if (typeof base.image === 'string' && base.image.startsWith('data:')) delete base.image;
+    if (typeof base.imageUrl === 'string' && base.imageUrl.startsWith('data:')) delete base.imageUrl;
+
+    if (!Array.isArray(base.history)) base.history = [];
+    return base;
+  }
+
+  function mergeConfig(localC, cloudC) {
+    const lc = (localC && typeof localC === 'object') ? deepClone(localC) : {};
+    const cc = (cloudC && typeof cloudC === 'object') ? deepClone(cloudC) : {};
+
+    // 基本はクラウド優先（端末間で揃いやすい）
+    const out = deepClone(cc);
+
+    // ただし空はローカルで補完
+    if (!out.homeCity && lc.homeCity) out.homeCity = lc.homeCity;
+    if (!out.lastTax && lc.lastTax) out.lastTax = lc.lastTax;
+
+    // homeCities/customStoresはユニオン
+    const hc = [...new Set([...(Array.isArray(out.homeCities)?out.homeCities:[]), ...(Array.isArray(lc.homeCities)?lc.homeCities:[])])].filter(Boolean).slice(0,5);
+    out.homeCities = hc;
+    const cs = [...new Set([...(Array.isArray(out.customStores)?out.customStores:[]), ...(Array.isArray(lc.customStores)?lc.customStores:[])])].filter(Boolean).slice(0,20);
+    out.customStores = cs;
+
+    // categoryTreeは“欠けを補う”
+    if (!out.categoryTree || typeof out.categoryTree !== 'object') out.categoryTree = {};
+    const ltree = (lc.categoryTree && typeof lc.categoryTree === 'object') ? lc.categoryTree : {};
+    Object.keys(ltree).forEach(cat => {
+      if (!out.categoryTree[cat]) out.categoryTree[cat] = deepClone(ltree[cat]);
+      else {
+        // サブカテゴリを補完
+        const a = Array.isArray(out.categoryTree[cat]) ? out.categoryTree[cat] : [];
+        const b = Array.isArray(ltree[cat]) ? ltree[cat] : [];
+        out.categoryTree[cat] = [...new Set([...a,...b])];
+      }
+    });
+
+    return out;
+  }
+
+  function mergeDb(localDb, cloudDb) {
+    const ld = normalizeDb(deepClone(localDb || {}));
+    const cd = normalizeDb(deepClone(cloudDb || {}));
+
+    const merged = { products:{}, config:{} };
+    const keys = new Set([...Object.keys(ld.products||{}), ...Object.keys(cd.products||{})]);
+
+    keys.forEach(code => {
+      merged.products[code] = mergeProduct(ld.products[code], cd.products[code]);
+    });
+    merged.config = mergeConfig(ld.config, cd.config);
+    return normalizeDb(merged);
   }
 
   async function syncFirebasePut() {
@@ -640,7 +734,8 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       const res = await fetchWithTimeout(targetUrl, {}, 12000);
       const cloud = await res.json();
       if (cloud && cloud.products) {
-        db = normalizeDb(cloud);
+        // ✅ ここが本命：上書き禁止でマージ
+        db = mergeDb(db, cloud);
         saveLocalOnly();
         initCategorySelect();
         renderHistory();
@@ -651,7 +746,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     }
   }
 
-  // ✅ 旧 data:image が端末に残っている場合のみ復活できる（残っていない端末は無理）
+  // ✅ 旧 data:image が端末に残っている場合のみ復活できる
   async function migrateLegacyImagesToIdb() {
     const dbi = await openImgDb();
     if (!dbi) return;
@@ -662,7 +757,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       const p = db.products[code];
       if (!p) continue;
 
-      // 旧 image が data の場合 → idbへ移行
       if (typeof p.image === 'string' && p.image.startsWith('data:') && !p.imageKey) {
         const blob = dataUrlToBlob(p.image);
         if (blob) {
@@ -676,7 +770,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         }
       }
 
-      // 旧 image が http の場合 → imageUrlへ
       if (typeof p.image === 'string' && (p.image.startsWith('http://') || p.image.startsWith('https://'))) {
         p.imageUrl = p.image;
         delete p.image;
@@ -686,9 +779,50 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
     if (changed) {
       saveLocalOnly();
-      // 画像本体は送らないが、文字情報更新はOK
       syncFirebasePut();
       if (isDebug()) showToast("旧画像を端末内へ移行しました", 5000);
+    }
+  }
+
+  window.onload = async () => {
+    loadLocal();
+    db = normalizeDb(db);
+
+    await migrateLegacyImagesToIdb();
+
+    initCategorySelect();
+    renderStoreList();
+    renderHistory();
+
+    if (fbUrl) {
+      await syncFirebase(); // ✅ マージ方式に変わったので画像が消えない
+      renderHistory();
+      renderStoreList();
+    }
+
+    setupFocusGuides();
+
+    if (isDebug()) {
+      setTimeout(() => {
+        showToast(`DEBUG:${APP_VERSION} / ${BUILD_ID}`, 4000);
+      }, 300);
+    }
+  };
+
+  window.addEventListener("pageshow", resetSyncBtn);
+  window.addEventListener("beforeunload", resetSyncBtn);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      resetSyncBtn();
+      if (activeSyncController) activeSyncController.abort();
+    }
+  });
+
+  function resetSyncBtn() {
+    const btn = document.getElementById('syncBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "設定保存と同期";
     }
   }
 
@@ -724,7 +858,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       initSubCategorySelect(sel.value);
     };
 
-    // 初期は隠す
     if (sub) sub.style.display = 'none';
   }
 
@@ -859,7 +992,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         </div>`;
       list.appendChild(div);
 
-      // ✅ 端末内画像（imageKey）があれば後から差し込む
       if (it.imageKey) {
         const imgEl = document.getElementById(imgId);
         applyImageKeyToImg(imgEl, it.imageKey);
@@ -919,7 +1051,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         if (subSel) subSel.style.display = 'none';
       }
 
-      // 画像表示：imageUrl → imageKey → placeholder
       const prev = document.getElementById('previewImg');
       if (p.imageUrl && (p.imageUrl.startsWith('http://') || p.imageUrl.startsWith('https://'))) {
         prev.src = p.imageUrl;
@@ -929,7 +1060,7 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
       } else {
         prev.src = placeholderImg();
       }
-      tempImgData = null; // 新規選択があれば上書き
+      tempImgData = null;
     }
 
     renderDetailHistory(exists ? p.history : []);
@@ -1030,15 +1161,12 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     p.subCategory = needsSub ? sub : "";
     p.maker = document.getElementById('inputMaker').value || "";
 
-    // 画像：URL or imageKey（端末内）
     if (tempImgData && tempImgData.type === 'key') {
       p.imageKey = tempImgData.key;
       delete p.image;
-      // 端末画像優先。URLは残してもいいが混乱するのでそのままにする
     } else if (tempImgData && tempImgData.type === 'url') {
       p.imageUrl = tempImgData.url;
       delete p.image;
-      // URL優先のときは端末画像は任意で残す（削除しない）
     }
 
     const val = Number(document.getElementById('inputPrice').value);
@@ -1141,7 +1269,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     });
   }
 
-  // ✅ 検索ボタン：URL貼り付け（空ならGoogle画像検索を開く）
   async function searchImageWeb() {
     const name = (document.getElementById('inputName').value || '').trim();
     const u = await customPrompt("画像URLを貼る（空欄なら検索を開く）", "");
@@ -1159,7 +1286,6 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     window.open(`https://www.google.com/search?q=${encodeURIComponent(name || '商品画像')}+商品画像&tbm=isch`, '_blank', 'noopener');
   }
 
-  // ✅ 端末内画像として保存 → ホームで表示（同期しない）
   async function handleImage(input) {
     if (input.files && input.files[0]) {
       const file = input.files[0];
@@ -1248,22 +1374,18 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
 
       const targetUrl = getSafeUrl(u);
 
-      // ✅ PUT前にクラウド確認：ローカルが空ならクラウド優先で事故回避
+      // ✅ PUT前にクラウドを読み、マージしてから送る（端末間の取りこぼし減）
       try {
-        const res0 = await fetchWithTimeout(targetUrl, { signal: activeSyncController.signal }, 8000);
+        const res0 = await fetchWithTimeout(targetUrl, { signal: activeSyncController.signal }, 9000);
         const cloud0 = await res0.json();
-        const localCount = Object.keys(db.products || {}).length;
-        const cloudCount = cloud0 && cloud0.products ? Object.keys(cloud0.products).length : 0;
-        if (localCount === 0 && cloudCount > 0) {
-          db = normalizeDb(cloud0);
+        if (cloud0 && cloud0.products) {
+          db = mergeDb(db, cloud0);
           saveLocalOnly();
-          showToast("クラウドのデータを読み込みました（空の上書きを回避）", 6000);
         }
       } catch(e) {
-        // クラウド確認に失敗しても続行
+        // 読めなくても続行
       }
 
-      // PUT（画像は送らない）
       const payload = stripForCloud(db);
       await fetchWithTimeout(targetUrl, {
         method: 'PUT',
@@ -1272,10 +1394,10 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
         signal: activeSyncController.signal
       }, 12000);
 
-      // ✅ 成功後：GETで読み直し（Edgeの空表示対策）
-      fbUrl = u; // let なのでOK
+      fbUrl = u;
       localStorage.setItem('smartPriceFirebaseUrl', u);
-      await syncFirebase();
+
+      await syncFirebase(); // GETで最終整合（Edge対策）
 
       showToast("同期成功！", 3000);
       closeSettings(); showHome();
