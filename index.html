@@ -1372,5 +1372,15 @@ POLICY: 見た目は極力維持（機能復活は最小UIで）
     window.open(text, "_blank", "noopener");
   }
 </script>
+<script>
+(function(){
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("./sw.js", { scope: "./" })
+      .catch(function(e){ console.warn("SW register failed:", e); });
+  });
+})();
+</script>
+
 </body>
 </html>
