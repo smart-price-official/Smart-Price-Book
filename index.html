@@ -1064,42 +1064,46 @@ POLICY: 見た目は極力維持（内部だけ安定化）
   }
 
   function renderHistory() {
-    const list = document.getElementById('historyList');
-    if(!list) return;
-    list.innerHTML = "";
+  const list = document.getElementById('historyList');
+  if(!list) return;
+  list.innerHTML = "";
 
-    const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-    items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
+  const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
+  items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
 
-    items.forEach(it => {
-      if (!it.history || !it.history.length) return;
-      const last = it.history[it.history.length-1];
-      const div = document.createElement('div');
-      div.className = 'card price-card';
-      div.onclick = () => openForm(it.code);
+  items.forEach(it => {
+    if (!it.history || !it.history.length) return;
+    const last = it.history[it.history.length-1];
+    const div = document.createElement('div');
+    div.className = 'card price-card';
+    div.onclick = () => openForm(it.code);
 
-      const imgId = `img_${it.code.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
-      const imgSrc = (it.imageUrl && (it.imageUrl.startsWith('http://') || it.imageUrl.startsWith('https://'))) ? it.imageUrl : placeholderImg();
+    const imgId = `img_${it.code.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+    const imgSrc = (it.imageUrl && (it.imageUrl.startsWith('http://') || it.imageUrl.startsWith('https://')))
+      ? it.imageUrl
+      : placeholderImg();
 
-      div.innerHTML = `
-        <div class="d-flex align-items-center">
-          <img id="${imgId}" src="${imgSrc}" class="prod-thumb" referrerpolicy="no-referrer">
-          <div class="flex-grow-1 overflow-hidden">
-            <div class="fw-bold text-white small text-truncate">${it.name || ''}</div>
-            <div class="text-secondary" style="font-size:0.6rem;">${last.store || '未設定'}</div>
-          </div>
-          <div class="text-end ms-2">
-            <div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div>
-          </div>
-        </div>`;
-      list.appendChild(div);
+    div.innerHTML = `
+      <div class="d-flex align-items-center">
+        <img id="${imgId}" src="${imgSrc}" class="prod-thumb" referrerpolicy="no-referrer">
+        <div class="flex-grow-1 overflow-hidden">
+          <div class="fw-bold text-white small text-truncate">${it.name || ''}</div>
+          <div class="text-secondary" style="font-size:0.6rem;">${last.store || '未設定'}</div>
+        </div>
+        <div class="text-end ms-2">
+          <div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div>
+        </div>
+      </div>`;
 
-      if (it.imageKey) {
-        const imgEl = document.getElementById(imgId);
-        applyImageKeyToImg(imgEl, it.imageKey);
-      }
-    });
-  }
+    list.appendChild(div);
+
+    // ✅ そのカード(div)の中から画像を直接つかむ（ID衝突の影響を受けない）
+    if (it.imageKey) {
+      const imgEl = div.querySelector('img.prod-thumb');
+      if (imgEl) applyImageKeyToImg(imgEl, it.imageKey);
+    }
+  });
+}
 
   // ========= Form =========
   async function openForm(code) {
