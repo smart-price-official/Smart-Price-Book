@@ -11,6 +11,7 @@
 やりたいこと	行く場所
 普段使い・実地検証・PWA利用	stable
 不具合修正・新機能追加・実験	dev
+
 ② 普段使い・検証・PWAの場合（stable）
 /Smart-Price-Book/stable/
 
