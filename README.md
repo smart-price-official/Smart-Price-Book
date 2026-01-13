@@ -1,4 +1,225 @@
 # Smart-Price-Book
+🧭 Smart Price 運用フロー（必ずここから読む）
+
+このプロジェクトは
+「使う場所」と「直す場所」を完全に分けて運用する。
+
+① まず確認すること（最初の分岐）
+
+今やりたいのはどれか？
+
+やりたいこと	行く場所
+普段使い・実地検証・PWA利用	stable
+不具合修正・新機能追加・実験	dev
+② 普段使い・検証・PWAの場合（stable）
+/Smart-Price-Book/stable/
+
+
+ここは触らない
+
+正常動作が確認された最新版のみ置く
+
+PWA登録・日常利用・奥さま検証は必ずここ
+
+URL：
+
+https://smart-price-official.github.io/Smart-Price-Book/stable/
+
+
+✔ できること
+
+買い物記録
+
+スキャン
+
+同期
+
+PWA起動
+
+✖ やってはいけないこと
+
+修正
+
+デバッグ
+
+実験
+
+debug=1 を付ける
+
+③ 修正・実験・調査の場合（dev）
+/Smart-Price-Book/dev/
+
+
+ここが作業場
+
+壊れてOK
+
+ログ・debug・試行錯誤はすべてここでやる
+
+URL例：
+
+https://smart-price-official.github.io/Smart-Price-Book/dev/?b=YYYY-MM-DD_test&debug=1
+
+
+✔ できること
+
+バグ再現
+
+ログ確認
+
+仮修正
+
+API検証
+
+✖ やってはいけないこと
+
+PWA登録
+
+日常利用
+
+④ 修正が終わったら（昇格フロー）
+
+dev → stable に進めてよい条件
+
+ブラウザで正常
+
+PWAで正常
+
+再起動・再読み込みで問題なし
+
+履歴・画像・同期が壊れていない
+
+👉 条件を満たしたら
+dev の index.html を stable にコピーする
+
+※ stable で直接直すのは禁止
+
+⑤ 迷ったらこのルール
+
+「直したい」 → dev
+
+「使いたい」 → stable
+
+「どっちだ？」 → stableは触らない
+
+⑥ この運用の目的
+
+正しく動く版を常に1つ確保する
+
+PWA特有の不具合を切り分ける
+
+「何が壊れたか分からない」状態を作らない
+
+🧭 Smart Price 運用フロー（必ずここから読む）
+
+このプロジェクトは
+「使う場所」と「直す場所」を完全に分けて運用する。
+
+① まず確認すること（最初の分岐）
+
+今やりたいのはどれか？
+
+やりたいこと	行く場所
+普段使い・実地検証・PWA利用	stable
+不具合修正・新機能追加・実験	dev
+② 普段使い・検証・PWAの場合（stable）
+/Smart-Price-Book/stable/
+
+
+ここは触らない
+
+正常動作が確認された最新版のみ置く
+
+PWA登録・日常利用・奥さま検証は必ずここ
+
+URL：
+
+https://smart-price-official.github.io/Smart-Price-Book/stable/
+
+
+✔ できること
+
+買い物記録
+
+スキャン
+
+同期
+
+PWA起動
+
+✖ やってはいけないこと
+
+修正
+
+デバッグ
+
+実験
+
+debug=1 を付ける
+
+③ 修正・実験・調査の場合（dev）
+/Smart-Price-Book/dev/
+
+
+ここが作業場
+
+壊れてOK
+
+ログ・debug・試行錯誤はすべてここでやる
+
+URL例：
+
+https://smart-price-official.github.io/Smart-Price-Book/dev/?b=YYYY-MM-DD_test&debug=1
+
+
+✔ できること
+
+バグ再現
+
+ログ確認
+
+仮修正
+
+API検証
+
+✖ やってはいけないこと
+
+PWA登録
+
+日常利用
+
+④ 修正が終わったら（昇格フロー）
+
+dev → stable に進めてよい条件
+
+ブラウザで正常
+
+PWAで正常
+
+再起動・再読み込みで問題なし
+
+履歴・画像・同期が壊れていない
+
+👉 条件を満たしたら
+dev の index.html を stable にコピーする
+
+※ stable で直接直すのは禁止
+
+⑤ 迷ったらこのルール
+
+「直したい」 → dev
+
+「使いたい」 → stable
+
+「どっちだ？」 → stableは触らない
+
+⑥ この運用の目的
+
+正しく動く版を常に1つ確保する
+
+PWA特有の不具合を切り分ける
+
+「何が壊れたか分からない」状態を作らない
 安定版（stable）の保管と運用ルール【最重要】
 目的
 
