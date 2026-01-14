@@ -1,19 +1,21 @@
 <!--
 APP: Smart Price
-FILE: /yahoo-lab/index.html
-VERSION: v19.9c-hf19-manualcode1-imgsearch1-selpad0
-DATE(JST): 2026-01-14 10:55 JST
-TITLE: 手入力13桁化・画像検索改善・赤枠余白削除
+FILE: Smart-Price-Book/dev/index.html
+VERSION: v19.9.10
+FULL_VERSION: v19.9.10-hf20-feedback1
+DATE(JST): 2026-01-15 02:28 JST
+TITLE: なべさんフィードバック対応（赤枠・重複・手入力・GPS店名・バージョン表示）
 CHANGES:
-- .history-row.selected の padding/margin を削除（赤枠のみ残す・余白が増えない）
-- searchImageWeb() を差し替え（URL入力削除・商品コード+商品名で画像検索を開く）
-- showVeggieMenu() を13桁入力に変更（スキャンと同じ処理へ流す・Yahoo検索も実行）
-- manualBarcodeEntry() 関数を追加（手入力もスキャンと同じYahoo検索→openForm）
-- subCategory は既に saveData() で保存済み（2264行目で確認）
+- 赤枠をinset→外側box-shadowに変更、padding 4px追加
+- 手入力由来（M_）とJANが同一商品の場合、JAN側へ統合してM_を削除
+- スキャン/手入力を共通関数 processBarcodeData() に統合
+- GPS店名が出ない問題修正（trim + 空要素除去、空ならプリセット表示、先頭自動選択）
+- バージョン表示を数字のみ（v19.9.10）に変更、FULL_VERSION 保持
+- manifest.json 復活（PWA検証用）
 - UI変更なし（内部修正のみ・UI_FREEZE厳守）
 AUTHOR: Rex
-BUILD_ID: 2026-01-14_1055_manualcode1-imgsearch1-selpad0
-BUILD_PARAM: ?b=2026-01-14_1055_manualcode1-imgsearch1-selpad0
+BUILD_ID: 2026-01-15_0228_feedback1
+BUILD_PARAM: ?b=2026-01-15_0228_feedback1
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部修正のみ）
 -->
@@ -23,12 +25,11 @@ POLICY: UI変更禁止（内部修正のみ）
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- manifest.json 404対策：一旦無効化（PWAは後で復活） -->
-  <!-- <link rel="manifest" href="manifest.json"> -->
+  <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9c-hf19-manualcode1-imgsearch1-selpad0</title>
+  <title>Smart Price v19.9.10</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -57,11 +58,13 @@ POLICY: UI変更禁止（内部修正のみ）
     .stat-val { display: block; font-weight: bold; color: #fff; font-size: 0.9rem; }
 
     .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    /* ✅ 見失わない赤枠（レイアウトを崩さない） */
+    /* ✅ 見失わない赤枠（外側） */
     .history-row.selected {
       background: rgba(213,0,0,0.10);
-      box-shadow: inset 0 0 0 2px rgba(213,0,0,0.95);
+      box-shadow: 0 0 0 2px rgba(213,0,0,0.95);
       border-radius: 10px;
+      padding-left: 4px;
+      padding-right: 4px;
     }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
@@ -86,7 +89,7 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf19-manualcode1-imgsearch1-selpad0</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9.10</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -240,8 +243,9 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf19-manualcode1-imgsearch1-selpad0";
-  const BUILD_ID = "2026-01-14_1055_manualcode1-imgsearch1-selpad0";
+  const APP_VERSION = "v19.9.10"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.10-hf20-feedback1"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-15_0228_feedback1";
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -940,7 +944,7 @@ POLICY: UI変更禁止（内部修正のみ）
 
       if (isDebug()) {
         setTimeout(() => {
-          showToast(`DEBUG:${APP_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
+          showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
       }
     } catch(e) {
@@ -1652,7 +1656,14 @@ POLICY: UI変更禁止（内部修正のみ）
     // ✅ 近隣店舗候補を統合（nearbyStoreNames）
     const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
     
+    // ✅ 空なら プリセット + customStores を必ず表示
     const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
+    if (curStore === "未設定" && finalSet.length > 1) {
+      curStore = finalSet[1]; // 「未設定」以外の最初の候補
+      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
+    }
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
     list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
@@ -1691,8 +1702,18 @@ POLICY: UI変更禁止（内部修正のみ）
     const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
     items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
 
+    // ✅ 重複防止ガード（同一キーは1回だけ表示）
+    const renderedKeys = new Set();
+
     for (const it of items) {
       if (!it.history || !it.history.length) continue;
+      
+      // 重複チェック
+      if (renderedKeys.has(it.code)) {
+        if (isDebug()) console.log('[renderHistory] Skipped duplicate:', it.code);
+        continue;
+      }
+      renderedKeys.add(it.code);
       const last = it.history[it.history.length-1];
       const div = document.createElement('div');
       div.className = 'card price-card';
@@ -2484,7 +2505,8 @@ POLICY: UI変更禁止（内部修正のみ）
         const json = await res.json();
         if (json && json.ok && Array.isArray(json.stores)) {
           if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
-          return json.stores.map(s => s.name).filter(Boolean);
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
         }
         return [];
       }
@@ -2504,7 +2526,8 @@ POLICY: UI変更禁止（内部修正のみ）
         const json = await res.json();
         if (json && json.ok && Array.isArray(json.stores)) {
           if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
-          return json.stores.map(s => s.name).filter(Boolean);
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
         } else if (json && !json.ok) {
           // エラー時（例：使用できないアドレス）
           if (isDebug()) {
@@ -2539,33 +2562,8 @@ POLICY: UI変更禁止（内部修正のみ）
       showToast("読み取りOK", 1500);
       await stopScanner();
       
-      // ✅ バーコード読み取り後、可能なら自動情報取得
-      const jan = t.trim();
-      if (jan && /^\d{8,14}$/.test(jan)) {
-        try {
-          const info = await lookupYahooByJan(jan);
-          if (info) {
-            // 商品情報を自動入力
-            const p = db.products[jan] || { history: [] };
-            if (info.name && (!p.name || !p.name.trim())) {
-              p.name = info.name;
-            }
-            if (info.maker && (!p.maker || !p.maker.trim())) {
-              p.maker = info.maker;
-            }
-            if (info.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
-              p.imageUrl = info.imageUrl;
-            }
-            db.products[jan] = p;
-            saveLocalOnly();
-            showToast("商品情報を取得しました", 3000);
-          }
-        } catch(e) {
-          if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
-        }
-      }
-      
-      openForm(t);
+      // ✅ 共通処理へ（手入力と同じ）
+      await processBarcodeData(t);
     }).catch(() => {
       showToast("起動失敗", 8000);
       stopScanner();
@@ -2608,35 +2606,74 @@ POLICY: UI変更禁止（内部修正のみ）
     manualBarcodeEntry(code);
   }
 
-  // ✅ 手入力バーコード処理（スキャン成功時と同じ処理）
+  // ✅ 商品名の正規化（統合判定用）
+  function normalizeProductName(name, maker) {
+    const n = String(name || '').trim().toLowerCase().replace(/\s+/g, '');
+    const m = String(maker || '').trim().toLowerCase().replace(/\s+/g, '');
+    return `${n}|${m}`;
+  }
+
+  // ✅ バーコードデータ処理（スキャン/手入力共通）
+  async function processBarcodeData(code) {
+    curBarcode = code; // ✅ 先にセット（Yahoo取得前）
+    const jan = code.trim();
+    
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      try {
+        const info = await lookupYahooByJan(jan);
+        if (info) {
+          const p = db.products[jan] || { history: [] };
+          if (info.name && (!p.name || !p.name.trim())) {
+            p.name = info.name;
+          }
+          if (info.maker && (!p.maker || !p.maker.trim())) {
+            p.maker = info.maker;
+          }
+          if (info.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
+            p.imageUrl = info.imageUrl;
+          }
+          
+          // ✅ 既存の M_ 商品（手入力由来）と統合
+          const normalized = normalizeProductName(info.name, info.maker);
+          Object.keys(db.products || {}).forEach(key => {
+            if (key.startsWith('M_') && key !== jan) {
+              const mp = db.products[key];
+              if (!mp) return;
+              const mNormalized = normalizeProductName(mp.name, mp.maker);
+              if (mNormalized === normalized) {
+                // 統合：history と imageKey をマージ
+                if (Array.isArray(mp.history) && mp.history.length > 0) {
+                  p.history = [...(p.history || []), ...mp.history];
+                }
+                if (mp.imageKey && !p.imageKey) {
+                  p.imageKey = mp.imageKey;
+                }
+                if (mp.imageUrl && !p.imageUrl) {
+                  p.imageUrl = mp.imageUrl;
+                }
+                // M_ 商品を削除
+                delete db.products[key];
+                if (isDebug()) console.log('[Merge] M_ product merged:', key, '→', jan);
+              }
+            }
+          });
+          
+          db.products[jan] = p;
+          saveLocalOnly();
+          showToast("商品情報を取得しました", 3000);
+        }
+      } catch(e) {
+        if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+      }
+    }
+    
+    openForm(code);
+  }
+
+  // ✅ 手入力バーコード処理（共通関数を呼ぶ）
   async function manualBarcodeEntry(code) {
     try {
-      // Yahoo検索で商品情報を自動取得
-      const jan = code.trim();
-      if (jan && /^\d{8,14}$/.test(jan)) {
-        try {
-          const info = await lookupYahooByJan(jan);
-          if (info) {
-            const p = db.products[jan] || { history: [] };
-            if (info.name && (!p.name || !p.name.trim())) {
-              p.name = info.name;
-            }
-            if (info.maker && (!p.maker || !p.maker.trim())) {
-              p.maker = info.maker;
-            }
-            if (info.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
-              p.imageUrl = info.imageUrl;
-            }
-            db.products[jan] = p;
-            saveLocalOnly();
-            showToast("商品情報を取得しました", 3000);
-          }
-        } catch(e) {
-          if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
-        }
-      }
-      
-      openForm(code);
+      await processBarcodeData(code);
     } catch(e) {
       if (isDebug()) console.warn('[manualBarcodeEntry]', e);
       showToast('読み込みに失敗したみたい。もう一度やってみてね', 8000);
