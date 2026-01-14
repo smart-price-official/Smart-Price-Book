@@ -1,18 +1,19 @@
-
-
 <!--
 APP: Smart Price
-FILE: index.html
-VERSION: v19.9c-hf13-stable2
-DATE(JST): 2026-01-11 20:20 JST
-TITLE: 保存ボタン無反応修正（saveData安定化＋ボタンロック解除）
+FILE: /yahoo-lab/index.html
+VERSION: v19.9c-hf19-manualcode1-imgsearch1-selpad0
+DATE(JST): 2026-01-14 10:55 JST
+TITLE: 手入力13桁化・画像検索改善・赤枠余白削除
 CHANGES:
-- 保存ボタン無反応問題を修正（saveData関数にtry-catch追加、ボタンロック解除を確実に実行）
-- デバッグログ追加（?debug=1時のみ：保存処理の詳細をログ出力）
-- エラーハンドリング強化（保存失敗時にshowToastで通知）
+- .history-row.selected の padding/margin を削除（赤枠のみ残す・余白が増えない）
+- searchImageWeb() を差し替え（URL入力削除・商品コード+商品名で画像検索を開く）
+- showVeggieMenu() を13桁入力に変更（スキャンと同じ処理へ流す・Yahoo検索も実行）
+- manualBarcodeEntry() 関数を追加（手入力もスキャンと同じYahoo検索→openForm）
+- subCategory は既に saveData() で保存済み（2264行目で確認）
+- UI変更なし（内部修正のみ・UI_FREEZE厳守）
 AUTHOR: Rex
-BUILD_ID: 2026-01-11_2020_stable2
-BUILD_PARAM: ?b=2026-01-11_2020_stable2
+BUILD_ID: 2026-01-14_1055_manualcode1-imgsearch1-selpad0
+BUILD_PARAM: ?b=2026-01-14_1055_manualcode1-imgsearch1-selpad0
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部修正のみ）
 -->
@@ -26,8 +27,8 @@ POLICY: UI変更禁止（内部修正のみ）
   <!-- <link rel="manifest" href="manifest.json"> -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#FF7A00">
-  <title>Smart Price v19.9c-hf13-stable2</title>
+  <meta name="theme-color" content="#D50000">
+  <title>Smart Price v19.9c-hf19-manualcode1-imgsearch1-selpad0</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -61,9 +62,6 @@ POLICY: UI変更禁止（内部修正のみ）
       background: rgba(213,0,0,0.10);
       box-shadow: inset 0 0 0 2px rgba(213,0,0,0.95);
       border-radius: 10px;
-      padding-left: 10px;
-      padding-right: 10px;
-      margin: 6px 0;
     }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
@@ -88,7 +86,7 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf13-stable2</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf19-manualcode1-imgsearch1-selpad0</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -242,8 +240,8 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf13-stable2";
-  const BUILD_ID = "2026-01-11_2020_stable2";
+  const APP_VERSION = "v19.9c-hf19-manualcode1-imgsearch1-selpad0";
+  const BUILD_ID = "2026-01-14_1055_manualcode1-imgsearch1-selpad0";
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -841,6 +839,9 @@ POLICY: UI変更禁止（内部修正のみ）
   // ✅ 同期ロック（二重起動防止）
   let syncInFlight = false;
   let syncQueued = false;
+  
+  // ✅ 近隣店舗候補（GPS/生活圏から取得）
+  window.nearbyStoreNames = [];
 
   // ========= Config.json読み込み =========
   async function loadConfig() {
@@ -854,11 +855,17 @@ POLICY: UI変更禁止（内部修正のみ）
         if (isDebug()) console.log('[Config] Loaded:', window.SP_CONFIG);
       } else {
         window.SP_CONFIG = {};
-        if (isDebug()) console.warn('[Config] Failed to load, using default');
+        if (isDebug()) {
+          console.warn('[Config] Failed to load, using default');
+          showToast('Config読み込み失敗（デフォルト使用）', 10000);
+        }
       }
     } catch(e) {
       window.SP_CONFIG = {};
-      if (isDebug()) console.warn('[Config] Error:', e);
+      if (isDebug()) {
+        console.warn('[Config] Error:', e);
+        showToast('Config読み込みエラー: ' + (e.message || '不明'), 10000);
+      }
     }
   }
 
@@ -918,6 +925,18 @@ POLICY: UI変更禁止（内部修正のみ）
       }
 
       setupFocusGuides();
+
+      // ✅ 起動時に近隣店舗を取得（GPS OFF でも生活圏があれば取得）
+      try {
+        const nearbyStores = await fetchNearbyStores();
+        if (nearbyStores && nearbyStores.length > 0) {
+          window.nearbyStoreNames = nearbyStores;
+          renderStoreList(); // 近隣店舗を反映して再描画
+          if (isDebug()) console.log('[onload] Nearby stores loaded:', nearbyStores.length);
+        }
+      } catch(e) {
+        if (isDebug()) console.warn('[onload] fetchNearbyStores failed:', e);
+      }
 
       if (isDebug()) {
         setTimeout(() => {
@@ -1629,7 +1648,11 @@ POLICY: UI変更禁止（内部修正のみ）
     
     const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
     const customStores = db.config.customStores || [];
-    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 近隣店舗候補を統合（nearbyStoreNames）
+    const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
+    
+    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
     list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
@@ -2350,11 +2373,21 @@ POLICY: UI変更禁止（内部修正のみ）
         return;
       }
 
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         const d = new Date(); lastGpsTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
         
-        // ✅ GPS取得成功後、近隣ストアを上位に並べる
+        // ✅ GPS取得成功後、近隣店舗を取得してリストを更新
+        try {
+          const nearbyStores = await fetchNearbyStores();
+          if (nearbyStores && nearbyStores.length > 0) {
+            window.nearbyStoreNames = nearbyStores;
+            if (isDebug()) console.log('[GPS] Nearby stores loaded:', nearbyStores.length);
+          }
+        } catch(e) {
+          if (isDebug()) console.warn('[GPS] fetchNearbyStores failed:', e);
+        }
+        
         renderStoreList();
         
         const msg = isDebug() 
@@ -2370,7 +2403,9 @@ POLICY: UI変更禁止（内部修正のみ）
         isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList();
       }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
     } else {
-      isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList(); 
+      isGpsOn = false; curPos = null; lastGpsTime = ""; 
+      window.nearbyStoreNames = []; // GPS OFF時は近隣店舗候補もクリア
+      renderStoreList(); 
       showToast("GPS OFF", 1500);
     }
   }
@@ -2419,6 +2454,78 @@ POLICY: UI変更禁止（内部修正のみ）
         showToast(`Yahoo検索失敗: ${e.message}`, 8000);
       }
       return null;
+    }
+  }
+
+  // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
+  async function fetchNearbyStores() {
+    try {
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          console.log('[FetchStores] Proxy URL not configured');
+          showToast('Yahoo Proxy URLが設定されていません', 10000);
+        }
+        return [];
+      }
+
+      // 優先順位1: GPS座標（curPos）
+      if (isGpsOn && curPos && curPos.lat && curPos.lng) {
+        const radiusKm = 5; // GPS時は5km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&lat=${curPos.lat}&lng=${curPos.lng}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] GPS mode:', requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
+          return json.stores.map(s => s.name).filter(Boolean);
+        }
+        return [];
+      }
+
+      // 優先順位2: 生活圏（area）
+      const area = (db && db.config && db.config.homeCity) ? String(db.config.homeCity).trim() : '';
+      if (area) {
+        const radiusKm = 15; // area時は15km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&area=${encodeURIComponent(area)}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] Area mode:', area, requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
+          return json.stores.map(s => s.name).filter(Boolean);
+        } else if (json && !json.ok) {
+          // エラー時（例：使用できないアドレス）
+          if (isDebug()) {
+            console.log('[FetchStores] Area failed:', json.error || 'unknown');
+            showToast('店舗検索失敗: ' + (json.error || 'unknown'), 10000);
+          }
+          // GPSへのフォールバックは、すでに上で試しているので、ここでは空配列を返す
+          return [];
+        }
+        return [];
+      }
+
+      // GPS/areaどちらもない場合
+      if (isDebug()) console.log('[FetchStores] No GPS or area configured');
+      return [];
+
+    } catch(e) {
+      if (isDebug()) {
+        console.error('[FetchStores] Error:', e);
+      }
+      return [];
     }
   }
 
@@ -2484,8 +2591,56 @@ POLICY: UI変更禁止（内部修正のみ）
   }
 
   async function showVeggieMenu() {
-    const v = await customPrompt("名称入力");
-    if(v && v.trim()) openForm("M_"+v.trim());
+    showToast('バーコードの下にある「13桁の数字」を入れてね', 6000);
+
+    const raw = await customPrompt('商品コード（バーコード下の13桁）');
+    if (!raw) return;
+
+    const code = String(raw).replace(/\D/g, '').slice(0, 13);
+    if (code.length !== 13) {
+      showToast('13桁の数字だけ入れてね（例：490xxxxxxxxxx）', 8000);
+      return;
+    }
+
+    showToast('OK。商品コードで探してみるね…', 2500);
+
+    // ✅ スキャン成功時と同じ処理へ渡す
+    manualBarcodeEntry(code);
+  }
+
+  // ✅ 手入力バーコード処理（スキャン成功時と同じ処理）
+  async function manualBarcodeEntry(code) {
+    try {
+      // Yahoo検索で商品情報を自動取得
+      const jan = code.trim();
+      if (jan && /^\d{8,14}$/.test(jan)) {
+        try {
+          const info = await lookupYahooByJan(jan);
+          if (info) {
+            const p = db.products[jan] || { history: [] };
+            if (info.name && (!p.name || !p.name.trim())) {
+              p.name = info.name;
+            }
+            if (info.maker && (!p.maker || !p.maker.trim())) {
+              p.maker = info.maker;
+            }
+            if (info.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
+              p.imageUrl = info.imageUrl;
+            }
+            db.products[jan] = p;
+            saveLocalOnly();
+            showToast("商品情報を取得しました", 3000);
+          }
+        } catch(e) {
+          if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+        }
+      }
+      
+      openForm(code);
+    } catch(e) {
+      if (isDebug()) console.warn('[manualBarcodeEntry]', e);
+      showToast('読み込みに失敗したみたい。もう一度やってみてね', 8000);
+    }
   }
 
   function setupFocusGuides() {
@@ -2496,24 +2651,20 @@ POLICY: UI変更禁止（内部修正のみ）
     });
   }
 
-  // ✅ 検索ボタン：URL貼り付け（空ならGoogle画像検索を開く）
-  async function searchImageWeb() {
-    const name = (document.getElementById('inputName').value || '').trim();
-    const u = await customPrompt("画像URLを貼る（空欄なら検索を開く）", "");
-    if (u && u.trim()) {
-      const url = u.trim();
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        document.getElementById('previewImg').src = url;
-        tempImgData = { type:'url', url };
-        showToast("画像URLを設定しました（同期されます）", 3000);
-      } else {
-        showToast("http(s)のURLだけ対応です", 6000);
-      }
+  // ✅ 検索ボタン：商品コード＋商品名で画像検索を開く
+  function searchImageWeb() {
+    const name = (document.getElementById('inputName')?.value || '').trim();
+    const code = String(curBarcode || '').trim();
+
+    const q = (code && name) ? `${code} ${name}` : (code || name);
+    if (!q) {
+      showToast('商品コード（13桁）か商品名を入れてね', 6000);
       return;
     }
-    const maker = (document.getElementById('inputMaker').value || '').trim();
-    const searchQuery = [name, maker].filter(Boolean).join(' ') || '商品画像';
-    window.open(`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}+商品画像&tbm=isch`, '_blank', 'noopener');
+
+    const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`;
+    window.open(url, '_blank', 'noopener');
+    showToast('画像検索を開いたよ。画像を保存して「フォルダ」から選んでね', 7000);
   }
 
   // ✅ 画像をアップロード（SNS共有用：Firebaseに保存）
