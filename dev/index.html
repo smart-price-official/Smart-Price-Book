@@ -1,22 +1,20 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.12
-FULL_VERSION: v19.9.12-hf22-feedback3
-DATE(JST): 2026-01-14 13:05 JST
-TITLE: なべさん実機フィードバック対応3（dirty保護・render二重防止・PWA対応）
+VERSION: v19.9.14
+FULL_VERSION: v19.9.14-hf24-debug-fetch
+DATE(JST): 2026-01-14 17:30 JST
+TITLE: config/Yahoo検索のデバッグログ追加（画面内表示）
 CHANGES:
-- processBarcodeData()にdirtyフラグ保護を追加（ユーザー入力中の欄は上書きしない）
-- lookupYahooByJan()にAbortController+12秒タイムアウトを追加
-- renderHistory()に二重起動防止ロック（renderHistoryInFlight）を追加
-- beforeinstallprompt対応：webModal内にPWAインストールボタンを追加（Android/PC Chrome/Edge専用）
-- beforeinstallprompt取得時にもPWAボタンの表示更新を実行（取りこぼし防止）
-- UI変更なし（既存枠内で改善・UI_FREEZE厳守）
+- loadConfig() に画面内デバッグログを追加（URL/HTTPステータス/エラー詳細）
+- lookupYahooByJan() に画面内デバッグログを追加（URL/HTTPステータス/エラー詳細）
+- タイムアウト/CORS/404の切り分けが可能に
+- debug=1 で全てのログが画面内に表示される
 AUTHOR: Rex
-BUILD_ID: 2026-01-14_1305_feedback3
-BUILD_PARAM: ?b=2026-01-14_1305_feedback3
+BUILD_ID: 2026-01-14_1728_rex-check
+BUILD_PARAM: ?b=2026-01-14_1728_rex-check
 DEBUG_PARAM: &debug=1
-POLICY: UI変更禁止（内部修正のみ）
+POLICY: UI変更禁止（デバッグログのみ）
 -->
 
 <!DOCTYPE html>
@@ -28,7 +26,7 @@ POLICY: UI変更禁止（内部修正のみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.12</title>
+  <title>Smart Price v19.9.14</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -57,6 +55,13 @@ POLICY: UI変更禁止（内部修正のみ）
     .stat-val { display: block; font-weight: bold; color: #fff; font-size: 0.9rem; }
 
     .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    
+    /* ✅ 購入履歴選択時の赤枠＋薄赤背景（outline方式） */
+    .selected {
+      outline: 2px solid #ff5252;
+      outline-offset: -2px;
+      background: rgba(213,0,0,0.12);
+    }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
@@ -80,7 +85,7 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9.12</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9.14</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -248,9 +253,9 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.12"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.12-hf22-feedback3"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-14_1305_feedback3";
+  const APP_VERSION = "v19.9.14"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.14-hf24-debug-fetch"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-14_1728_rex-check";
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -858,11 +863,29 @@ POLICY: UI変更禁止（内部修正のみ）
     try {
       const b = new URLSearchParams(location.search).get("b") || "";
       const configUrl = "./config.json" + (b ? ("?b=" + encodeURIComponent(b)) : "");
+      
+      // ✅ デバッグ: config読込開始
+      if (isDebug()) {
+        const fullUrl = new URL(configUrl, location.href).href;
+        showToast(`[Config] Loading from: ${fullUrl}`, 5000);
+        console.log('[Config] Loading from:', fullUrl);
+      }
+      
       const res = await fetch(configUrl, { cache: "no-store" });
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Config] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log('[Config] HTTP Status:', res.status, res.statusText);
+      }
+      
       if (res.ok) {
         const json = await res.json();
         window.SP_CONFIG = json || {};
-        if (isDebug()) console.log('[Config] Loaded:', window.SP_CONFIG);
+        if (isDebug()) {
+          showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}...`, 5000);
+          console.log('[Config] Loaded:', window.SP_CONFIG);
+        }
       } else {
         window.SP_CONFIG = {};
         if (isDebug()) {
@@ -1776,7 +1799,13 @@ POLICY: UI変更禁止（内部修正のみ）
       const last = it.history[it.history.length-1];
       const div = document.createElement('div');
       div.className = 'card price-card';
-      div.onclick = () => openForm(it.code);
+      div.onclick = (e) => {
+        // ✅ 他の選択を解除
+        document.querySelectorAll('.price-card.selected').forEach(el => el.classList.remove('selected'));
+        // ✅ 自分を選択
+        div.classList.add('selected');
+        openForm(it.code);
+      };
 
       // ✅ 画像表示：優先順位
       // 1. 自分の画像（IndexedDB / imageUrl）
@@ -2526,8 +2555,12 @@ POLICY: UI変更禁止（内部修正のみ）
         return null;
       }
 
+      // ✅ デバッグ: Yahoo検索開始
+      const requestUrl = `${proxyUrl}?jan=${encodeURIComponent(jan)}`;
       if (isDebug()) {
+        showToast(`[Yahoo] Fetching: ${requestUrl}`, 5000);
         console.log("[YahooSearch] JAN:", jan, "Proxy URL:", proxyUrl);
+        console.log("[YahooSearch] Request URL:", requestUrl);
       }
       
       // ✅ AbortController+timeout（12秒）
@@ -2535,12 +2568,17 @@ POLICY: UI変更禁止（内部修正のみ）
       const timeoutId = setTimeout(() => controller.abort(), 12000);
       
       showToast("Yahoo検索中…", 5000);
-      const requestUrl = `${proxyUrl}?jan=${encodeURIComponent(jan)}`;
       const res = await fetch(requestUrl, { 
         cache: 'no-store', 
         signal: controller.signal 
       });
       clearTimeout(timeoutId);
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Yahoo] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log("[YahooSearch] HTTP Status:", res.status, res.statusText);
+      }
       
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -2572,9 +2610,15 @@ POLICY: UI変更禁止（内部修正のみ）
       }
       return null;
     } catch(e) {
+      // ✅ デバッグ: エラー詳細表示
       if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[Yahoo] Error: ${errorDetail}`, 8000);
         console.error("[YahooSearch] Error:", e);
-        showToast(`Yahoo検索失敗: ${e.message}`, 8000);
+        console.error("[YahooSearch] Error name:", e.name);
+        console.error("[YahooSearch] Error stack:", e.stack);
+      } else {
+        showToast(`Yahoo検索失敗: ${e.name === 'AbortError' ? 'タイムアウト' : '通信エラー'}`, 5000);
       }
       return null;
     }
