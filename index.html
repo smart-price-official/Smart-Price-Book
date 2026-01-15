@@ -5,8 +5,8 @@ VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
 DATE(JST): 2026-01-15 23:10 JST
 TITLE: 「動いてない理由」の解消（devに反映）＋P0カメラ/タイムラグ＋DB優先＋税別/税込＋赤枠
-FILE_COMMIT: （最新コミット・dev/index.htmlに反映済み）
-BASE_COMMIT: 1407bdd（機能の基準コミット、P0カメラ/遅延の本体）
+HEAD_COMMIT: e32a264（最新コミット・ヘッダ整合のみ、+2/-2）
+BASE_COMMIT: 55a34ed（本体修正・機能の基準コミット、+188/-40）
 BUILD_ID: 2026-01-15_2310_hf28-devsync
 CHANGES:
 - ✅ dev/index.html に確実に反映（ルートではなくdev配下を修正）
@@ -36,9 +36,11 @@ BUILD_PARAM: ?b=2026-01-15_2310_hf28-devsync
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
-⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合）:
-1. 通常タブで開き直し: ブラウザの通常タブで /dev/?b=2026-01-15_2310_hf28-devsync を開く
-2. それでもダメならPWA削除→再追加:
+⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
+1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-15_2310_hf28-devsync を開く
+3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
+4. それでもだめならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
    - ブラウザで通常タブで開く
    - メニューから「ホーム画面に追加」を選択して再追加
@@ -3569,7 +3571,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
       }
       
       try {
-        const p = db.products[jan] || { history: [] };
+          const p = db.products[jan] || { history: [] };
         let yahooInfo = null;
         let rakutenInfo = null;
         let offInfo = null;
@@ -3709,9 +3711,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
         }
         if (finalInfo.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
           p.imageUrl = finalInfo.imageUrl;
-        }
-        
-        // ✅ 既存の M_ 商品（手入力由来）と統合
+          }
+          
+          // ✅ 既存の M_ 商品（手入力由来）と統合
         if (finalInfo.name || finalInfo.maker) {
           const normalized = normalizeProductName(finalInfo.name, finalInfo.maker);
           Object.keys(db.products || {}).forEach(key => {
@@ -3737,9 +3739,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
             }
           });
         }
-        
-        db.products[jan] = p;
-        saveLocalOnly();
+          
+          db.products[jan] = p;
+          saveLocalOnly();
         
         // ✅ dirtyフラグで保護: ユーザーが入力し始めていたら上書きしない
         if (nameInput) {
