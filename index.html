@@ -3,12 +3,17 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-15 18:30 JST
-TITLE: P0修正（カメラピント/タイムラグ）＋commit fff084反映
-FILE_COMMIT: d02093b（このファイル自体のコミット、ヘッダ表記の整合のみ）
+DATE(JST): 2026-01-15 20:00 JST
+TITLE: 「動いてない理由」の解消（devに反映）＋P0カメラ/タイムラグ＋DB優先＋税別/税込＋赤枠
+FILE_COMMIT: （最新コミット・dev/index.htmlに反映済み）
 BASE_COMMIT: 1407bdd（機能の基準コミット、P0カメラ/遅延の本体）
+BUILD_ID: 2026-01-15_1400_yahoo-rakuten-off
 CHANGES:
-- commit d02093bの変更をdev/index.htmlに反映（ヘッダ表記の整合のみ、機能差なし）
+- ✅ dev/index.html に確実に反映（ルートではなくdev配下を修正）
+- 商品情報DBの優先順位は維持（Yahoo→楽天→OFF）ただし"品質スコア"で採用を絞る
+- タイトル/メーカー/販売店の"混入"を抑える（normalizeYahooProductInfo強化、normalizeMakerName強化）
+- 税別/税込：ストアに"既定"を持たせて、入力画面が自動で切替わるように
+- 「赤い線の枠」修正（価格編集まわりで赤枠が大きく崩れて見える問題を修正）
 - P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
 - P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
   - 解像度指定（ideal 1920×1080、最低1280×720）
@@ -149,7 +154,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
           </div>
         </div>
 
-        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;">
+        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box;">
           <div id="calcOptionArea" class="d-flex align-items-center mb-2">
             <div class="btn-group btn-group-sm w-100 me-2">
               <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
@@ -277,7 +282,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script>
   const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-15_0015_normalize-yahoo";
+  const BUILD_ID = "2026-01-15_1400_yahoo-rakuten-off"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -399,7 +404,8 @@ POLICY: UI変更禁止（内部ロジックのみ）
     lastTax: "ex",
     homeCity: "",
     homeCities: [],
-    customStores: []
+    customStores: [],
+    storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
   };
 
   const CITY_STORE_PRESET = {
@@ -1749,6 +1755,20 @@ POLICY: UI変更禁止（内部ロジックのみ）
         curStore = name;
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        
+        // ✅ ストアの税別/税込既定値を自動反映
+        const storeTaxMode = db.config.storeTaxModes && db.config.storeTaxModes[curStore];
+        if (storeTaxMode) {
+          const taxModeId = storeTaxMode === "in" ? 'taxIn' : 'taxEx';
+          const taxEl = document.getElementById(taxModeId);
+          if (taxEl) {
+            taxEl.checked = true;
+            if (isDebug()) {
+              console.log('[StoreTaxMode] Auto-switch:', curStore, '→', storeTaxMode);
+              showToast(`税${storeTaxMode === "in" ? "込" : "別"}に自動切替`, 2000);
+            }
+          }
+        }
       };
       list.appendChild(span);
     });
@@ -2446,8 +2466,18 @@ POLICY: UI変更禁止（内部ロジックのみ）
       } else {
         const disc = Number(document.getElementById('inputDisc').value || 0);
         let finalP = Math.floor(val * (1 - disc/100));
-        if(document.getElementById('taxEx').checked) finalP = Math.floor(finalP * 1.08);
-        db.config.lastTax = document.getElementById('taxEx').checked ? "ex" : "in";
+        const isTaxEx = document.getElementById('taxEx').checked;
+        if(isTaxEx) finalP = Math.floor(finalP * 1.08);
+        db.config.lastTax = isTaxEx ? "ex" : "in";
+        
+        // ✅ ストアの税別/税込既定値を保存（一度設定したら以後自動切替）
+        if (curStore && curStore !== "未設定") {
+          if (!db.config.storeTaxModes) db.config.storeTaxModes = {};
+          db.config.storeTaxModes[curStore] = isTaxEx ? "ex" : "in";
+          if (isDebug()) {
+            console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
+          }
+        }
         const entry = { price: finalP, store: curStore, ts: Date.now() };
         if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
         p.history.push(entry);
@@ -2553,23 +2583,53 @@ POLICY: UI変更禁止（内部ロジックのみ）
     if (!maker || !maker.trim()) return maker || '';
     let normalized = String(maker).trim();
     
-    // ✅ 販売店名パターンを除去
+    // ✅ 販売店名パターンを除去（強化版）
     const storePatterns = [
       /\s*店\s*$/gi,
       /\s*ストア\s*$/gi,
       /\s*ショップ\s*$/gi,
+      /\s*ストアーズ\s*$/gi,
+      /\s*ショップス\s*$/gi,
+      /\s*モール\s*$/gi,
+      /\s*マーケット\s*$/gi,
+      /\s*ドットコム\s*$/gi,
+      /\s*\.com\s*$/gi,
+      /\s*\.co\.jp\s*$/gi,
       /楽天/gi,
       /Amazon/gi,
       /ヤフー/gi,
       /Yahoo/gi,
       /Rakuten/gi,
       /メルカリ/gi,
-      /mercari/gi
+      /mercari/gi,
+      /公式/gi,
+      /Official/gi,
+      /本店/gi,
+      /支店/gi,
+      /オンライン/gi,
+      /ダイレクト/gi,
+      /\s*inc\s*$/gi,
+      /\s*ltd\s*$/gi,
+      /\s*corp\s*$/gi,
+      /\s*group\s*$/gi
     ];
     
     storePatterns.forEach(pattern => {
       normalized = normalized.replace(pattern, '');
     });
+    
+    // ✅ メーカー重複を除去（例：「コカ・コーラ コカ・コーラ」→「コカ・コーラ」）
+    const words = normalized.split(/\s+/).filter(w => w.length > 0);
+    const uniqueWords = [];
+    const seen = new Set();
+    words.forEach(word => {
+      const lower = word.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueWords.push(word);
+      }
+    });
+    normalized = uniqueWords.join(' ');
     
     normalized = normalized.replace(/\s+/g, ' ').trim();
     return normalized || maker; // 空になった場合は元に戻す
@@ -2591,15 +2651,17 @@ POLICY: UI変更禁止（内部ロジックのみ）
     let isCase = false; // ケース商品フラグ
     let trustScore = 100; // 信頼度スコア（初期値100）
     
-    // ✅ 1. まとめ買い語を検出（信頼度スコア付き）
+    // ✅ 1. まとめ買い語を検出（信頼度スコア付き・強化版）
     const bulkPatterns = [
       { pattern: /×\s*(\d+)\s*(本|個|缶|袋|パック)/gi, trust: 90 }, // pack疑い強
       { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*×/gi, trust: 90 },
       { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*セット/gi, trust: 85 },
       { pattern: /ケース/gi, trust: 80 },
+      { pattern: /箱/gi, trust: 75 }, // 「箱」単独も検出
       { pattern: /箱買い/gi, trust: 75 },
       { pattern: /まとめ買い/gi, trust: 70 },
       { pattern: /セット販売/gi, trust: 70 },
+      { pattern: /業務用/gi, trust: 75 }, // 業務用も検出
       { pattern: /\[\s*(\d+)\s*(本|個|缶|袋|パック)\s*\]/gi, trust: 85 }
     ];
     
@@ -2625,11 +2687,27 @@ POLICY: UI変更禁止（内部ロジックのみ）
       }
     });
     
-    // ✅ 信頼度スコア調整（pack疑いが強いとき）
+    // ✅ 信頼度スコア調整（pack疑いが強いとき・強化版）
     if (maxPackTrust >= 80) {
-      trustScore -= 20; // pack疑い強
+      trustScore -= 30; // pack疑い強（スコアを下げる）
     } else if (maxPackTrust >= 70) {
-      trustScore -= 10; // pack疑い中
+      trustScore -= 20; // pack疑い中（スコアを下げる）
+    }
+    
+    // ✅ 追加：商品名に販売店名っぽい語が混入している場合もスコアを下げる
+    const storeNamePatterns = [
+      /楽天/gi, /Amazon/gi, /ヤフー/gi, /Yahoo/gi, /Rakuten/gi,
+      /メルカリ/gi, /mercari/gi, /公式/gi, /Official/gi,
+      /本店/gi, /支店/gi, /オンライン/gi, /ダイレクト/gi
+    ];
+    let hasStoreName = false;
+    storeNamePatterns.forEach(pattern => {
+      if (pattern.test(name)) {
+        hasStoreName = true;
+      }
+    });
+    if (hasStoreName) {
+      trustScore -= 15; // 販売店名混入でスコアを下げる
     }
     
     // ✅ 2. 不要な販促文言を除去
@@ -2670,13 +2748,33 @@ POLICY: UI変更禁止（内部ロジックのみ）
       });
     }
     
-    // ✅ 4. まとめ買い表記を末尾に移動または削除
+    // ✅ 4. まとめ買い表記を商品名本体から削除（別フィールドに逃がす準備）
     if (packHint) {
-      // まとめ買い表記を一旦削除
-      bulkPatterns.forEach(pattern => {
-        name = name.replace(pattern, '');
+      // まとめ買い表記を一旦削除（商品名本体から外す）
+      bulkPatterns.forEach(({ pattern }) => {
+        name = name.replace(pattern.pattern || pattern, '');
       });
+      // 「12本」「ケース」等も削除
+      name = name.replace(/\s*×\s*\d+\s*(本|個|缶|袋|パック)\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*×\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*セット\s*/gi, '');
+      name = name.replace(/\s*ケース\s*/gi, '');
+      name = name.replace(/\s*箱\s*/gi, '');
+      name = name.replace(/\s*箱買い\s*/gi, '');
+      name = name.replace(/\s*まとめ買い\s*/gi, '');
+      name = name.replace(/\s*セット販売\s*/gi, '');
+      name = name.replace(/\s*業務用\s*/gi, '');
     }
+    
+    // ✅ 商品名から販売店名っぽい語を除去
+    const storeNameInProductPatterns = [
+      /\s*楽天\s*/gi, /\s*Amazon\s*/gi, /\s*ヤフー\s*/gi, /\s*Yahoo\s*/gi,
+      /\s*Rakuten\s*/gi, /\s*メルカリ\s*/gi, /\s*mercari\s*/gi,
+      /\s*公式\s*/gi, /\s*Official\s*/gi, /\s*本店\s*/gi, /\s*支店\s*/gi
+    ];
+    storeNameInProductPatterns.forEach(pattern => {
+      name = name.replace(pattern, ' ');
+    });
     
     // ✅ 5. メーカー名から販売店名を除去（汎用関数を使用）
     maker = normalizeMakerName(maker);
@@ -2808,22 +2906,36 @@ POLICY: UI変更禁止（内部ロジックのみ）
               if (isJapaneseField || (displayName && hasJapanese && displayName.length > 0)) {
                 shouldUse = true;
                 reason = '日本語OK';
+                // ✅ 画像がユーザー投稿っぽい場合は画像を採用しない（商品名のみ）
+                if (isUserUploadImage) {
+                  imageUrl = ''; // 画像をクリア（商品名のみ採用）
+                  reason += '（画像はユーザー投稿のため除外）';
+                }
               } else {
                 shouldUse = false;
                 reason = '英語名/日本語不足';
               }
 
-              // ✅ 条件2: 画像が明らかに商品正面（自撮り/棚写真っぽいのは自動採用しない）
+              // ✅ 条件2: 画像が明らかに商品正面（自撮り/ユーザー投稿っぽいのは自動採用しない）
               // 簡易判定：画像URLに "front" が含まれる、または "image_front_url" が存在する
               const isFrontImage = imageUrl && (
                 imageUrl.includes('front') || 
                 imageUrl.includes('image_front') ||
                 product.image_front_url
               );
+              
+              // ✅ 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              // 判定：画像URLに "user" や "upload" が含まれる、または "front" が含まれない場合は疑わしい
+              const isUserUploadImage = imageUrl && (
+                imageUrl.includes('user') || 
+                imageUrl.includes('upload') ||
+                imageUrl.includes('mobile') ||
+                (!isFrontImage && imageUrl.includes('images.openfoodfacts.org'))
+              );
 
-              if (imageUrl && !isFrontImage) {
-                // 画像が存在するが、正面画像でない可能性がある
-                // ただし、商品名が日本語なら採用（画像は補完として）
+              if (imageUrl && (isUserUploadImage || !isFrontImage)) {
+                // 画像が存在するが、正面画像でない可能性がある、またはユーザー投稿っぽい
+                // ただし、商品名が日本語なら採用（画像は補完として、画像自体は採用しない）
                 if (!shouldUse) {
                   shouldUse = false;
                   reason = '画像品質不足（自撮り/棚写真の可能性）';
@@ -3468,19 +3580,31 @@ POLICY: UI変更禁止（内部ロジックのみ）
         yahooInfo = await lookupYahooByJan(jan);
         
         if (yahooInfo) {
-          // ✅ Yahooで商品身元情報を埋める
-          finalInfo.name = yahooInfo.name || '';
-          finalInfo.maker = yahooInfo.maker || '';
-          finalInfo.imageUrl = yahooInfo.imageUrl || '';
-          sourceUsed = 'yahoo';
+          // ✅ 品質スコアで採用を絞る（Yahooのスコア判定）
+          const yahooTrustScore = yahooInfo.trustScore || 100;
+          const yahooPackHint = yahooInfo.packHint || false;
+          
+          // ✅ Yahooが微妙（スコア低い）なら楽天を採用する
+          if (yahooTrustScore < 70 || (yahooPackHint && yahooTrustScore < 80)) {
+            // Yahooのスコアが低い場合は楽天を優先検討
+            if (isDebug()) {
+              showToast(`[Yahoo] スコア低 (${yahooTrustScore}) → 楽天検討`, 3000);
+            }
+          } else {
+            // ✅ Yahooで商品身元情報を埋める（スコアが十分な場合）
+            finalInfo.name = yahooInfo.name || '';
+            finalInfo.maker = yahooInfo.maker || '';
+            finalInfo.imageUrl = yahooInfo.imageUrl || '';
+            sourceUsed = 'yahoo';
 
-          // ✅ デバッグ: Yahoo取得成功
-          if (isDebug()) {
-            showToast(`[Yahoo] OK (商品身元+価格)`, 3000);
+            // ✅ デバッグ: Yahoo取得成功
+            if (isDebug()) {
+              showToast(`[Yahoo] OK (スコア:${yahooTrustScore})`, 3000);
+            }
           }
 
-          // ✅ Yahoo結果が弱い/空なら楽天で補完
-          const yahooWeak = !finalInfo.name || !finalInfo.maker || !finalInfo.imageUrl;
+          // ✅ Yahoo結果が弱い/空、またはスコアが低い場合は楽天で補完
+          const yahooWeak = !finalInfo.name || !finalInfo.maker || !finalInfo.imageUrl || yahooTrustScore < 70;
           if (yahooWeak) {
             // ✅ 優先順位2: 楽天（国内DB第2優先）
             rakutenInfo = await lookupRakutenByJan(jan);
@@ -3495,10 +3619,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
                 finalInfo.maker = rakutenInfo.maker;
                 sourceUsed = 'yahoo+rakuten';
               }
-              // ✅ 画像がケース画像っぽい→楽天の単品画像があれば差し替え
-              if (yahooInfo.packHint && rakutenInfo.imageUrl) {
+              // ✅ 画像がケース画像っぽい→楽天の単品画像があれば差し替え（スコアを下げる）
+              if ((yahooInfo.packHint || yahooInfo.isCase) && rakutenInfo.imageUrl) {
                 finalInfo.imageUrl = rakutenInfo.imageUrl;
                 sourceUsed = 'yahoo+rakuten';
+                if (isDebug()) {
+                  showToast(`[楽天] ケース画像→単品画像に差し替え`, 3000);
+                }
               } else if (!finalInfo.imageUrl && rakutenInfo.imageUrl) {
                 finalInfo.imageUrl = rakutenInfo.imageUrl;
                 sourceUsed = 'yahoo+rakuten';
@@ -3526,11 +3653,32 @@ POLICY: UI変更禁止（内部ロジックのみ）
             offInfo = await lookupOffByJan(jan);
             
             if (offInfo) {
-              // ✅ OFFで商品身元情報を埋める（条件チェック済み）
-              finalInfo.name = offInfo.name || '';
-              finalInfo.maker = offInfo.maker || '';
-              finalInfo.imageUrl = offInfo.imageUrl || '';
-              sourceUsed = 'off';
+              // ✅ OFFで商品身元情報を埋める（条件チェック済み・最終補助）
+              // OFFは「タイトル確定」ではなく、カテゴリ・成分・補助画像の穴埋めに寄せる（主役にしない）
+              // 日本語名がある、または日本向けデータっぽい時だけ採用
+              // 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              if (offInfo.name && offInfo.name.trim()) {
+                // 既にYahoo/楽天で名前が取れている場合は上書きしない（補助として使う）
+                if (!finalInfo.name || finalInfo.name.trim().length < 3) {
+                  finalInfo.name = offInfo.name;
+                  sourceUsed = 'off';
+                }
+              }
+              if (offInfo.maker && offInfo.maker.trim() && !finalInfo.maker) {
+                finalInfo.maker = offInfo.maker;
+                if (sourceUsed === 'none') sourceUsed = 'off';
+              }
+              // 画像は最後の手段（自撮り/ユーザー投稿っぽい場合は採用しない）
+              if (offInfo.imageUrl && offInfo.imageUrl.trim() && !finalInfo.imageUrl) {
+                // 画像URLに "front" が含まれる、または明らかに商品正面画像の場合のみ採用
+                if (offInfo.imageUrl.includes('front') || offInfo.imageUrl.includes('image_front')) {
+                  finalInfo.imageUrl = offInfo.imageUrl;
+                  if (sourceUsed === 'none') sourceUsed = 'off';
+                }
+              }
+              if (isDebug() && sourceUsed === 'off') {
+                showToast(`[OFF] 最終補助として採用`, 3000);
+              }
             }
           }
         }
