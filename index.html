@@ -3,11 +3,11 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-15 20:00 JST
+DATE(JST): 2026-01-15 23:10 JST
 TITLE: 「動いてない理由」の解消（devに反映）＋P0カメラ/タイムラグ＋DB優先＋税別/税込＋赤枠
 FILE_COMMIT: （最新コミット・dev/index.htmlに反映済み）
 BASE_COMMIT: 1407bdd（機能の基準コミット、P0カメラ/遅延の本体）
-BUILD_ID: 2026-01-15_1400_yahoo-rakuten-off
+BUILD_ID: 2026-01-15_2310_hf28-devsync
 CHANGES:
 - ✅ dev/index.html に確実に反映（ルートではなくdev配下を修正）
 - 商品情報DBの優先順位は維持（Yahoo→楽天→OFF）ただし"品質スコア"で採用を絞る
@@ -31,13 +31,13 @@ CHANGES:
 - 楽天API未実装時の対応（Proxy未実装なら即null返し、debug=1でログ）
 - PWAキャッシュ問題の対処法（通常タブで開き直し→PWA削除→再追加）
 AUTHOR: Rex
-BUILD_ID: 2026-01-15_1400_yahoo-rakuten-off
-BUILD_PARAM: ?b=2026-01-15_1400_yahoo-rakuten-off
+BUILD_ID: 2026-01-15_2310_hf28-devsync
+BUILD_PARAM: ?b=2026-01-15_2310_hf28-devsync
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合）:
-1. 通常タブで開き直し: ブラウザの通常タブで /dev/?b=2026-01-15_1400_yahoo-rakuten-off を開く
+1. 通常タブで開き直し: ブラウザの通常タブで /dev/?b=2026-01-15_2310_hf28-devsync を開く
 2. それでもダメならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
    - ブラウザで通常タブで開く
@@ -282,7 +282,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script>
   const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-15_1400_yahoo-rakuten-off"; // ヘッダーと一致させる
+  const BUILD_ID = "2026-01-15_2310_hf28-devsync"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
