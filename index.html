@@ -5,10 +5,10 @@ VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
 DATE(JST): 2026-01-15 18:30 JST
 TITLE: P0修正（カメラピント/タイムラグ）＋commit fff084反映
-COMMIT: 43c3467（親=fff084、+4/-3、ヘッダ整合のみ）
+COMMIT: 1407bdd（ヘッダ表記の整合のみ、機能差なし）
 CHANGES:
-- commit 43c3467の変更をdev/index.htmlに反映（ヘッダ整合、機能差なし）
-- commit fff084の変更をdev/index.htmlに反映（v19.9.18-hf28同等）
+- commit 1407bddの変更をdev/index.htmlに反映（COMMIT表記の修正＋CHANGES追記のみ、機能差なし）
+- P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
 - P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
   - 解像度指定（ideal 1920×1080、最低1280×720）
   - track.getCapabilities()で端末の対応状況を確認
