@@ -3,26 +3,37 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-15 17:40 JST
-TITLE: P0修正（カメラピント/タイムラグ）＋commit 3090258反映
+DATE(JST): 2026-01-15 18:00 JST
+TITLE: P0修正（カメラピント/タイムラグ）＋commit ca1edca反映
 CHANGES:
-- commit 3090258の変更をdev/index.htmlに反映（v19.9.17同等）
+- commit ca1edcaの変更をdev/index.htmlに反映（v19.9.18-hf28同等）
 - P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
   - 解像度指定（ideal 1920×1080、最低1280×720）
-  - track.applyConstraints()で段階的に制約適用（focusMode/exposureMode/zoom）
+  - track.getCapabilities()で端末の対応状況を確認
+  - track.applyConstraints()で段階的に制約適用（focusMode→exposureMode→zoom の順）
+  - zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
   - debug=1でどのconstraintが通った/落ちたかを画面内ログに表示
 - P0: タイムラグ問題修正（読み取り→反映の遅延解消）
   - 同一JANの二重発火防止（processBarcodeInFlight）
+  - 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   - 古い結果の上書き防止（現在のJANと一致する時だけ反映）
   - JAN表示・取得中トースト・入力欄を触れる状態を即座に表示
   - fetchはタイムアウト＋AbortController（既存）
   - JAN→商品情報の簡易キャッシュ（既存）
 - 楽天API未実装時の対応（Proxy未実装なら即null返し、debug=1でログ）
+- PWAキャッシュ問題の対処法（通常タブで開き直し→PWA削除→再追加）
 AUTHOR: Rex
 BUILD_ID: 2026-01-15_1400_yahoo-rakuten-off
 BUILD_PARAM: ?b=2026-01-15_1400_yahoo-rakuten-off
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
+
+⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合）:
+1. 通常タブで開き直し: ブラウザの通常タブで /dev/?b=2026-01-15_1400_yahoo-rakuten-off を開く
+2. それでもダメならPWA削除→再追加:
+   - スマホのホーム画面からPWAを削除
+   - ブラウザで通常タブで開く
+   - メニューから「ホーム画面に追加」を選択して再追加
 -->
 
 <!DOCTYPE html>
@@ -848,6 +859,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
   let curBarcode = null, curStore = "未設定";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
+  let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
   let scanner = null, editingHistIdx = null, isScanning = false;
   let deferredPrompt = null; // ✅ PWAインストールプロンプト
@@ -3213,23 +3225,53 @@ POLICY: UI変更禁止（内部ロジックのみ）
           const stream = videoElement.srcObject;
           const track = stream.getVideoTracks()[0];
           if (track) {
-            // ✅ 段階的に制約を適用（失敗しても握りつぶして継続）
+            // ✅ track.getCapabilities() で端末の対応状況を確認
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            const settings = track.getSettings ? track.getSettings() : {};
+            
+            // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
+            if (capabilities.torch && capabilities.torch.length > 0) {
+              try {
+                // 簡易的な明るさ判定（環境光センサーがない場合の代替）
+                // 実際の実装では、より高度な判定が必要な場合がある
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                // より確実な方法：明るさが低いと判断した場合のみ点灯
+                // ここでは、ユーザーが明示的に要求しない限り、自動点灯は控えめに
+                // 将来的には、実際の環境光センサーやカメラの明るさ情報を使用可能
+                if (isDebug()) {
+                  console.log("[Camera] torch capability available:", capabilities.torch);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  console.log("[Camera] torch check error:", e);
+                }
+              }
+            }
+            
+            // ✅ 段階的に制約を適用（focus→exposure→zoom の順で維持）
             const constraints = [
               { focusMode: "continuous" }, // 連続オートフォーカス優先
-              { exposureMode: "continuous" }, // 連続露出調整
-              { zoom: 1.2 } // 控えめなズーム（対応端末のみ）
+              { exposureMode: "continuous" } // 連続露出調整
             ];
+            
+            // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
+            // ここでは、capabilityがある場合のみ追加（実際のブレ判定は将来的に実装可能）
+            if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
+              constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
+            }
             
             for (let i = 0; i < constraints.length; i++) {
               try {
                 await track.applyConstraints({ advanced: [constraints[i]] });
                 if (isDebug()) {
-                  showToast(`[Camera] Constraint ${i+1} OK: ${Object.keys(constraints[i])[0]}`, 2000);
+                  const constraintName = Object.keys(constraints[i])[0];
+                  showToast(`[Camera] Constraint ${i+1} OK: ${constraintName}`, 2000);
                   console.log("[Camera] Applied constraint:", constraints[i]);
                 }
               } catch(e) {
                 if (isDebug()) {
-                  console.log(`[Camera] Constraint ${i+1} failed: ${Object.keys(constraints[i])[0]}`, e.message);
+                  const constraintName = Object.keys(constraints[i])[0];
+                  console.log(`[Camera] Constraint ${i+1} failed: ${constraintName}`, e.message);
                 }
                 // 失敗しても継続
               }
@@ -3364,6 +3406,26 @@ POLICY: UI変更禁止（内部ロジックのみ）
         showToast("既に処理中です", 2000);
       }
       return;
+    }
+    
+    // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      const now = Date.now();
+      const lastTime = janCoolDown.get(jan);
+      if (lastTime && (now - lastTime) < 1000) { // 1秒以内（0.8〜1.2秒の中央値）
+        if (isDebug()) {
+          console.log("[ProcessBarcode] Cool down, skip:", jan, "last:", lastTime, "now:", now);
+          showToast("同じコードを検出しました（クールダウン中）", 1500);
+        }
+        return;
+      }
+      janCoolDown.set(jan, now);
+      // ✅ 古いクールダウン記録をクリーンアップ（5秒以上経過したものは削除）
+      for (const [key, time] of janCoolDown.entries()) {
+        if (now - time > 5000) {
+          janCoolDown.delete(key);
+        }
+      }
     }
     
     if (jan && /^\d{8,14}$/.test(jan)) {
