@@ -1,18 +1,23 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.17
-FULL_VERSION: v19.9.17-hf27-yahoo-rakuten-off
-DATE(JST): 2026-01-15 14:00 JST
-TITLE: 商品DBの優先順位確定（Yahoo→楽天→OFF）＋自動整形の精度アップ
+VERSION: v19.9.18
+FULL_VERSION: v19.9.18-hf28-p0-camera-lag
+DATE(JST): 2026-01-15 17:40 JST
+TITLE: P0修正（カメラピント/タイムラグ）＋commit 3090258反映
 CHANGES:
-- 優先順位を変更（Yahoo最優先→楽天第2→OFF第3）
-- Yahoo側の強化（信頼度スコア付き、packCount/isCase保持）
-- メーカー名/販売店名混入の正規化関数を汎用化（normalizeMakerName）
-- 国内DB（楽天）の導入（JAN/キーワード検索、不足項目のみ補完）
-- OFFの使い方ルール実装（条件チェック、自動入力制御）
-- カメラのピント問題対応（背面固定、連続オートフォーカス優先）
-- debug=1 でどのソースを採用/不採用かを画面内ログに表示
+- commit 3090258の変更をdev/index.htmlに反映（v19.9.17同等）
+- P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
+  - 解像度指定（ideal 1920×1080、最低1280×720）
+  - track.applyConstraints()で段階的に制約適用（focusMode/exposureMode/zoom）
+  - debug=1でどのconstraintが通った/落ちたかを画面内ログに表示
+- P0: タイムラグ問題修正（読み取り→反映の遅延解消）
+  - 同一JANの二重発火防止（processBarcodeInFlight）
+  - 古い結果の上書き防止（現在のJANと一致する時だけ反映）
+  - JAN表示・取得中トースト・入力欄を触れる状態を即座に表示
+  - fetchはタイムアウト＋AbortController（既存）
+  - JAN→商品情報の簡易キャッシュ（既存）
+- 楽天API未実装時の対応（Proxy未実装なら即null返し、debug=1でログ）
 AUTHOR: Rex
 BUILD_ID: 2026-01-15_1400_yahoo-rakuten-off
 BUILD_PARAM: ?b=2026-01-15_1400_yahoo-rakuten-off
@@ -29,7 +34,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.17</title>
+  <title>Smart Price v19.9.18</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -88,7 +93,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9.17</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9.18</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -256,8 +261,8 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.17"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.17-hf27-yahoo-rakuten-off"; // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
   const BUILD_ID = "2026-01-15_0015_normalize-yahoo";
 
   // ========= Firebase Configuration =========
@@ -842,6 +847,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
   let curBarcode = null, curStore = "未設定";
+  let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
   let scanner = null, editingHistIdx = null, isScanning = false;
   let deferredPrompt = null; // ✅ PWAインストールプロンプト
@@ -2917,10 +2923,24 @@ POLICY: UI変更禁止（内部ロジックのみ）
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        // ✅ P0: Proxy側が未実装（404/500等）なら即null返し
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (HTTP ${res.status})`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, HTTP:", res.status);
+        }
+        return null; // 即null返し（無効）
       }
 
       const json = await res.json();
+      
+      // ✅ P0: Proxy側が未実装（ok:false等）なら即null返し
+      if (!json || !json.ok) {
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (ok:false)`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, response:", json);
+        }
+        return null; // 即null返し（無効）
+      }
 
       // ✅ 楽天APIのレスポンス構造を確認
       if (json && json.ok && json.product) {
@@ -2976,13 +2996,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
       return null;
 
     } catch(e) {
-      // ✅ 予期しないエラー
+      // ✅ P0: 予期しないエラー（Proxy未実装の可能性）→ 即null返し
       if (isDebug()) {
         const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
-        showToast(`[楽天] Error: ${errorDetail}`, 5000);
-        console.error("[Rakuten] Error:", e);
+        showToast(`[楽天] Proxy未実装の可能性 (${errorDetail})`, 5000);
+        console.error("[Rakuten] Proxy may not be implemented, error:", e);
       }
-      return null;
+      return null; // 即null返し（無効）
     }
   }
 
@@ -3175,20 +3195,54 @@ POLICY: UI変更禁止（内部ロジックのみ）
     if(!scanner) scanner = new Html5Qrcode("interactive");
     
     // ✅ P0: カメラのピント問題対応
-    // ✅ 背面カメラ固定（facingMode: environment）
-    // ✅ 連続オートフォーカス優先（可能ならtrackのadvanced constraints）
+    // ✅ getUserMedia は最初は安全に取得（落ちにくい条件）
     const cameraConfig = {
       facingMode: "environment", // 背面カメラ固定
-      aspectRatio: { ideal: 16/9 }, // アスペクト比指定
-      focusMode: "continuous", // 連続オートフォーカス（対応端末のみ）
-      advanced: [
-        { focusMode: "continuous" }, // 連続オートフォーカス優先
-        { exposureMode: "continuous" } // 連続露出調整
-      ]
+      width: { ideal: 1920, min: 1280 }, // 解像度：ideal 1920×1080（最低1280×720）
+      height: { ideal: 1080, min: 720 },
+      aspectRatio: { ideal: 16/9 }
     };
     
     scanner.start(cameraConfig, {fps:15,qrbox:{width:280,height:180}}, async (t)=> {
       showToast("読み取りOK", 1500);
+      
+      // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
+      try {
+        const videoElement = document.querySelector('#interactive video');
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject;
+          const track = stream.getVideoTracks()[0];
+          if (track) {
+            // ✅ 段階的に制約を適用（失敗しても握りつぶして継続）
+            const constraints = [
+              { focusMode: "continuous" }, // 連続オートフォーカス優先
+              { exposureMode: "continuous" }, // 連続露出調整
+              { zoom: 1.2 } // 控えめなズーム（対応端末のみ）
+            ];
+            
+            for (let i = 0; i < constraints.length; i++) {
+              try {
+                await track.applyConstraints({ advanced: [constraints[i]] });
+                if (isDebug()) {
+                  showToast(`[Camera] Constraint ${i+1} OK: ${Object.keys(constraints[i])[0]}`, 2000);
+                  console.log("[Camera] Applied constraint:", constraints[i]);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  console.log(`[Camera] Constraint ${i+1} failed: ${Object.keys(constraints[i])[0]}`, e.message);
+                }
+                // 失敗しても継続
+              }
+            }
+          }
+        }
+      } catch(e) {
+        if (isDebug()) {
+          console.log("[Camera] applyConstraints error:", e);
+        }
+        // エラーは握りつぶして継続
+      }
+      
       await stopScanner();
       
       // ✅ 共通処理へ（手入力と同じ）
@@ -3299,15 +3353,31 @@ POLICY: UI変更禁止（内部ロジックのみ）
     }
   }
 
-  // ✅ バーコードデータ処理（スキャン/手入力共通）with OFF優先 + dirtyフラグ保護
+  // ✅ バーコードデータ処理（スキャン/手入力共通）with OFF優先 + dirtyフラグ保護 + P0タイムラグ対策
   async function processBarcodeData(code) {
-    curBarcode = code; // ✅ 先にセット（取得前）
     const jan = code.trim();
     
-    // ✅ 対策A: openForm を先に出す
-    openForm(code);
+    // ✅ P0: 同一JANの二重発火を止める（連続読取り対策）
+    if (jan && processBarcodeInFlight.has(jan)) {
+      if (isDebug()) {
+        console.log("[ProcessBarcode] Already in flight, skip:", jan);
+        showToast("既に処理中です", 2000);
+      }
+      return;
+    }
     
     if (jan && /^\d{8,14}$/.test(jan)) {
+      processBarcodeInFlight.add(jan);
+    }
+    
+    curBarcode = code; // ✅ 先にセット（取得前）
+    
+    // ✅ P0: 対策A: openForm を先に出す（読めた瞬間に画面を動かす）
+    openForm(code);
+    
+    // ✅ P0: JAN表示・取得中トースト・入力欄を触れる状態にする
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      showToast(`JAN: ${jan}`, 2000);
       // ✅ 対策A: 「取得中…」表示
       const nameInput = document.getElementById('inputName');
       const makerInput = document.getElementById('inputMaker');
@@ -3400,6 +3470,17 @@ POLICY: UI変更禁止（内部ロジックのみ）
           }
         }
 
+        // ✅ P0: 古い結果の上書き防止（現在のJANと一致する時だけ反映）
+        const currentJan = String(curBarcode || '').trim();
+        if (currentJan !== jan) {
+          if (isDebug()) {
+            console.log("[ProcessBarcode] JAN mismatch, skip update:", currentJan, "!=", jan);
+            showToast("処理がキャンセルされました", 2000);
+          }
+          processBarcodeInFlight.delete(jan);
+          return; // 古い結果は反映しない
+        }
+
         // ✅ デバッグ: どのソースを採用したか
         if (isDebug()) {
           showToast(`[採用] ${sourceUsed}`, 3000);
@@ -3484,6 +3565,16 @@ POLICY: UI変更禁止（内部ロジックのみ）
         if (nameInput) {
           nameInput.placeholder = originalPlaceholder;
         }
+      } finally {
+        // ✅ P0: 処理完了時にフラグを解除
+        if (jan && /^\d{8,14}$/.test(jan)) {
+          processBarcodeInFlight.delete(jan);
+        }
+      }
+    } else {
+      // ✅ JANが無効な場合もフラグを解除
+      if (jan) {
+        processBarcodeInFlight.delete(jan);
       }
     }
   }
