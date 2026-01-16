@@ -3,42 +3,34 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-15 23:10 JST
-TITLE: 「動いてない理由」の解消（devに反映）＋P0カメラ/タイムラグ＋DB優先＋税別/税込＋赤枠
-HEAD_COMMIT: e32a264（最新コミット・ヘッダ整合のみ、+2/-2）
-BASE_COMMIT: 55a34ed（本体修正・機能の基準コミット、+188/-40）
-BUILD_ID: 2026-01-15_2310_hf28-devsync
+DATE(JST): 2026-01-16 10:59 JST
+TITLE: P0修正（ピント改善/反映ラグ短縮/赤枠修正）
+HEAD_COMMIT: （最新コミット・反映待ち）
+BASE_COMMIT: （前回の基準コミット）
+BUILD_ID: 2026-01-16_1059_hf28_focuslag
 CHANGES:
-- ✅ dev/index.html に確実に反映（ルートではなくdev配下を修正）
-- 商品情報DBの優先順位は維持（Yahoo→楽天→OFF）ただし"品質スコア"で採用を絞る
-- タイトル/メーカー/販売店の"混入"を抑える（normalizeYahooProductInfo強化、normalizeMakerName強化）
-- 税別/税込：ストアに"既定"を持たせて、入力画面が自動で切替わるように
-- 「赤い線の枠」修正（価格編集まわりで赤枠が大きく崩れて見える問題を修正）
-- P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
-- P0: カメラのピント問題修正（getUserMedia + applyConstraints段階適用）
-  - 解像度指定（ideal 1920×1080、最低1280×720）
-  - track.getCapabilities()で端末の対応状況を確認
-  - track.applyConstraints()で段階的に制約適用（focusMode→exposureMode→zoom の順）
-  - zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
-  - debug=1でどのconstraintが通った/落ちたかを画面内ログに表示
-- P0: タイムラグ問題修正（読み取り→反映の遅延解消）
-  - 同一JANの二重発火防止（processBarcodeInFlight）
-  - 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
-  - 古い結果の上書き防止（現在のJANと一致する時だけ反映）
-  - JAN表示・取得中トースト・入力欄を触れる状態を即座に表示
-  - fetchはタイムアウト＋AbortController（既存）
-  - JAN→商品情報の簡易キャッシュ（既存）
-- 楽天API未実装時の対応（Proxy未実装なら即null返し、debug=1でログ）
-- PWAキャッシュ問題の対処法（通常タブで開き直し→PWA削除→再追加）
+- ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+  - getCapabilities() を見て、対応端末は focusMode=continuous を優先
+  - exposureMode/whiteBalanceMode も可能なら continuous
+  - 端末依存の非対応は安全にフォールバック
+- ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
+  - JAN取得した瞬間にUIへ仮カード反映（JAN+ローディング）
+  - Yahoo取得→整形→不足時だけRakuten→最後にOFF、で段階更新
+  - 直近JANはローカルキャッシュして次回即時表示
+- ✅ P0: 赤枠不具合（枠ズレ/表示崩れ）の修正
+  - border-width: 1px !important
+  - box-sizing: border-box
+  - max-width: 100%; overflow: hidden
+  - padding: 12px !important
 AUTHOR: Rex
-BUILD_ID: 2026-01-15_2310_hf28-devsync
-BUILD_PARAM: ?b=2026-01-15_2310_hf28-devsync
+BUILD_ID: 2026-01-16_1059_hf28_focuslag
+BUILD_PARAM: ?b=2026-01-16_1059_hf28_focuslag
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
-2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-15_2310_hf28-devsync を開く
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1059_hf28_focuslag を開く
 3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
 4. それでもだめならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
@@ -156,7 +148,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
           </div>
         </div>
 
-        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box;">
+        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
           <div id="calcOptionArea" class="d-flex align-items-center mb-2">
             <div class="btn-group btn-group-sm w-100 me-2">
               <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
@@ -284,7 +276,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script>
   const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-15_2310_hf28-devsync"; // ヘッダーと一致させる
+  const BUILD_ID = "2026-01-16_1059_hf28_focuslag"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -3365,14 +3357,38 @@ POLICY: UI変更禁止（内部ロジックのみ）
               }
             }
             
-            // ✅ 段階的に制約を適用（focus→exposure→zoom の順で維持）
-            const constraints = [
-              { focusMode: "continuous" }, // 連続オートフォーカス優先
-              { exposureMode: "continuous" } // 連続露出調整
-            ];
+            // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+            // getCapabilities() を見て、対応端末は focusMode=continuous を優先
+            const constraints = [];
+            
+            // ✅ focusMode: continuous（連続オートフォーカス優先）
+            if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else {
+              // 対応していない場合は manual を試す（フォールバック）
+              if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
+                  (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
+                constraints.push({ focusMode: "manual" });
+              }
+            }
+            
+            // ✅ exposureMode: continuous（連続露出調整）
+            if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            }
+            
+            // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
+            if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            }
             
             // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
-            // ここでは、capabilityがある場合のみ追加（実際のブレ判定は将来的に実装可能）
             if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
               constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
             }
@@ -3578,6 +3594,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
         let finalInfo = { name: '', maker: '', imageUrl: '' };
         let sourceUsed = 'none'; // デバッグ用：どのソースを採用したか
 
+        // ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
         // ✅ 優先順位1: Yahoo最優先（商品身元情報＋価格情報）
         yahooInfo = await lookupYahooByJan(jan);
         
@@ -3598,6 +3615,24 @@ POLICY: UI変更禁止（内部ロジックのみ）
             finalInfo.maker = yahooInfo.maker || '';
             finalInfo.imageUrl = yahooInfo.imageUrl || '';
             sourceUsed = 'yahoo';
+
+            // ✅ P0: Yahoo取得→整形→段階更新（先に仮反映）
+            const currentJanCheck = String(curBarcode || '').trim();
+            if (currentJanCheck === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
 
             // ✅ デバッグ: Yahoo取得成功
             if (isDebug()) {
@@ -3633,6 +3668,24 @@ POLICY: UI変更禁止（内部ロジックのみ）
                 sourceUsed = 'yahoo+rakuten';
               }
 
+              // ✅ P0: 楽天取得→段階更新（不足項目だけ補完）
+              const currentJanCheck2 = String(curBarcode || '').trim();
+              if (currentJanCheck2 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
               if (isDebug()) {
                 showToast(`[楽天] 補完OK`, 3000);
               }
@@ -3649,6 +3702,24 @@ POLICY: UI変更禁止（内部ロジックのみ）
             finalInfo.maker = rakutenInfo.maker || '';
             finalInfo.imageUrl = rakutenInfo.imageUrl || '';
             sourceUsed = 'rakuten';
+
+            // ✅ P0: 楽天取得→段階更新（先に仮反映）
+            const currentJanCheck3 = String(curBarcode || '').trim();
+            if (currentJanCheck3 === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
           } else {
             // ✅ Yahooも楽天も未取得の場合のみ、OFFを使用（第3優先）
             // ✅ OFFを使う条件: Yahooも楽天も「未取得」または「整形後も不自然」
@@ -3678,6 +3749,25 @@ POLICY: UI変更禁止（内部ロジックのみ）
                   if (sourceUsed === 'none') sourceUsed = 'off';
                 }
               }
+
+              // ✅ P0: OFF取得→段階更新（最後の補助）
+              const currentJanCheck4 = String(curBarcode || '').trim();
+              if (currentJanCheck4 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
               if (isDebug() && sourceUsed === 'off') {
                 showToast(`[OFF] 最終補助として採用`, 3000);
               }
