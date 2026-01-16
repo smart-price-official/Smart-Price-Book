@@ -1,26 +1,20 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.19
-FULL_VERSION: v19.9.19
-DATE(JST): 2026-01-16 18:05 JST（正確な時刻）
-TITLE: P0回帰修正（スキャナガイド枠/走査ライン表示＋赤枠角丸/余白）
+VERSION: v19.9.20
+FULL_VERSION: v19.9.20
+DATE(JST): 2026-01-16 19:31 JST（正確な時刻）
+TITLE: P0追加（debug=1時のトースト10秒＋エラー詳細表示＋固定エラー表示）
 HEAD_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d）
 BASE_COMMIT: 2bf636d（前回の基準コミット）
-BUILD_ID: 2026-01-16_1805_v19.9.19
+BUILD_ID: 2026-01-16_1931_debug-toast-10s
 CHANGES:
-- ✅ P0回帰修正: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
-- ✅ P0回帰修正: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも）
-  - display: block; に変更（debug=1の条件を削除）
-  - z-index: 2001; でvideoより前面に固定
-- ✅ P0回帰修正: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す
-  - z-index: 2002; でvideoより前面に固定
-  - CSSアニメで確実に出る方式（@keyframes scanning）
-- ✅ P0回帰修正: 赤い枠の角丸Rを他カードと同じに統一（border-radius: 12px !important）
-- ✅ P0回帰修正: 枠線に対して情報が近すぎるのを解消（padding: 12px !important、margin: 0 !important）
+- ✅ P0追加: debug=1のとき、トースト表示時間を最低10秒にする（showToast関数内でisDebug()チェック）
+- ✅ P0追加: debug=1のとき、エラーハンドリングを強化（error.name / error.messageを表示）
+- ✅ P0追加: debug=1のとき、画面右上に最終エラー1行を固定表示（トーストが消えても残る）
 AUTHOR: Rex
 BUILD_ID: 2026-01-16_1805_v19.9.19
-BUILD_PARAM: ?b=2026-01-16_1805_v19.9.19
+BUILD_PARAM: ?b=2026-01-16_1931_debug-toast-10s
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -296,6 +290,8 @@ POLICY: UI変更禁止（内部ロジックのみ）
 </div>
 
 <div id="toast" class="toast-msg"></div>
+<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
+<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -304,9 +300,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.19"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.19"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-16_1805_v19.9.19"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.20"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.20"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-16_1931_debug-toast-10s"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -380,13 +376,36 @@ POLICY: UI変更禁止（内部ロジックのみ）
   function isDebug() {
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
+  // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
+    const errorDisplay = document.getElementById('debug-error-display');
+    if (errorDisplay) errorDisplay.style.display = 'block';
+
+    // 最終エラーを画面に固定表示する関数
+    function setLastError(msg) {
+      const errorDisplay = document.getElementById('debug-error-display');
+      if (errorDisplay) {
+        errorDisplay.textContent = msg;
+        errorDisplay.style.display = 'block';
+      }
+    }
+
     window.addEventListener('error', (e) => {
-      showToast(`JSエラー: ${e.message}`, 10000);
+      const errorName = e.error ? e.error.name : 'Error';
+      const errorMsg = e.error ? e.error.message : e.message;
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `JSエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
     });
     window.addEventListener('unhandledrejection', (e) => {
-      const msg = (e && e.reason && e.reason.message) ? e.reason.message : String(e.reason || e);
-      showToast(`Promiseエラー: ${msg}`, 10000);
+      const reason = e.reason || e;
+      const errorName = reason && reason.name ? reason.name : 'PromiseRejection';
+      const errorMsg = (reason && reason.message) ? reason.message : String(reason);
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `Promiseエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
     });
   }
 
@@ -1087,6 +1106,10 @@ POLICY: UI変更禁止（内部ロジックのみ）
   function showToast(msg, ms = 4000) {
     const t = document.getElementById('toast');
     if (!t) return;
+    // ✅ P0: debug=1のときだけ、トースト表示時間を最低10秒にする
+    if (isDebug()) {
+      ms = Math.max(ms || 0, 10000);
+    }
     t.innerText = msg;
     t.style.opacity = 1;
     setTimeout(() => { t.style.opacity = 0; }, ms);
