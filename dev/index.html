@@ -3,34 +3,32 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.18
 FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-16 10:59 JST
-TITLE: P0修正（ピント改善/反映ラグ短縮/赤枠修正）
+DATE(JST): 2026-01-16 15:58 JST
+TITLE: P0追加（スキャナ合わせ窓＋購入履歴赤枠の角丸/余白）
 HEAD_COMMIT: （最新コミット・反映待ち）
 BASE_COMMIT: （前回の基準コミット）
-BUILD_ID: 2026-01-16_1059_hf28_focuslag
+BUILD_ID: 2026-01-16_1558_scanguide-redframe
 CHANGES:
-- ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
-  - getCapabilities() を見て、対応端末は focusMode=continuous を優先
-  - exposureMode/whiteBalanceMode も可能なら continuous
-  - 端末依存の非対応は安全にフォールバック
-- ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
-  - JAN取得した瞬間にUIへ仮カード反映（JAN+ローディング）
-  - Yahoo取得→整形→不足時だけRakuten→最後にOFF、で段階更新
-  - 直近JANはローカルキャッシュして次回即時表示
-- ✅ P0: 赤枠不具合（枠ズレ/表示崩れ）の修正
-  - border-width: 1px !important
-  - box-sizing: border-box
-  - max-width: 100%; overflow: hidden
-  - padding: 12px !important
+- ✅ P0追加: スキャナに「合わせる窓（角丸ガイド枠）」を追加（debug=1のときだけ表示）
+  - スキャンバーは枠の中だけ動くように（ボタン追加なし）
+  - 角丸ガイド枠（border-radius: 20px）を追加
+  - debug=1のときだけ表示（body[data-debug="1"] .scan-frame）
+- ✅ P0追加: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
+  - qrbox設定を強化（aspectRatio: 1.0、disableFlip: false）
+  - ROI内だけの検出を確実にする
+- ✅ P0追加: 購入履歴の対象情報選択時の赤枠を#priceSectionと同じ仕様へ統一
+  - 角丸統一（border-radius: 12px）
+  - 左右余白（padding: 12px !important）
+  - 枠ズレ予防（box-sizing: border-box、max-width: 100%、overflow: hidden）
 AUTHOR: Rex
-BUILD_ID: 2026-01-16_1059_hf28_focuslag
-BUILD_PARAM: ?b=2026-01-16_1059_hf28_focuslag
+BUILD_ID: 2026-01-16_1558_scanguide-redframe
+BUILD_PARAM: ?b=2026-01-16_1558_scanguide-redframe
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
-2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1059_hf28_focuslag を開く
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1558_scanguide-redframe を開く
 3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
 4. それでもだめならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
@@ -77,17 +75,46 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
     .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
     
-    /* ✅ 購入履歴選択時の赤枠＋薄赤背景（outline方式） */
+    /* ✅ P0: 購入履歴選択時の赤枠を#priceSectionと同じ仕様へ統一 */
     .selected {
-      outline: 2px solid #ff5252;
-      outline-offset: -2px;
+      border: 1px solid #ff5252 !important;
+      border-radius: 12px; /* 角丸統一（rounded） */
       background: rgba(213,0,0,0.12);
+      box-sizing: border-box; /* 枠ズレ予防 */
+      max-width: 100%; /* 枠ズレ予防 */
+      overflow: hidden; /* 枠ズレ予防 */
+      padding: 12px !important; /* 左右余白（padding 12px固定） */
     }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
-    .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 180px; z-index: 2001; box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); }
-    .laser { position: absolute; left: 5%; width: 90%; height: 2px; background: #ff0000; box-shadow: 0 0 10px 2px #ff0000; animation: scanning 2s infinite ease-in-out; z-index: 2002; }
+    /* ✅ P0: スキャナに「合わせる窓（角丸ガイド枠）」を追加（debug=1のときだけ表示） */
+    .scan-frame { 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      width: 280px; 
+      height: 180px; 
+      z-index: 2001; 
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); 
+      border: 3px solid #ff5252; 
+      border-radius: 20px; 
+      display: none; /* デフォルトは非表示 */
+    }
+    /* debug=1のときだけ表示 */
+    body[data-debug="1"] .scan-frame { display: block; }
+    .laser { 
+      position: absolute; 
+      left: 5%; 
+      width: 90%; 
+      height: 2px; 
+      background: #ff0000; 
+      box-shadow: 0 0 10px 2px #ff0000; 
+      animation: scanning 2s infinite ease-in-out; 
+      z-index: 2002; 
+      border-radius: 1px; /* 角丸 */
+    }
     @keyframes scanning { 0% { top: 15%; opacity: 0.2; } 50% { top: 85%; opacity: 1; } 100% { top: 15%; opacity: 0.2; } }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
@@ -276,7 +303,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script>
   const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-16_1059_hf28_focuslag"; // ヘッダーと一致させる
+  const BUILD_ID = "2026-01-16_1558_scanguide-redframe"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -999,9 +1026,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
       }
 
       if (isDebug()) {
+        // ✅ P0: debug=1のときだけスキャンガイド枠を表示
+        document.body.setAttribute('data-debug', '1');
         setTimeout(() => {
           showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
+      } else {
+        document.body.removeAttribute('data-debug');
       }
     } catch(e) {
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
@@ -3324,7 +3355,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
       aspectRatio: { ideal: 16/9 }
     };
     
-    scanner.start(cameraConfig, {fps:15,qrbox:{width:280,height:180}}, async (t)=> {
+    // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
+    scanner.start(cameraConfig, {
+      fps: 15,
+      qrbox: {width: 280, height: 180}, // ROI内だけの検出を確実にする
+      aspectRatio: 1.0, // 正方形に近い形状で精度向上
+      disableFlip: false // フリップを有効にして検出精度向上
+    }, async (t)=> {
       showToast("読み取りOK", 1500);
       
       // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
