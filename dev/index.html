@@ -1,34 +1,32 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.18
-FULL_VERSION: v19.9.18-hf28-p0-camera-lag
-DATE(JST): 2026-01-16 15:58 JST
-TITLE: P0追加（スキャナ合わせ窓＋購入履歴赤枠の角丸/余白）
-HEAD_COMMIT: （最新コミット・反映待ち）
-BASE_COMMIT: （前回の基準コミット）
-BUILD_ID: 2026-01-16_1558_scanguide-redframe
+VERSION: v19.9.19
+FULL_VERSION: v19.9.19
+DATE(JST): 2026-01-16 18:05 JST（正確な時刻）
+TITLE: P0回帰修正（スキャナガイド枠/走査ライン表示＋赤枠角丸/余白）
+HEAD_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d）
+BASE_COMMIT: 2bf636d（前回の基準コミット）
+BUILD_ID: 2026-01-16_1805_v19.9.19
 CHANGES:
-- ✅ P0追加: スキャナに「合わせる窓（角丸ガイド枠）」を追加（debug=1のときだけ表示）
-  - スキャンバーは枠の中だけ動くように（ボタン追加なし）
-  - 角丸ガイド枠（border-radius: 20px）を追加
-  - debug=1のときだけ表示（body[data-debug="1"] .scan-frame）
-- ✅ P0追加: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
-  - qrbox設定を強化（aspectRatio: 1.0、disableFlip: false）
-  - ROI内だけの検出を確実にする
-- ✅ P0追加: 購入履歴の対象情報選択時の赤枠を#priceSectionと同じ仕様へ統一
-  - 角丸統一（border-radius: 12px）
-  - 左右余白（padding: 12px !important）
-  - 枠ズレ予防（box-sizing: border-box、max-width: 100%、overflow: hidden）
+- ✅ P0回帰修正: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
+- ✅ P0回帰修正: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも）
+  - display: block; に変更（debug=1の条件を削除）
+  - z-index: 2001; でvideoより前面に固定
+- ✅ P0回帰修正: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す
+  - z-index: 2002; でvideoより前面に固定
+  - CSSアニメで確実に出る方式（@keyframes scanning）
+- ✅ P0回帰修正: 赤い枠の角丸Rを他カードと同じに統一（border-radius: 12px !important）
+- ✅ P0回帰修正: 枠線に対して情報が近すぎるのを解消（padding: 12px !important、margin: 0 !important）
 AUTHOR: Rex
-BUILD_ID: 2026-01-16_1558_scanguide-redframe
-BUILD_PARAM: ?b=2026-01-16_1558_scanguide-redframe
+BUILD_ID: 2026-01-16_1805_v19.9.19
+BUILD_PARAM: ?b=2026-01-16_1805_v19.9.19
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
-2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1558_scanguide-redframe を開く
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1641_scanner-regression-redframe を開く
 3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
 4. それでもだめならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
@@ -78,17 +76,18 @@ POLICY: UI変更禁止（内部ロジックのみ）
     /* ✅ P0: 購入履歴選択時の赤枠を#priceSectionと同じ仕様へ統一 */
     .selected {
       border: 1px solid #ff5252 !important;
-      border-radius: 12px; /* 角丸統一（rounded） */
+      border-radius: 12px !important; /* 角丸統一（他カードと同じ半径） */
       background: rgba(213,0,0,0.12);
-      box-sizing: border-box; /* 枠ズレ予防 */
-      max-width: 100%; /* 枠ズレ予防 */
-      overflow: hidden; /* 枠ズレ予防 */
-      padding: 12px !important; /* 左右余白（padding 12px固定） */
+      box-sizing: border-box !important; /* 枠ズレ予防 */
+      max-width: 100% !important; /* 枠ズレ予防 */
+      overflow: hidden !important; /* 枠ズレ予防 */
+      padding: 12px !important; /* 左右余白（枠線に対して情報が近すぎるのを解消） */
+      margin: 0 !important; /* マージンをリセット */
     }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
-    /* ✅ P0: スキャナに「合わせる窓（角丸ガイド枠）」を追加（debug=1のときだけ表示） */
+    /* ✅ P0: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも） */
     .scan-frame { 
       position: absolute; 
       top: 50%; 
@@ -96,14 +95,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
       transform: translate(-50%, -50%); 
       width: 280px; 
       height: 180px; 
-      z-index: 2001; 
+      z-index: 2001; /* videoより前面に固定 */
       box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); 
       border: 3px solid #ff5252; 
       border-radius: 20px; 
-      display: none; /* デフォルトは非表示 */
+      display: block; /* 必ず表示 */
     }
-    /* debug=1のときだけ表示 */
-    body[data-debug="1"] .scan-frame { display: block; }
+    /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
     .laser { 
       position: absolute; 
       left: 5%; 
@@ -112,10 +110,15 @@ POLICY: UI変更禁止（内部ロジックのみ）
       background: #ff0000; 
       box-shadow: 0 0 10px 2px #ff0000; 
       animation: scanning 2s infinite ease-in-out; 
-      z-index: 2002; 
+      z-index: 2002; /* videoより前面に固定 */
       border-radius: 1px; /* 角丸 */
     }
-    @keyframes scanning { 0% { top: 15%; opacity: 0.2; } 50% { top: 85%; opacity: 1; } 100% { top: 15%; opacity: 0.2; } }
+    /* CSSアニメで確実に出る方式 */
+    @keyframes scanning { 
+      0% { top: 15%; opacity: 0.2; } 
+      50% { top: 85%; opacity: 1; } 
+      100% { top: 15%; opacity: 0.2; } 
+    }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: #1e1e1e; padding: 25px; border-radius: 20px; width: 95%; max-width: 450px; border: 1px solid #D50000; }
@@ -301,9 +304,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.18"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.18-hf28-p0-camera-lag"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-16_1558_scanguide-redframe"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.19"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.19"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-16_1805_v19.9.19"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -3343,7 +3346,10 @@ POLICY: UI変更禁止（内部ロジックのみ）
     if(isScanning) return;
     isScanning = true;
     document.getElementById('camera-area').style.display='block';
+    // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
+    if (isDebug()) {
     showToast("カメラ起動中…", 2000);
+    }
     if(!scanner) scanner = new Html5Qrcode("interactive");
     
     // ✅ P0: カメラのピント問題対応
