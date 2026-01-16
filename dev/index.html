@@ -1,20 +1,20 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.20
-FULL_VERSION: v19.9.20
-DATE(JST): 2026-01-16 19:31 JST（正確な時刻）
-TITLE: P0追加（debug=1時のトースト10秒＋エラー詳細表示＋固定エラー表示）
+VERSION: v19.9.21
+FULL_VERSION: v19.9.21
+DATE(JST): 2026-01-16 21:47 JST（正確な時刻）
+TITLE: P0追加（URL自動追従：dev/patch/rootに自動切り替え）
 HEAD_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d）
 BASE_COMMIT: 2bf636d（前回の基準コミット）
-BUILD_ID: 2026-01-16_1931_debug-toast-10s
+BUILD_ID: 2026-01-16_2142_auto-url-follow-folder
 CHANGES:
-- ✅ P0追加: debug=1のとき、トースト表示時間を最低10秒にする（showToast関数内でisDebug()チェック）
-- ✅ P0追加: debug=1のとき、エラーハンドリングを強化（error.name / error.messageを表示）
-- ✅ P0追加: debug=1のとき、画面右上に最終エラー1行を固定表示（トーストが消えても残る）
+- ✅ P0追加: ブラウザ版（URL）モーダルのURLを現在のlocationに自動追従（dev/patch/rootに自動切り替え）
+- ✅ P0追加: buildUrl()関数を修正（現在のURLの?b=パラメータを優先、なければBUILD_IDを使用）
+- ✅ P0追加: buildBaseUrl()関数を修正（index.htmlで終わる場合はファイル名を外してディレクトリ部分を取得）
 AUTHOR: Rex
 BUILD_ID: 2026-01-16_1805_v19.9.19
-BUILD_PARAM: ?b=2026-01-16_1931_debug-toast-10s
+BUILD_PARAM: ?b=2026-01-16_2142_auto-url-follow-folder
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -300,9 +300,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.20"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.20"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-16_1931_debug-toast-10s"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.21"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.21"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-16_2142_auto-url-follow-folder"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -4192,12 +4192,36 @@ POLICY: UI変更禁止（内部ロジックのみ）
     });
   }
 
+  // ✅ P0: 現在のlocationに自動追従するURL生成
   function buildBaseUrl() {
-    return (location.origin + location.pathname).replace(/\/+$/, "/");
+    let pathname = location.pathname;
+    // index.htmlで終わる場合はファイル名を外す
+    if (pathname.endsWith('/index.html') || pathname.endsWith('index.html')) {
+      pathname = pathname.replace(/\/?index\.html$/, '');
+    }
+    // 最後のスラッシュを削除（ただしルートの場合は残す）
+    pathname = pathname.replace(/\/+$/, '') || '/';
+    return location.origin + pathname;
   }
+  
   function buildUrl(withDebug=false) {
     const base = buildBaseUrl();
-    return `${base}?b=${encodeURIComponent(BUILD_ID)}` + (withDebug ? `&debug=1` : ``);
+    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
+    const currentParams = new URLSearchParams(location.search);
+    const buildParam = currentParams.get('b') || BUILD_ID;
+    
+    // URLを組み立て
+    let url = base;
+    if (buildParam) {
+      url += `?b=${encodeURIComponent(buildParam)}`;
+    }
+    
+    // デバッグURLだけに &debug=1 を付ける
+    if (withDebug) {
+      url += (buildParam ? '&' : '?') + 'debug=1';
+    }
+    
+    return url;
   }
 
   function openWebModal() {
