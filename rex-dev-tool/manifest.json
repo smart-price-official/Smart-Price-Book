@@ -4,8 +4,8 @@
   "description": "Smart Price 開発ツール - 修正報告書生成・GitHub差分取得・コード保管",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#667eea",
-  "theme_color": "#667eea",
+  "background_color": "#ff9800",
+  "theme_color": "#ff9800",
   "orientation": "any",
   "icons": [
     {

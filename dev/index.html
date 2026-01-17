@@ -3,11 +3,19 @@ APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
 VERSION: v19.9.25
 FULL_VERSION: v19.9.25
+<<<<<<< Updated upstream
 DATE(JST): 2026-01-17 07:34 JST（正確な時刻）
 TITLE: P0修正（バーコードスキャンエラーハンドリング強化・内部検証用詳細ログ）
 HEAD_COMMIT: （GitHubにpush後に確定・v19.9.25の確定コミットSHA）
 BASE_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（v19.9.24の確定コミット・https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d08154cf71504cdba9d775c41f414deba9）
 BUILD_ID: 2026-01-17_0716_P0_scanner-error-handling
+=======
+DATE(JST): 2026-01-17 18:41 JST（正確な時刻）
+TITLE: P0修正（Xperiaカメラ起動失敗対応・段階的フォールバック・エラー詳細表示）
+HEAD_COMMIT: （push後に確定）
+BASE_COMMIT: （push後に確定）
+BUILD_ID: 2026-01-17_1841_xperia-camera-fail
+>>>>>>> Stashed changes
 CHANGES:
 - ✅ P0修正: バーコードスキャン起動失敗時の詳細なエラーハンドリング（NotAllowedError/NotFoundError/NotReadableError等の判別）
 - ✅ P0修正: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
@@ -305,8 +313,14 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
+<<<<<<< Updated upstream
   const FULL_VERSION = "v19.9.25"; // 版番号（単一の定数・ヘッダー/DEBUG/タイトル/報告書に統一）
   const BUILD_ID = "2026-01-17_0716_P0_scanner-error-handling"; // ヘッダーと一致させる
+=======
+  const APP_VERSION = "v19.9.25"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.25"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-17_1841_xperia-camera-fail"; // ヘッダーと一致させる
+>>>>>>> Stashed changes
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -395,6 +409,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
     }
 
     window.addEventListener('error', (e) => {
+<<<<<<< Updated upstream
       // ✅ P0: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
       let errorName = 'Error';
       let errorMsg = e.message || 'Unknown error';
@@ -435,15 +450,51 @@ POLICY: UI変更禁止（内部ロジックのみ）
         stack: errorStack,
         event: e
       });
+=======
+      const errorName = e.error ? e.error.name : 'Error';
+      const errorMsg = e.error ? e.error.message : e.message;
+      const errorStack = e.error && e.error.stack ? e.error.stack : '';
+      const errorFilename = e.filename || '';
+      const errorLine = e.lineno || '';
+      const errorCol = e.colno || '';
+      
+      // "Script error"の場合は詳細を追加
+      let errorDetail = `${errorName}: ${errorMsg}`;
+      if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+        errorDetail += ` (ファイル: ${errorFilename || '不明'}, 行: ${errorLine || '不明'}, 列: ${errorCol || '不明'})`;
+        if (errorStack) {
+          errorDetail += `\nスタック: ${errorStack}`;
+        }
+      } else {
+        if (errorFilename) errorDetail += ` (${errorFilename}:${errorLine}:${errorCol})`;
+        if (errorStack) errorDetail += `\n${errorStack}`;
+      }
+      
+      const fullMsg = `JSエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
+      if (isDebug()) {
+        console.error('[window.onerror]', e);
+      }
+>>>>>>> Stashed changes
     });
     window.addEventListener('unhandledrejection', (e) => {
       const reason = e.reason || e;
       const errorName = reason && reason.name ? reason.name : 'PromiseRejection';
       const errorMsg = (reason && reason.message) ? reason.message : String(reason);
-      const errorDetail = `${errorName}: ${errorMsg}`;
+      const errorStack = reason && reason.stack ? reason.stack : '';
+      
+      let errorDetail = `${errorName}: ${errorMsg}`;
+      if (errorStack) {
+        errorDetail += `\n${errorStack}`;
+      }
+      
       const fullMsg = `Promiseエラー: ${errorDetail}`;
       showToast(fullMsg, 10000);
       setLastError(fullMsg);
+      if (isDebug()) {
+        console.error('[unhandledrejection]', e);
+      }
     });
   }
 
@@ -3444,6 +3495,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
     // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
     if (isDebug()) {
       showToast("カメラ起動中…", 2000);
+<<<<<<< Updated upstream
       console.log("[Scanner] Starting scanner...");
     }
     
@@ -3464,116 +3516,35 @@ POLICY: UI変更禁止（内部ロジックのみ）
         setLastError(`[Scanner] ${errorMsg}`);
       }
       return;
+=======
+>>>>>>> Stashed changes
     }
     
-    // ✅ P0: カメラのピント問題対応
-    // ✅ getUserMedia は最初は安全に取得（落ちにくい条件）
-    const cameraConfig = {
-      facingMode: "environment", // 背面カメラ固定
-      width: { ideal: 1920, min: 1280 }, // 解像度：ideal 1920×1080（最低1280×720）
-      height: { ideal: 1080, min: 720 },
-      aspectRatio: { ideal: 16/9 }
-    };
-    
-    // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
-    scanner.start(cameraConfig, {
-      fps: 15,
-      qrbox: {width: 280, height: 180}, // ROI内だけの検出を確実にする
-      aspectRatio: 1.0, // 正方形に近い形状で精度向上
-      disableFlip: false // フリップを有効にして検出精度向上
-    }, async (t)=> {
-      showToast("読み取りOK", 1500);
-      
-      // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
-      try {
-        const videoElement = document.querySelector('#interactive video');
-        if (videoElement && videoElement.srcObject) {
-          const stream = videoElement.srcObject;
-          const track = stream.getVideoTracks()[0];
-          if (track) {
-            // ✅ track.getCapabilities() で端末の対応状況を確認
-            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-            const settings = track.getSettings ? track.getSettings() : {};
-            
-            // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
-            if (capabilities.torch && capabilities.torch.length > 0) {
-              try {
-                // 簡易的な明るさ判定（環境光センサーがない場合の代替）
-                // 実際の実装では、より高度な判定が必要な場合がある
-                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                // より確実な方法：明るさが低いと判断した場合のみ点灯
-                // ここでは、ユーザーが明示的に要求しない限り、自動点灯は控えめに
-                // 将来的には、実際の環境光センサーやカメラの明るさ情報を使用可能
-                if (isDebug()) {
-                  console.log("[Camera] torch capability available:", capabilities.torch);
-                }
-              } catch(e) {
-                if (isDebug()) {
-                  console.log("[Camera] torch check error:", e);
-                }
-              }
-            }
-            
-            // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
-            // getCapabilities() を見て、対応端末は focusMode=continuous を優先
-            const constraints = [];
-            
-            // ✅ focusMode: continuous（連続オートフォーカス優先）
-            if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
-              constraints.push({ focusMode: "continuous" });
-            } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
-              constraints.push({ focusMode: "continuous" });
-            } else {
-              // 対応していない場合は manual を試す（フォールバック）
-              if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
-                  (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
-                constraints.push({ focusMode: "manual" });
-              }
-            }
-            
-            // ✅ exposureMode: continuous（連続露出調整）
-            if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
-              constraints.push({ exposureMode: "continuous" });
-            } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
-              constraints.push({ exposureMode: "continuous" });
-            }
-            
-            // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
-            if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
-              constraints.push({ whiteBalanceMode: "continuous" });
-            } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
-              constraints.push({ whiteBalanceMode: "continuous" });
-            }
-            
-            // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
-            if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
-              constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
-            }
-            
-            for (let i = 0; i < constraints.length; i++) {
-              try {
-                await track.applyConstraints({ advanced: [constraints[i]] });
-                if (isDebug()) {
-                  const constraintName = Object.keys(constraints[i])[0];
-                  showToast(`[Camera] Constraint ${i+1} OK: ${constraintName}`, 2000);
-                  console.log("[Camera] Applied constraint:", constraints[i]);
-                }
-              } catch(e) {
-                if (isDebug()) {
-                  const constraintName = Object.keys(constraints[i])[0];
-                  console.log(`[Camera] Constraint ${i+1} failed: ${constraintName}`, e.message);
-                }
-                // 失敗しても継続
-              }
-            }
-          }
-        }
-      } catch(e) {
-        if (isDebug()) {
-          console.log("[Camera] applyConstraints error:", e);
-        }
-        // エラーは握りつぶして継続
+    // ✅ P0: 段階的なカメラ起動フォールバック
+    // try#1: facingMode exact environment（最も厳格）
+    const configs = [
+      {
+        facingMode: { exact: "environment" },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        aspectRatio: { ideal: 16/9 }
+      },
+      // try#2: facingMode ideal environment（idealに緩和）
+      {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        aspectRatio: { ideal: 16/9 }
+      },
+      // try#3: video: { facingMode: "environment" }（シンプル）
+      {
+        video: { facingMode: "environment" }
+      },
+      // try#4: video: true（最小限）
+      {
+        video: true
       }
+<<<<<<< Updated upstream
       
       await stopScanner();
       
@@ -3625,6 +3596,163 @@ POLICY: UI変更禁止（内部ロジックのみ）
       
       stopScanner();
     });
+=======
+    ];
+    
+    // 段階的に試行
+    (async () => {
+      for (let i = 0; i < configs.length; i++) {
+        try {
+          if (isDebug()) {
+            console.log(`[Camera] Try #${i+1}:`, configs[i]);
+          }
+          
+          // scanner.start()はPromiseを返す
+          await scanner.start(configs[i], {
+            fps: 15,
+            qrbox: {width: 280, height: 180},
+            aspectRatio: 1.0,
+            disableFlip: false
+          }, async (t)=> {
+            // バーコード読み取り成功時のコールバック
+            showToast("読み取りOK", 1500);
+            
+            // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
+            try {
+              const videoElement = document.querySelector('#interactive video');
+              if (videoElement && videoElement.srcObject) {
+                const stream = videoElement.srcObject;
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                  // ✅ track.getCapabilities() で端末の対応状況を確認
+                  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                  const settings = track.getSettings ? track.getSettings() : {};
+                  
+                  // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
+                  if (capabilities.torch && capabilities.torch.length > 0) {
+                    try {
+                      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                      if (isDebug()) {
+                        console.log("[Camera] torch capability available:", capabilities.torch);
+                      }
+                    } catch(e) {
+                      if (isDebug()) {
+                        console.log("[Camera] torch check error:", e);
+                      }
+                    }
+                  }
+                  
+                  // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+                  const constraints = [];
+                  
+                  // ✅ focusMode: continuous（連続オートフォーカス優先）
+                  if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
+                    constraints.push({ focusMode: "continuous" });
+                  } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+                    constraints.push({ focusMode: "continuous" });
+                  } else {
+                    if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
+                        (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
+                      constraints.push({ focusMode: "manual" });
+                    }
+                  }
+                  
+                  // ✅ exposureMode: continuous（連続露出調整）
+                  if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
+                    constraints.push({ exposureMode: "continuous" });
+                  } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+                    constraints.push({ exposureMode: "continuous" });
+                  }
+                  
+                  // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
+                  if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
+                    constraints.push({ whiteBalanceMode: "continuous" });
+                  } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+                    constraints.push({ whiteBalanceMode: "continuous" });
+                  }
+                  
+                  // ✅ zoom: 1.2 は条件付き
+                  if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
+                    constraints.push({ zoom: 1.2 });
+                  }
+                  
+                  for (let j = 0; j < constraints.length; j++) {
+                    try {
+                      await track.applyConstraints({ advanced: [constraints[j]] });
+                      if (isDebug()) {
+                        const constraintName = Object.keys(constraints[j])[0];
+                        showToast(`[Camera] Constraint ${j+1} OK: ${constraintName}`, 2000);
+                        console.log("[Camera] Applied constraint:", constraints[j]);
+                      }
+                    } catch(e) {
+                      if (isDebug()) {
+                        const constraintName = Object.keys(constraints[j])[0];
+                        console.log(`[Camera] Constraint ${j+1} failed: ${constraintName}`, e.message);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch(e) {
+              if (isDebug()) {
+                console.log("[Camera] applyConstraints error:", e);
+              }
+            }
+            
+            await stopScanner();
+            await processBarcodeData(t);
+          });
+          
+          // 成功した設定を採用
+          if (isDebug()) {
+            showToast(`[Camera] 起動成功（Try #${i+1}）`, 2000);
+            console.log(`[Camera] 起動成功: Try #${i+1}`, configs[i]);
+          }
+          
+          // 成功したらループを抜ける
+          break;
+        } catch (e) {
+          const errorName = e.name || 'UnknownError';
+          const errorMsg = e.message || String(e);
+          if (isDebug()) {
+            console.warn(`[Camera] Try #${i+1} 失敗:`, errorName, errorMsg);
+          }
+          
+          // 前のスキャナーを停止
+          try {
+            await scanner.stop();
+          } catch(stopErr) {
+            // 停止エラーは無視
+          }
+          
+          // 最後の試行でなければ次へ
+          if (i < configs.length - 1) {
+            continue;
+          }
+          
+          // 全て失敗した場合はエラーを表示
+          let errorDescription = '';
+          if (errorName === 'NotAllowedError') {
+            errorDescription = '（カメラ許可が拒否されました）';
+          } else if (errorName === 'NotFoundError') {
+            errorDescription = '（カメラが見つかりません）';
+          } else if (errorName === 'OverconstrainedError') {
+            errorDescription = '（カメラ設定が対応していません）';
+          } else if (errorName === 'NotReadableError') {
+            errorDescription = '（カメラが使用中または読み取れません）';
+          }
+          
+          const fullErrorMsg = `カメラ起動失敗 ${errorName}: ${errorMsg}${errorDescription}`;
+          showToast(fullErrorMsg, 10000);
+          if (isDebug()) {
+            console.error('[Camera] 全ての設定で起動失敗:', errorName, errorMsg, e);
+            setLastError(fullErrorMsg);
+          }
+          stopScanner();
+        }
+      }
+    })();
+>>>>>>> Stashed changes
   }
 
   async function stopScanner() {
