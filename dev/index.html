@@ -1,0 +1,4612 @@
+<!--
+APP: Smart Price
+FILE: Smart-Price-Book/dev/index.html
+VERSION: v19.9.25
+FULL_VERSION: v19.9.25
+DATE(JST): 2026-01-17 07:34 JST（正確な時刻）
+TITLE: P0修正（バーコードスキャンエラーハンドリング強化・内部検証用詳細ログ）
+HEAD_COMMIT: （GitHubにpush後に確定・v19.9.25の確定コミットSHA）
+BASE_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（v19.9.24の確定コミット・https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d08154cf71504cdba9d775c41f414deba9）
+BUILD_ID: 2026-01-17_0716_P0_scanner-error-handling
+CHANGES:
+- ✅ P0修正: バーコードスキャン起動失敗時の詳細なエラーハンドリング（NotAllowedError/NotFoundError/NotReadableError等の判別）
+- ✅ P0修正: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+- ✅ P0修正: Html5Qrcodeライブラリの読み込み確認を追加
+- ✅ P0修正: スキャナー起動時のエラーハンドリングを強化（try-catchで初期化エラーを捕捉）
+- ✅ P0修正: 内部検証用詳細ログ追加（console.errorでエラー詳細を出力）
+- ✅ P0修正: エラーメッセージの詳細化（カメラアクセス拒否/カメラ未検出/カメラ使用中/設定非対応等）
+AUTHOR: Rex
+BUILD_PARAM: ?b=2026-01-17_0716_P0_scanner-error-handling
+DEBUG_PARAM: &debug=1
+POLICY: UI変更禁止（内部ロジックのみ）
+
+⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
+1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1641_scanner-regression-redframe を開く
+3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
+4. それでもだめならPWA削除→再追加:
+   - スマホのホーム画面からPWAを削除
+   - ブラウザで通常タブで開く
+   - メニューから「ホーム画面に追加」を選択して再追加
+-->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#D50000">
+  <title>Smart Price v19.9.25</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    body { font-family: sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; }
+    .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
+    .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 55px; }
+    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
+    .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
+    .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
+    .store-tag.gps-btn { border: 1px solid #ff5252; color: #ff5252; }
+    .store-tag.gps-btn.on { background: #ff5252; color: white; }
+    .store-tag.add-store { border: 1px dashed #777; color: #ddd; background: #262626; }
+    .store-tag.add-store:active { background: #333; }
+    .gps-status { font-size: 0.6rem; margin-left: 4px; opacity: 0.9; }
+
+    .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 10px; border-radius: 12px; overflow: hidden; }
+    .price-card { padding: 12px; border-left: 4px solid #444; cursor: pointer; }
+    .price-card.cheap { border-left-color: #ff5252; background: linear-gradient(90deg, #2a1a1a 0%, #1e1e1e 100%); }
+    .prod-thumb { width: 68px; height: 68px; object-fit: contain; background: #fff; border-radius: 8px; margin-right: 12px; }
+
+    .price-main { font-size: 1.25rem; font-weight: bold; color: #fff; line-height: 1; }
+    .stats-strip { display: flex; flex-direction: column; background: #262626; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.75rem; border: 1px solid #333; }
+    .stats-row { display: flex; justify-content: space-around; width: 100%; }
+    .stat-item { text-align: center; flex: 1; color: #aaa; }
+    .stat-val { display: block; font-weight: bold; color: #fff; font-size: 0.9rem; }
+
+    .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    
+    /* ✅ P0: 購入履歴選択時の赤枠を#priceSectionと同じ仕様へ統一 */
+    .selected {
+      border: 1px solid #ff5252 !important;
+      border-radius: 12px !important; /* 角丸統一（他カードと同じ半径） */
+      background: rgba(213,0,0,0.12);
+      box-sizing: border-box !important; /* 枠ズレ予防 */
+      max-width: 100% !important; /* 枠ズレ予防 */
+      overflow: hidden !important; /* 枠ズレ予防 */
+      padding: 12px !important; /* 左右余白（枠線に対して情報が近すぎるのを解消） */
+      margin: 0 !important; /* マージンをリセット */
+    }
+
+    #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
+    #interactive { width: 100%; height: 100%; }
+    /* ✅ P0: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも） */
+    .scan-frame { 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      width: 280px; 
+      height: 180px; 
+      z-index: 2001; /* videoより前面に固定 */
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); 
+      border: 3px solid #ff5252; 
+      border-radius: 20px; 
+      display: block; /* 必ず表示 */
+    }
+    /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
+    .laser { 
+      position: absolute; 
+      left: 5%; 
+      width: 90%; 
+      height: 2px; 
+      background: #ff0000; 
+      box-shadow: 0 0 10px 2px #ff0000; 
+      animation: scanning 2s infinite ease-in-out; 
+      z-index: 2002; /* videoより前面に固定 */
+      border-radius: 1px; /* 角丸 */
+    }
+    /* CSSアニメで確実に出る方式 */
+    @keyframes scanning { 
+      0% { top: 15%; opacity: 0.2; } 
+      50% { top: 85%; opacity: 1; } 
+      100% { top: 15%; opacity: 0.2; } 
+    }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
+    .modal-content { background: #1e1e1e; padding: 25px; border-radius: 20px; width: 95%; max-width: 450px; border: 1px solid #D50000; }
+
+    .toast-msg { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: rgba(50,50,50,0.95); color: #fff; padding: 10px 25px; border-radius: 25px; font-size: 0.85rem; z-index: 5000; opacity: 0; transition: 0.3s; pointer-events: none; border: 1px solid #777; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+    .city-chips { display: flex; overflow-x: auto; gap: 5px; padding: 5px 0; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
+    .city-chip { font-size: 0.75rem; padding: 4px 12px; border-radius: 15px; background: #333; color: #ccc; border: 1px solid #555; white-space: nowrap; cursor: pointer; }
+    .city-chip:active { background: #D50000; color: white; }
+
+    .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
+    .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
+  </style>
+</head>
+
+<body>
+<header class="header d-flex justify-content-between align-items-center">
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.25</span></h5>
+  <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
+</header>
+
+<div class="store-area"><div id="store-list" class="store-list"></div></div>
+
+<div class="container p-3">
+  <div id="mainView">
+    <div class="row g-2 mb-4">
+      <div class="col-7"><button id="scanBtnTop" class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
+      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <div id="formView" style="display:none;">
+    <div class="card p-3 shadow-lg">
+      <div id="curStoreIndicator" class="text-danger small fw-bold mb-2 text-center" style="opacity:0.8;"></div>
+
+      <div class="text-center mb-2">
+        <button id="storeJumpBtn" class="btn btn-sm btn-outline-secondary w-100" style="display:none;" onclick="jumpToStoreChips()">店名を変更（上に移動）</button>
+      </div>
+
+      <div id="formMainUI">
+        <div class="d-flex mb-3">
+          <div style="position:relative; width:90px; height:90px; margin-right:12px;">
+            <img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;">
+            <div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
+              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
+              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
+            </div>
+            <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
+          </div>
+          <div class="flex-grow-1">
+            <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名（内容量）">
+            <select id="inputCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px;"></select>
+            <!-- ✅ サブカテゴリ復活（最小UI） -->
+            <select id="inputSubCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px; display:none;"></select>
+            <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
+          </div>
+        </div>
+
+        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
+          <div id="calcOptionArea" class="d-flex align-items-center mb-2">
+            <div class="btn-group btn-group-sm w-100 me-2">
+              <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
+              <label class="btn btn-outline-danger" for="taxEx">税別</label>
+              <input type="radio" class="btn-check" name="taxMode" id="taxIn" value="in">
+              <label class="btn btn-outline-danger" for="taxIn">税込</label>
+            </div>
+            <div class="input-group input-group-sm w-50">
+              <input type="number" id="inputDisc" class="form-control bg-dark text-white border-secondary" placeholder="0">
+              <span class="input-group-text bg-dark text-secondary border-secondary">%引</span>
+            </div>
+          </div>
+          <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0">
+        </div>
+
+        <div id="statsBox" class="stats-strip"></div>
+        <div id="detailHistory" class="mb-3" style="display:none;"></div>
+
+        <div class="text-center mb-3">
+          <button id="toggleHistBtn" class="btn btn-sm btn-outline-secondary w-100" onclick="toggleHistoryList()">購入履歴を表示（タップで編集）</button>
+        </div>
+
+        <div class="d-flex gap-2 mb-3">
+          <button id="delHistBtn" class="btn btn-outline-secondary py-3 fw-bold flex-grow-0 px-3 shadow" style="display:none;" onclick="confirmDeleteHist()">削除</button>
+          <button id="saveBtn" class="btn btn-danger py-3 fw-bold fs-5 shadow flex-grow-1" onclick="saveData()">保存</button>
+        </div>
+      </div>
+
+      <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
+    </div>
+  </div>
+</div>
+
+<div id="camera-area">
+  <div id="interactive"></div>
+  <div class="scan-frame"><div class="laser"></div></div>
+  <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
+</div>
+
+<div id="dialogModal" class="modal">
+  <div class="modal-content text-center">
+    <h6 id="dialogTitle" class="text-secondary mb-3">Smart Price</h6>
+    <p id="dialogMsg" class="text-white mb-4"></p>
+    <div id="dialogInputArea" style="display:none;"><input type="text" id="dialogInput" class="form-control bg-dark text-white mb-3"></div>
+    <div class="d-flex gap-2">
+      <button id="dialogCancel" class="btn btn-dark flex-grow-1" style="display:none;">やめる</button>
+      <button id="dialogOk" class="btn btn-danger flex-grow-1">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-4 text-center">設定</h5>
+
+    <div class="mb-3">
+      <label class="small text-secondary">生活圏（市）</label>
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市">
+      <div id="city-history-chips" class="city-chips"></div>
+    </div>
+
+    <div class="mb-3">
+      <label class="small text-secondary">Firebase URL</label>
+      <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://xxx.firebaseio.com/">
+    </div>
+
+    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+    <div id="debugBackupButtons" style="display:none;">
+      <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
+      <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
+    </div>
+    <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+  </div>
+</div>
+
+<div id="webModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
+    <div class="hint mb-3" id="current-path-display" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;">
+      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">/dev/</code>
+    </div>
+    <div class="hint mb-3">
+      ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br>
+      ・更新確認は <b>まずブラウザで</b> 開くのが安全です。
+    </div>
+
+    <label class="small text-secondary">通常URL（コピーして開く）</label>
+    <textarea id="webUrlNormal" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlNormal')">コピー</button>
+      <button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlNormal')">開く</button>
+    </div>
+
+    <label class="small text-secondary">デバッグURL（&debug=1）</label>
+    <textarea id="webUrlDebug" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlDebug')">コピー</button>
+      <button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlDebug')">開く</button>
+    </div>
+
+    <div class="hint mb-3" style="background:#1a1a1a; padding:10px; border-radius:8px; border:1px solid #333;">
+      <b style="color:#ff5252;">📱 アプリとして使う（PWA）</b><br>
+      <span style="font-size:0.7rem; color:#aaa;">
+      <b>Android（Chrome/Edge）：</b> ブラウザで開く → メニュー（⋮）→「ホーム画面に追加」<br>
+      <b>iOS（Safari）：</b> ブラウザで開く → 共有ボタン（□↑）→「ホーム画面に追加」<br>
+      <b>更新が反映されない時：</b> ホーム画面のアイコンを削除 → 再度追加してください
+      </span>
+    </div>
+
+    <!-- ✅ PWAインストールボタン（beforeinstallpromptがある時だけ表示） -->
+    <button id="pwaInstallBtn" class="btn btn-danger w-100 mb-2" style="display:none;" onclick="installPWA()">
+      📱 今すぐインストール
+    </button>
+
+    <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
+  </div>
+</div>
+
+<div id="toast" class="toast-msg"></div>
+<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
+<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+
+<!-- Firebase SDK (v9 compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  const FULL_VERSION = "v19.9.25"; // 版番号（単一の定数・ヘッダー/DEBUG/タイトル/報告書に統一）
+  const BUILD_ID = "2026-01-17_0716_P0_scanner-error-handling"; // ヘッダーと一致させる
+
+  // ========= Firebase Configuration =========
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCYjQ79KgsohOPlEViHBX5BygVUvX-70l4",
+    authDomain: "smartpricedb.firebaseapp.com",
+    databaseURL: "https://smartpricedb-default-rtdb.firebaseio.com",
+    projectId: "smartpricedb",
+    storageBucket: "smartpricedb.firebasestorage.app",
+    messagingSenderId: "892635601514",
+    appId: "1:892635601514:web:3a496e522a9972e8de0813",
+    measurementId: "G-317L3VFKQV"
+  };
+
+  // ========= Firebase Initialization =========
+  let firebaseApp = null;
+  let firebaseAuth = null;
+  let firebaseDb = null;
+  let currentAuthUid = null;
+  let isFirebaseReady = false;
+
+  async function initializeFirebase() {
+    try {
+      if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey) {
+        if (isDebug()) console.warn('[Firebase] Config not set, fallback to legacy mode');
+        return false;
+      }
+
+      // Firebase初期化
+      firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = firebase.auth();
+      firebaseDb = firebase.database();
+
+      // 匿名ログイン
+      await firebaseAuth.signInAnonymously();
+      currentAuthUid = firebaseAuth.currentUser?.uid;
+
+      if (!currentAuthUid) {
+        throw new Error('Anonymous sign-in failed: no uid');
+      }
+
+      isFirebaseReady = true;
+      if (isDebug()) {
+        console.log('[Firebase] Initialized successfully');
+        console.log('[Firebase] Auth UID:', currentAuthUid);
+      }
+      return true;
+
+    } catch(e) {
+      if (isDebug()) console.warn('[Firebase] Initialization failed:', e);
+      isFirebaseReady = false;
+      return false;
+    }
+  }
+
+  // Auth状態変化の監視
+  function setupAuthListener() {
+    if (!firebaseAuth) return;
+    firebaseAuth.onAuthStateChanged((user) => {
+      if (user) {
+        currentAuthUid = user.uid;
+        if (isDebug()) console.log('[Firebase] Auth state changed, UID:', currentAuthUid);
+      } else {
+        currentAuthUid = null;
+        isFirebaseReady = false;
+        if (isDebug()) console.warn('[Firebase] User signed out');
+      }
+    });
+  }
+
+  // ========= Debug =========
+  function isDebug() {
+    try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
+  }
+  // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
+  if (isDebug()) {
+    const errorDisplay = document.getElementById('debug-error-display');
+    if (errorDisplay) errorDisplay.style.display = 'block';
+
+    // 最終エラーを画面に固定表示する関数
+    function setLastError(msg) {
+      const errorDisplay = document.getElementById('debug-error-display');
+      if (errorDisplay) {
+        errorDisplay.textContent = msg;
+        errorDisplay.style.display = 'block';
+      }
+    }
+
+    window.addEventListener('error', (e) => {
+      // ✅ P0: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+      let errorName = 'Error';
+      let errorMsg = e.message || 'Unknown error';
+      let errorStack = '';
+      let errorFileName = e.filename || '';
+      let errorLine = e.lineno || 0;
+      let errorCol = e.colno || 0;
+      
+      if (e.error) {
+        errorName = e.error.name || 'Error';
+        errorMsg = e.error.message || e.message || 'Unknown error';
+        errorStack = e.error.stack || '';
+      } else if (e.message && e.message !== 'Script error.') {
+        errorName = 'Error';
+        errorMsg = e.message;
+      }
+      
+      // Script error.の場合、詳細情報を追加
+      if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+        errorMsg = `Script error. (ファイル: ${errorFileName || '不明'}, 行: ${errorLine}, 列: ${errorCol})`;
+        if (errorFileName) {
+          errorMsg += ` - 外部スクリプトのエラーの可能性があります（CORS制限）`;
+        }
+      }
+      
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `JSエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
+      
+      // コンソールにも詳細を出力（内部検証用）
+      console.error('[JS Error]', {
+        name: errorName,
+        message: errorMsg,
+        filename: errorFileName,
+        lineno: errorLine,
+        colno: errorCol,
+        stack: errorStack,
+        event: e
+      });
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const reason = e.reason || e;
+      const errorName = reason && reason.name ? reason.name : 'PromiseRejection';
+      const errorMsg = (reason && reason.message) ? reason.message : String(reason);
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `Promiseエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
+    });
+  }
+
+  // ========= Category Tree（Amazon/Rakutenを実用レベルに整理＋追記可） =========
+  const DEFAULT_CATEGORY_TREE = {
+    "ドリンク": ["水・ミネラルウォーター","炭酸飲料","乳飲料","コーヒー","紅茶","お茶","スポーツドリンク","ジュース","粉末ドリンク","その他"],
+    "お酒": ["ビール","発泡酒","チューハイ","日本酒","焼酎","ワイン","ウイスキー","梅酒","その他"],
+    "菓子・スナック": ["スナック","チョコ","ビスケット","キャンディ・ガム","和菓子","ナッツ","その他"],
+    "米・雑穀": ["白米","玄米","雑穀米","もち米","ご飯パック","餅","その他"],
+    "麺類・パスタ": ["ラーメン","うどん","そば","そうめん","焼きそば","パスタ","その他"],
+    "パン・ジャム・シリアル": ["パン","ジャム・はちみつ","シリアル","その他"],
+    "精肉・肉加工品": ["牛肉","豚肉","鶏肉","挽肉","加工品","セット","その他"],
+    "魚介類・水産加工品": ["マグロ","サケ","サバ","エビ","カニ","貝類","海藻類","魚卵","加工品","その他"],
+    "野菜・きのこ": ["葉物","根菜","果菜","きのこ","豆類","カット野菜","その他"],
+    "フルーツ・果物": ["柑橘","りんご系","ベリー","バナナ","ぶどう","その他"],
+    "乳製品・卵": ["牛乳","ヨーグルト","チーズ","バター・マーガリン","卵","代替品","その他"],
+    "豆腐・納豆・こんにゃく・練り物": ["豆腐","納豆","こんにゃく","練り物","その他"],
+    "漬物・佃煮": ["漬物","梅干し","キムチ","佃煮","その他"],
+    "冷凍食品": ["冷凍惣菜","冷凍麺","冷凍野菜","アイス","その他"],
+    "惣菜・チルド": ["和風惣菜","洋風惣菜","中華惣菜","韓国惣菜","その他"],
+    "レトルト・料理の素": ["カレー","スープ","丼","パスタソース","料理の素","その他"],
+    "缶詰・瓶詰": ["水産","肉","野菜","フルーツ","惣菜","その他"],
+    "乾物": ["海苔","鰹節","昆布","わかめ","春雨","その他"],
+    "粉類": ["小麦粉","片栗粉","パン粉","米粉","その他"],
+    "調味料・食用油・ドレッシング": ["砂糖","塩","酢","しょうゆ","みそ","だし","めんつゆ","ソース・たれ","ケチャップ","マヨネーズ","スパイス","油","ドレッシング","その他"],
+    "ベビーフード": ["離乳食","おやつ","その他"],
+    "健康食品": ["サプリ","プロテイン","その他"],
+    "介護用食品": ["やわらか食","とろみ","その他"],
+    "ミールキット": ["ミールキット","その他"],
+    "日用品": ["洗剤","キッチン用品","紙製品","衛生用品","その他"],
+    "薬": ["風邪","胃腸","痛み","外用","その他"],
+    "その他": ["その他"]
+  };
+
+  const DEFAULT_CONFIG = {
+    // 互換のため残す（実体は categoryTree）
+    categories: [],
+    categoryTree: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)),
+    lastTax: "ex",
+    homeCity: "",
+    homeCities: [],
+    customStores: [],
+    storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
+  };
+
+  const CITY_STORE_PRESET = {
+    "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
+    "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
+    "東海村": ["カスミ東海店", "ヨークベニマル東海店", "イオン東海店"]
+  };
+
+  // ========= Image Store (IndexedDB) =========
+  const IMG_DB_NAME = "smart_price_img_db_v1";
+  const IMG_STORE = "images";
+  let imgDbPromise = null;
+
+  function openImgDb() {
+    if (!('indexedDB' in window)) return Promise.resolve(null);
+    if (imgDbPromise) return imgDbPromise;
+    imgDbPromise = new Promise((resolve) => {
+      const req = indexedDB.open(IMG_DB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        // ✅ 保存箱が存在しない場合は必ず作成（既存ユーザーでも安全）
+        if (!db.objectStoreNames.contains(IMG_STORE)) {
+          try {
+            db.createObjectStore(IMG_STORE);
+          } catch (err) {
+            console.warn('[IDB] createObjectStore failed:', err);
+          }
+        }
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        // ✅ 保存箱が存在することを確認（念のため）
+        if (db && !db.objectStoreNames.contains(IMG_STORE)) {
+          // 保存箱が無い場合は再作成を試みる
+          try {
+            db.close();
+            indexedDB.deleteDatabase(IMG_DB_NAME);
+            imgDbPromise = null; // リセット
+            resolve(openImgDb()); // 再帰呼び出し
+            return;
+          } catch (err) {
+            console.warn('[IDB] recreate failed:', err);
+            resolve(null);
+            return;
+          }
+        }
+        resolve(db);
+      };
+      req.onerror = (e) => {
+        console.warn('[IDB] open failed:', e);
+        resolve(null);
+      };
+    });
+    return imgDbPromise;
+  }
+
+  async function idbPut(key, blob) {
+    const dbi = await openImgDb();
+    if (!dbi) return false;
+    // ✅ 保存箱の存在確認
+    if (!dbi.objectStoreNames.contains(IMG_STORE)) {
+      console.warn('[IDB] objectStore not found:', IMG_STORE);
+      return false;
+    }
+    return new Promise((res) => {
+      try {
+        const tx = dbi.transaction(IMG_STORE, "readwrite");
+        const store = tx.objectStore(IMG_STORE);
+        store.put(blob, key);
+        tx.oncomplete = () => res(true);
+        tx.onerror = (e) => {
+          console.warn('[IDB] put failed:', e);
+          res(false);
+        };
+      } catch (err) {
+        console.warn('[IDB] transaction failed:', err);
+        res(false);
+      }
+    });
+  }
+
+  async function idbGet(key) {
+    const dbi = await openImgDb();
+    if (!dbi) return null;
+    // ✅ 保存箱の存在確認
+    if (!dbi.objectStoreNames.contains(IMG_STORE)) {
+      console.warn('[IDB] objectStore not found:', IMG_STORE);
+      return null;
+    }
+    return new Promise((res) => {
+      try {
+        const tx = dbi.transaction(IMG_STORE, "readonly");
+        const store = tx.objectStore(IMG_STORE);
+        const req = store.get(key);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = (e) => {
+          console.warn('[IDB] get failed:', e);
+          res(null);
+        };
+      } catch (err) {
+        console.warn('[IDB] transaction failed:', err);
+        res(null);
+      }
+    });
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    try {
+      const arr = dataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8 = new Uint8Array(n);
+      while (n--) u8[n] = bstr.charCodeAt(n);
+      return new Blob([u8], { type: mime });
+    } catch(e){ return null; }
+  }
+
+  // ✅ dataURLtoBlob（保存用、より安全な実装）
+  function dataURLtoBlob(dataurl){
+    try{
+      const parts = String(dataurl).split(',');
+      const head = parts[0] || '';
+      const b64 = parts[1] || '';
+      const m = head.match(/data:(.*?);base64/);
+      const mime = (m && m[1]) ? m[1] : 'image/png';
+      const bin = atob(b64);
+      const u8 = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+      return new Blob([u8], { type: mime });
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function fileToThumbBlob(file, maxSide=256, quality=0.78) {
+    return new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const w = img.width, h = img.height;
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const cw = Math.max(1, Math.round(w * scale));
+          const ch = Math.max(1, Math.round(h * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0,0,cw,ch);
+          // ✅ EXIF情報は自動で削除される（canvas.drawImageで再描画するため）
+          ctx.drawImage(img, 0,0,cw,ch);
+          canvas.toBlob((blob) => {
+            resolve(blob || null);
+          }, 'image/jpeg', quality);
+        };
+        img.onerror = () => resolve(null);
+        img.src = fr.result;
+      };
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(file);
+    });
+  }
+
+  // ========= 画像をFirebaseにアップロード（SDK版：Auth + DB Rules対応） =========
+  async function uploadImageToFirebase(code, blob) {
+    // Firebase SDK が有効な場合はSDK版を使用
+    if (isFirebaseReady && firebaseDb && currentAuthUid) {
+      try {
+        // Blobをbase64に変換
+        const dataUrl = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result);
+          fr.onerror = () => reject(new Error('画像読み込み失敗'));
+          fr.readAsDataURL(blob);
+        });
+
+        const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+        const imageRecord = {
+          owner: currentAuthUid,  // ✅ auth.uid を使用
+          imageUrl: dataUrl,
+          createdAt: Date.now()
+        };
+
+        // Firebase SDK（database）で保存
+        const ref = firebaseDb.ref(`smart_price_images/${code}/${imageId}`);
+        await ref.set(imageRecord);
+
+        if (isDebug()) console.log('[Firebase SDK] Image uploaded:', imageId);
+        return { imageId, owner: currentAuthUid };
+
+      } catch(e) {
+        if (isDebug()) console.warn('[Firebase SDK] Upload failed, fallback to REST:', e);
+        // フォールバック: REST版を実行
+      }
+    }
+
+    // フォールバック: REST版（従来方式）
+    if (!fbUrl) {
+      throw new Error('Firebase URLが設定されていません');
+    }
+
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error('画像読み込み失敗'));
+      fr.readAsDataURL(blob);
+    });
+
+    const deviceId = getDeviceId();
+    const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    const imageRecord = {
+      owner: deviceId,  // レガシー: deviceId
+      imageUrl: dataUrl,
+      createdAt: Date.now()
+    };
+
+    const imageUrl = getImageUrl(fbUrl, code, imageId);
+    await fetchWithTimeout(imageUrl, {
+      method: 'PUT',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(imageRecord)
+    }, 15000);
+
+    return { imageId, owner: deviceId };
+  }
+
+  // ========= 共有画像を取得（SDK版：ランダム表示用） =========
+  async function getSharedImages(code) {
+    // Firebase SDK が有効な場合はSDK版を使用
+    if (isFirebaseReady && firebaseDb) {
+      try {
+        const ref = firebaseDb.ref(`smart_price_images/${code}`);
+        const snapshot = await ref.once('value');
+        const data = snapshot.val();
+        
+        if (!data || typeof data !== 'object') return [];
+        
+        const images = [];
+        for (const [imageId, record] of Object.entries(data)) {
+          if (record && typeof record === 'object' && record.imageUrl) {
+            images.push({ imageId, ...record });
+          }
+        }
+        
+        if (isDebug()) console.log('[Firebase SDK] Loaded images:', images.length);
+        return images;
+
+      } catch(e) {
+        if (isDebug()) console.warn('[Firebase SDK] Get images failed, fallback to REST:', e);
+        // フォールバック: REST版を実行
+      }
+    }
+
+    // フォールバック: REST版（従来方式）
+    if (!fbUrl) return [];
+    try {
+      const listUrl = getImageListUrl(fbUrl, code);
+      const res = await fetchWithTimeout(listUrl, {}, 10000);
+      const data = await res.json();
+      if (!data || typeof data !== 'object') return [];
+      
+      const images = [];
+      for (const [imageId, record] of Object.entries(data)) {
+        if (record && typeof record === 'object' && record.imageUrl) {
+          images.push({ imageId, ...record });
+        }
+      }
+      return images;
+    } catch(e) {
+      if (isDebug()) console.warn('[getSharedImages]', e);
+      return [];
+    }
+  }
+
+  // ========= 自分の画像を取得（SDK版：owner確認） =========
+  async function getMyImages(code) {
+    const allImages = await getSharedImages(code);
+    
+    // Firebase SDK が有効な場合は auth.uid で判定
+    if (isFirebaseReady && currentAuthUid) {
+      return allImages.filter(img => img.owner === currentAuthUid);
+    }
+    
+    // フォールバック: deviceId で判定
+    const deviceId = getDeviceId();
+    return allImages.filter(img => img.owner === deviceId);
+  }
+
+  // ========= 画像を削除（SDK版：DB Rulesで強制） =========
+  async function deleteImageFromFirebase(code, imageId) {
+    // Firebase SDK が有効な場合はSDK版を使用（DB Rules で権限チェック）
+    if (isFirebaseReady && firebaseDb && currentAuthUid) {
+      try {
+        const ref = firebaseDb.ref(`smart_price_images/${code}/${imageId}`);
+        
+        // owner確認
+        const snapshot = await ref.once('value');
+        const record = snapshot.val();
+        
+        if (!record) {
+          throw new Error('画像が見つかりません');
+        }
+        
+        if (record.owner !== currentAuthUid) {
+          throw new Error('削除権限がありません（投稿者のみ削除可能）');
+        }
+        
+        // 削除（DB Rulesでも権限チェックされる）
+        await ref.remove();
+        
+        if (isDebug()) console.log('[Firebase SDK] Image deleted:', imageId);
+        return;
+
+      } catch(e) {
+        if (isDebug()) console.warn('[Firebase SDK] Delete failed:', e);
+        throw e;  // エラーを再スロー
+      }
+    }
+
+    // フォールバック: REST版（従来方式）
+    if (!fbUrl) {
+      throw new Error('Firebase URLが設定されていません');
+    }
+
+    // owner確認
+    const imageUrl = getImageUrl(fbUrl, code, imageId);
+    const res = await fetchWithTimeout(imageUrl, {}, 8000);
+    const record = await res.json();
+    
+    if (!record || record.owner !== getDeviceId()) {
+      throw new Error('削除権限がありません（投稿者のみ削除可能）');
+    }
+
+    // 削除
+    await fetchWithTimeout(imageUrl, {
+      method: 'DELETE'
+    }, 8000);
+  }
+
+  // ✅ 画像キーの復元ロジック強化（古い紐づけも探索）
+  async function applyImageKeyToImg(imgEl, key) {
+    if (!imgEl || !key) {
+      return Promise.reject(new Error('Invalid parameters'));
+    }
+    try {
+      // 1. まず指定されたキーで取得
+      let blob = await idbGet(key);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        imgEl.src = url;
+        imgEl.referrerPolicy = "no-referrer";
+        // メモリ解放（置換時）
+        if (imgEl.dataset && imgEl.dataset.objurl) {
+          try { URL.revokeObjectURL(imgEl.dataset.objurl); } catch(e) {}
+        }
+        imgEl.dataset.objurl = url;
+        return Promise.resolve();
+      }
+      
+      // 2. 指定されたキーが見つからない場合、古いキーを探索
+      const dbi = await openImgDb();
+      if (!dbi || !dbi.objectStoreNames.contains(IMG_STORE)) {
+        return Promise.reject(new Error('Image not found in IndexedDB'));
+      }
+      
+      // IndexedDBから全キーを取得
+      const allKeys = await new Promise((resolve) => {
+        try {
+          const tx = dbi.transaction(IMG_STORE, "readonly");
+          const store = tx.objectStore(IMG_STORE);
+          const req = store.getAllKeys();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        } catch(e) {
+          resolve([]);
+        }
+      });
+      
+      // 3. 古いキーのパターンを試す（部分一致）
+      // キーからバーコード部分を抽出（例：img_1234567890123 → 1234567890123）
+      const codeMatch = key.match(/img_([0-9]+)/);
+      if (codeMatch && codeMatch[1]) {
+        const code = codeMatch[1];
+        // バーコードベースのキーを探す（img_${code} または img_${code}_*）
+        const candidateKeys = allKeys.filter(k => {
+          const kStr = String(k);
+          return kStr.includes(code) && (kStr.startsWith('img_') || kStr.includes('_img_'));
+        });
+        
+        // 候補キーを試す（最も長いキーから試す）
+        candidateKeys.sort((a, b) => String(b).length - String(a).length);
+        for (const candidateKey of candidateKeys) {
+          blob = await idbGet(candidateKey);
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            imgEl.src = url;
+            imgEl.referrerPolicy = "no-referrer";
+            if (imgEl.dataset && imgEl.dataset.objurl) {
+              try { URL.revokeObjectURL(imgEl.dataset.objurl); } catch(e) {}
+            }
+            imgEl.dataset.objurl = url;
+            if (isDebug()) console.log('[applyImageKeyToImg] Found old key:', candidateKey, 'for', key);
+            return Promise.resolve();
+          }
+        }
+      }
+      
+      // 4. それでも見つからない場合はエラー
+      return Promise.reject(new Error('Image not found in IndexedDB (tried fallback)'));
+    } catch(e) {
+      if (isDebug()) console.warn('[applyImageKeyToImg]', e);
+      return Promise.reject(e);
+    }
+  }
+
+  // ========= Home Image Fix (base64 + IndexedDB対応) =========
+  async function spBindItemImage(imgEl, item, last) {
+    if (!imgEl || !item) return;
+    
+    // 優先順位：last.imageData → item.imageData → last.imageKey → item.imageKey → last.imageUrl → item.imageUrl → placeholder
+    
+    // 1. base64データ（imageData）があれば優先
+    if (last && last.imageData && typeof last.imageData === 'string' && last.imageData.startsWith('data:')) {
+      imgEl.src = last.imageData;
+      return;
+    }
+    if (item.imageData && typeof item.imageData === 'string' && item.imageData.startsWith('data:')) {
+      imgEl.src = item.imageData;
+      return;
+    }
+    
+    // 2. IndexedDB（imageKey）があれば取得
+    if (last && last.imageKey && typeof last.imageKey === 'string') {
+      await applyImageKeyToImg(imgEl, last.imageKey);
+      return;
+    }
+    if (item.imageKey && typeof item.imageKey === 'string') {
+      await applyImageKeyToImg(imgEl, item.imageKey);
+      return;
+    }
+    
+    // 3. HTTP/HTTPS URL（imageUrl）があれば使用
+    if (last && last.imageUrl && typeof last.imageUrl === 'string' && 
+        (last.imageUrl.startsWith('http://') || last.imageUrl.startsWith('https://'))) {
+      imgEl.src = last.imageUrl;
+      return;
+    }
+    if (item.imageUrl && typeof item.imageUrl === 'string' && 
+        (item.imageUrl.startsWith('http://') || item.imageUrl.startsWith('https://'))) {
+      imgEl.src = item.imageUrl;
+      return;
+    }
+    
+    // 4. どれもなければplaceholder
+    imgEl.src = placeholderImg();
+  }
+
+  // ========= App State =========
+  let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
+  let curBarcode = null, curStore = "未設定";
+  let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
+  let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
+  let tempImgData = null; // {type:'key', key} or {type:'url', url}
+  let scanner = null, editingHistIdx = null, isScanning = false;
+  let deferredPrompt = null; // ✅ PWAインストールプロンプト
+
+  // ✅ ここは必ず let（const にすると "Assignment to constant variable" の原因になる）
+  let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
+
+  // ========= Config.json (Yahoo Proxy URL) =========
+  window.SP_CONFIG = {};
+
+  let isGpsOn = false, curPos = null, lastGpsTime = "";
+  let activeSyncController = null;
+  // ✅ 同期ロック（二重起動防止）
+  let syncInFlight = false;
+  let syncQueued = false;
+  
+  // ✅ 近隣店舗候補（GPS/生活圏から取得）
+  window.nearbyStoreNames = [];
+
+  // ========= Config.json読み込み =========
+  async function loadConfig() {
+    try {
+      const b = new URLSearchParams(location.search).get("b") || "";
+      const configUrl = "./config.json" + (b ? ("?b=" + encodeURIComponent(b)) : "");
+      
+      // ✅ デバッグ: config読込開始
+      if (isDebug()) {
+        const fullUrl = new URL(configUrl, location.href).href;
+        showToast(`[Config] Loading from: ${fullUrl}`, 5000);
+        console.log('[Config] Loading from:', fullUrl);
+      }
+      
+      const res = await fetch(configUrl, { cache: "no-store" });
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Config] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log('[Config] HTTP Status:', res.status, res.statusText);
+      }
+      
+      if (res.ok) {
+        const json = await res.json();
+        window.SP_CONFIG = json || {};
+        if (isDebug()) {
+          showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}...`, 5000);
+          console.log('[Config] Loaded:', window.SP_CONFIG);
+        }
+      } else {
+        window.SP_CONFIG = {};
+        if (isDebug()) {
+          console.warn('[Config] Failed to load, using default');
+          showToast('Config読み込み失敗（デフォルト使用）', 10000);
+        }
+      }
+    } catch(e) {
+      window.SP_CONFIG = {};
+      if (isDebug()) {
+        console.warn('[Config] Error:', e);
+        showToast('Config読み込みエラー: ' + (e.message || '不明'), 10000);
+      }
+    }
+  }
+
+  // ========= 端末ID（投稿者ID）生成・保持 =========
+  function getDeviceId() {
+    let deviceId = localStorage.getItem('smartPriceDeviceId');
+    if (!deviceId) {
+      // 端末IDを生成（ランダム文字列）
+      deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 11);
+      localStorage.setItem('smartPriceDeviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  window.onload = async () => {
+    // ✅ P0: ヘッダーバージョン表示とdocument.titleをFULL_VERSIONから統一
+    try {
+      const versionBadge = document.getElementById('version-badge');
+      if (versionBadge) {
+        versionBadge.textContent = FULL_VERSION;
+      }
+      
+      // document.titleを更新（debug=1の時だけBUILD_IDも併記）
+      if (isDebug()) {
+        document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
+      } else {
+        document.title = `Smart Price ${FULL_VERSION}`;
+      }
+    } catch(e) {
+      if (isDebug()) console.warn('[onload] version update error:', e);
+    }
+
+    // ✅ 起動時の黒画面対策：即座に表示を確実にする
+    try {
+      document.body.style.display = 'block';
+      const mainView = document.getElementById('mainView');
+      if (mainView) mainView.style.display = 'block';
+    } catch(e) {
+      if (isDebug()) console.warn('[onload] display error:', e);
+    }
+
+    try {
+      // ✅ Config.json読み込み（Yahoo Proxy URL）
+      await loadConfig();
+
+      // ✅ 保管箱の保護（自動整理されにくくする）
+      if ('storage' in navigator && 'persist' in navigator.storage) {
+        try {
+          const persisted = await navigator.storage.persist();
+          if (isDebug()) console.log('[Storage] Persist granted:', persisted);
+        } catch(e) {
+          if (isDebug()) console.warn('[Storage] Persist failed:', e);
+        }
+      }
+
+      // ✅ Firebase初期化（匿名ログイン）
+      await initializeFirebase();
+      setupAuthListener();
+
+      loadLocal();
+      db = normalizeDb(db);
+
+      // 旧data:imageが残っている端末は、IndexedDBへ移行して画像復活
+      await migrateLegacyImagesToIdb();
+
+      // ✅ M_商品とJANの自動統合（起動時・Yahoo成功に依存しない）
+      migrateMergeManualToJan();
+
+      initCategorySelect();
+      renderStoreList();
+      renderHistory();
+
+      if (fbUrl) {
+        await syncFirebase(); // ✅ マージ方式で画像が消えない
+        renderHistory();
+        renderStoreList();
+      }
+
+      setupFocusGuides();
+
+      // ✅ 起動時に近隣店舗を取得（GPS OFF でも生活圏があれば取得）
+      try {
+        const nearbyStores = await fetchNearbyStores();
+        if (nearbyStores && nearbyStores.length > 0) {
+          window.nearbyStoreNames = nearbyStores;
+          renderStoreList(); // 近隣店舗を反映して再描画
+          if (isDebug()) console.log('[onload] Nearby stores loaded:', nearbyStores.length);
+        }
+      } catch(e) {
+        if (isDebug()) console.warn('[onload] fetchNearbyStores failed:', e);
+      }
+
+      if (isDebug()) {
+        // ✅ P0: debug=1のときだけスキャンガイド枠を表示
+        document.body.setAttribute('data-debug', '1');
+        setTimeout(() => {
+          showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
+        }, 300);
+      } else {
+        document.body.removeAttribute('data-debug');
+      }
+    } catch(e) {
+      showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
+      if (isDebug()) console.error('[onload]', e);
+    }
+  };
+
+  // ✅ pageshowイベントでも初期化（ブラウザバック対策）
+  window.addEventListener("pageshow", async (e) => {
+    if (e.persisted) {
+      // バックフォワードキャッシュから復帰した場合
+      renderHistory();
+      renderStoreList();
+    }
+  });
+
+  // ✅ PWAインストールプロンプト（Android/PC Chrome/Edge）
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (isDebug()) console.log('[PWA] Install prompt captured');
+    
+    // ✅ webModalが開いている場合は即座にボタンを表示
+    const webModal = document.getElementById('webModal');
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (webModal && webModal.style.display === 'flex' && installBtn) {
+      installBtn.style.display = 'block';
+      if (isDebug()) console.log('[PWA] Install button shown (modal is open)');
+    }
+  });
+
+  window.addEventListener("pageshow", resetSyncBtn);
+  window.addEventListener("beforeunload", resetSyncBtn);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      resetSyncBtn();
+      if (activeSyncController) activeSyncController.abort();
+    }
+  });
+
+  function resetSyncBtn() {
+    const btn = document.getElementById('syncBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "設定保存と同期";
+    }
+  }
+
+  function showToast(msg, ms = 4000) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    // ✅ P0: debug=1のときだけ、トースト表示時間を最低10秒にする
+    if (isDebug()) {
+      ms = Math.max(ms || 0, 10000);
+    }
+    t.innerText = msg;
+    t.style.opacity = 1;
+    setTimeout(() => { t.style.opacity = 0; }, ms);
+  }
+
+  function isQuotaError(e) {
+    if (!e) return false;
+    return (
+      e.name === 'QuotaExceededError' ||
+      e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      e.code === 22 ||
+      e.code === 1014
+    );
+  }
+
+  function normalizeDb(input) {
+    let o = (input && typeof input === "object") ? input : {};
+    if (!o.products || typeof o.products !== "object") o.products = {};
+    if (!o.config || typeof o.config !== "object") o.config = {};
+
+    // categoryTree を正として整形（DEFAULT_CATEGORY_TREEから補完）
+    if (!o.config.categoryTree || typeof o.config.categoryTree !== "object") {
+      // 旧 categories しかない場合
+      if (Array.isArray(o.config.categories) && o.config.categories.length) {
+        const tree = {};
+        o.config.categories.forEach(c => { tree[c] = ["その他"]; });
+        o.config.categoryTree = tree;
+      } else {
+        o.config.categoryTree = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE));
+      }
+    } else {
+      // ✅ 既存のcategoryTreeがある場合、DEFAULT_CATEGORY_TREEのデータで補完
+      const merged = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE));
+      Object.keys(merged).forEach(key => {
+        if (!o.config.categoryTree[key] || !Array.isArray(o.config.categoryTree[key]) || o.config.categoryTree[key].length === 0) {
+          o.config.categoryTree[key] = merged[key];
+        }
+      });
+    }
+    // categories は表示用のキー配列（互換）
+    o.config.categories = Object.keys(o.config.categoryTree);
+
+    if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
+    if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
+    if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
+    if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
+
+    Object.keys(o.products).forEach(code => {
+      const p = o.products[code];
+      if (!p || typeof p !== 'object') return;
+      if (!Array.isArray(p.history)) p.history = [];
+      // 旧 image → imageUrl へ寄せる（httpだけ）
+      if (typeof p.image === 'string' && (p.image.startsWith('http://') || p.image.startsWith('https://'))) {
+        p.imageUrl = p.image;
+        delete p.image;
+      }
+      // ✅ 画像参照の移植：last.imageKeyがあればproductへコピー（永続化）
+      if (Array.isArray(p.history) && p.history.length > 0 && !p.imageKey) {
+        const last = p.history[p.history.length - 1];
+        if (last && typeof last === 'object') {
+          if (last.imageKey && typeof last.imageKey === 'string') {
+            p.imageKey = last.imageKey;
+          } else if (last.imageUrl && typeof last.imageUrl === 'string' && 
+                     (last.imageUrl.startsWith('http://') || last.imageUrl.startsWith('https://'))) {
+            p.imageUrl = last.imageUrl;
+          }
+        }
+      }
+    });
+
+    if (o.config.homeCity) {
+      o.config.homeCities = [o.config.homeCity, ...o.config.homeCities.filter(c => c !== o.config.homeCity)].slice(0, 5);
+    }
+
+    o.config.customStores = (o.config.customStores || [])
+      .filter(s => typeof s === "string" && s.trim())
+      .map(s => s.trim());
+    o.config.customStores = [...new Set(o.config.customStores)].slice(0, 20);
+
+    return o;
+  }
+
+  function histTs(h) {
+    if (!h || typeof h !== "object") return 0;
+    const v = (h.ts ?? h.timestamp ?? h.time ?? 0);
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function makeSlimDb(d) {
+    const out = JSON.parse(JSON.stringify(d));
+    Object.keys(out.products || {}).forEach(k => {
+      const p = out.products[k];
+      if (!p) return;
+      // Firebaseには絶対送らないもの
+      if (typeof p.image === "string" && p.image.startsWith("data:")) delete p.image;
+      // 互換のため残ってたら整理
+      if (typeof p.imageUrl === "string" && p.imageUrl.startsWith("data:")) delete p.imageUrl;
+      // history上限保険
+      if (Array.isArray(p.history) && p.history.length > 500) p.history = p.history.slice(-500);
+    });
+    return normalizeDb(out);
+  }
+
+  function stripForCloud(d) {
+    // ✅ クラウドへ送るのは「文字情報＋履歴＋画像URLのみ」
+    // 注意：history内のimageKey/imageUrlは削除しない（ローカル専用だが、クラウド側でも参照可能にする）
+    const out = JSON.parse(JSON.stringify(d));
+    Object.keys(out.products || {}).forEach(k => {
+      const p = out.products[k];
+      if (!p) return;
+      delete p.image;     // 旧
+      delete p.imageKey;  // 端末内のみ（送っても無意味なので落とす）
+      // imageUrl は残す（http/httpsのみ）
+      if (typeof p.imageUrl === "string" && p.imageUrl.startsWith("data:")) delete p.imageUrl;
+      // ✅ history内のimageKey/imageUrlは削除しない（ローカル専用だが、クラウド側でも参照可能にする）
+      // historyはそのまま送る（history内のimageKeyは端末内参照なので、クラウド側では無視されるが削除はしない）
+    });
+    return out;
+  }
+
+  function saveLocalOnly() {
+    try {
+      localStorage.setItem('smart_price_db', JSON.stringify(db));
+      return true;
+    } catch (e) {
+      if (!isQuotaError(e)) {
+        showToast("端末保存に失敗しました", 10000);
+        return false;
+      }
+      const slim = makeSlimDb(db);
+      try {
+        localStorage.setItem('smart_price_db', JSON.stringify(slim));
+        db = slim;
+        showToast("端末容量が厳しいので軽量保存に切替えました", 8000);
+        return true;
+      } catch (e2) {
+        try {
+          localStorage.removeItem('smart_price_db');
+          localStorage.setItem('smart_price_db', JSON.stringify(slim));
+          db = slim;
+          showToast("端末容量を整理して復旧しました", 8000);
+          return true;
+        } catch (e3) {
+          showToast("端末保存が完全に失敗しました（容量不足）", 10000);
+          return false;
+        }
+      }
+    }
+  }
+
+  function loadLocal() {
+    try {
+      const saved = localStorage.getItem('smart_price_db');
+      if (saved) db = JSON.parse(saved);
+      db = normalizeDb(db);
+      const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
+      const el = document.getElementById(taxModeId);
+      if (el) el.checked = true;
+    } catch(e) {
+      db = normalizeDb({});
+      showToast("ローカル読込に失敗（クラウド同期で復旧します）", 8000);
+    }
+  }
+
+  async function fetchWithTimeout(resource, options = {}, timeout = 12000) {
+    const internalController = new AbortController();
+    const signal = options.signal || internalController.signal;
+    const id = setTimeout(() => internalController.abort(), timeout);
+    try {
+      const response = await fetch(resource, { cache: 'no-store', ...options, signal });
+      clearTimeout(id);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response;
+    } catch (e) {
+      clearTimeout(id);
+      throw e;
+    }
+  }
+
+  function getBaseUrl(url) {
+    if(!url) return "";
+    let base = url.trim().replace(/\/rules$/, "").replace(/\/+$/, "");
+    if(base.endsWith('.json')) base = base.slice(0, -5);
+    if(base.endsWith('/smart_price') || base.endsWith('smart_price')) base = base.replace(/\/?smart_price$/, '');
+    return base.replace(/\/+$/, '');
+  }
+  function getSafeUrl(url) {
+    const base = getBaseUrl(url);
+    return base ? `${base}/smart_price.json` : "";
+  }
+
+  function getImageUrl(url, code, imageId) {
+    const base = getBaseUrl(url);
+    if (!base) return "";
+    return `${base}/smart_price_images/${encodeURIComponent(code)}/${encodeURIComponent(imageId)}.json`;
+  }
+
+  function getImageListUrl(url, code) {
+    const base = getBaseUrl(url);
+    if (!base) return "";
+    return `${base}/smart_price_images/${encodeURIComponent(code)}.json`;
+  }
+
+  async function syncFirebasePut() {
+    if(!fbUrl) return;
+    try {
+      const targetUrl = getSafeUrl(fbUrl);
+      const payload = stripForCloud(db);
+      await fetchWithTimeout(targetUrl, {
+        method: 'PUT',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }, 12000);
+    } catch(e){
+      if (isDebug()) showToast(`PUT失敗: ${e.message}`, 8000);
+    }
+  }
+
+  // ========= DB merge（クラウド上書き禁止） =========
+  function mergeHistory(localH, cloudH) {
+    const a = Array.isArray(localH) ? localH : [];
+    const b = Array.isArray(cloudH) ? cloudH : [];
+    const map = new Map();
+
+    function put(h){
+      if (!h || typeof h !== 'object') return;
+      const ts = histTs(h);
+      const price = Number(h.price);
+      const store = String(h.store || '');
+      const key = `${ts}|${price}|${store}`;
+      if (!map.has(key)) map.set(key, h);
+    }
+    a.forEach(put);
+    b.forEach(put);
+
+    const out = Array.from(map.values()).sort((x,y) => histTs(x) - histTs(y));
+    return out.length > 500 ? out.slice(-500) : out;
+  }
+
+  function mergeProduct(localP, cloudP) {
+    const lp = (localP && typeof localP === 'object') ? localP : { history: [] };
+    const cp = (cloudP && typeof cloudP === 'object') ? cloudP : { history: [] };
+
+    const lts = lastHistoryTs(lp);
+    const cts = lastHistoryTs(cp);
+
+    // 新しい履歴を持つ側を"本体"に
+    const base = deepClone((lts >= cts) ? lp : cp);
+    const other = deepClone((lts >= cts) ? cp : lp);
+
+    // historyは必ずマージ
+    base.history = mergeHistory(lp.history, cp.history);
+    
+    // ✅ history内のimageKey/imageUrlも保護（深いマージ）
+    // マージ後のhistoryで、ローカルのimageKey/imageUrlを優先保持
+    if (Array.isArray(base.history) && base.history.length > 0) {
+      const localLast = Array.isArray(lp.history) && lp.history.length > 0 ? lp.history[lp.history.length - 1] : null;
+      const cloudLast = Array.isArray(cp.history) && cp.history.length > 0 ? cp.history[cp.history.length - 1] : null;
+      const mergedLast = base.history[base.history.length - 1];
+      
+      if (mergedLast && typeof mergedLast === 'object') {
+        // 最後の履歴エントリのimageKey/imageUrlを保護
+        if (localLast && localLast.imageKey && typeof localLast.imageKey === 'string') {
+          mergedLast.imageKey = localLast.imageKey;
+        } else if (cloudLast && cloudLast.imageKey && typeof cloudLast.imageKey === 'string') {
+          mergedLast.imageKey = cloudLast.imageKey;
+        }
+        
+        if (localLast && localLast.imageUrl && typeof localLast.imageUrl === 'string' && 
+            (localLast.imageUrl.startsWith('http://') || localLast.imageUrl.startsWith('https://') || localLast.imageUrl.startsWith('data:'))) {
+          mergedLast.imageUrl = localLast.imageUrl;
+        } else if (cloudLast && cloudLast.imageUrl && typeof cloudLast.imageUrl === 'string' && 
+                   (cloudLast.imageUrl.startsWith('http://') || cloudLast.imageUrl.startsWith('https://') || cloudLast.imageUrl.startsWith('data:'))) {
+          mergedLast.imageUrl = cloudLast.imageUrl;
+        }
+      }
+    }
+
+    // 文字系：空なら補完
+    const fields = ['name','maker','category','subCategory','imageUrl'];
+    fields.forEach(k => {
+      if ((!base[k] || String(base[k]).trim() === '') && other[k]) base[k] = other[k];
+    });
+
+    // ✅ 画像情報：端末内imageKeyを最優先で保持、imageUrlはマージ
+    if (lp.imageKey && typeof lp.imageKey === 'string') {
+      base.imageKey = lp.imageKey; // ローカルのimageKeyを最優先
+    } else if (cp.imageKey && typeof cp.imageKey === 'string') {
+      base.imageKey = cp.imageKey; // クラウドのimageKeyは参考程度
+    }
+    // imageUrlは両方から取得（空なら補完）
+    if ((!base.imageUrl || !base.imageUrl.startsWith('http')) && other.imageUrl && 
+        typeof other.imageUrl === 'string' && other.imageUrl.startsWith('http')) {
+      base.imageUrl = other.imageUrl;
+    }
+
+    // 旧imageは整理
+    if (typeof base.image === 'string' && base.image.startsWith('data:')) delete base.image;
+    if (typeof base.imageUrl === 'string' && base.imageUrl.startsWith('data:')) delete base.imageUrl;
+
+    if (!Array.isArray(base.history)) base.history = [];
+    return base;
+  }
+
+  function mergeConfig(localC, cloudC) {
+    const lc = (localC && typeof localC === 'object') ? deepClone(localC) : {};
+    const cc = (cloudC && typeof cloudC === 'object') ? deepClone(cloudC) : {};
+
+    // 基本はクラウド優先（端末間で揃いやすい）
+    const out = deepClone(cc);
+
+    // ただし空はローカルで補完
+    if (!out.homeCity && lc.homeCity) out.homeCity = lc.homeCity;
+    if (!out.lastTax && lc.lastTax) out.lastTax = lc.lastTax;
+
+    // homeCities/customStoresはユニオン
+    const hc = [...new Set([...(Array.isArray(out.homeCities)?out.homeCities:[]), ...(Array.isArray(lc.homeCities)?lc.homeCities:[])])].filter(Boolean).slice(0,5);
+    out.homeCities = hc;
+    const cs = [...new Set([...(Array.isArray(out.customStores)?out.customStores:[]), ...(Array.isArray(lc.customStores)?lc.customStores:[])])].filter(Boolean).slice(0,20);
+    out.customStores = cs;
+
+    // categoryTreeは"欠けを補う"
+    if (!out.categoryTree || typeof out.categoryTree !== 'object') out.categoryTree = {};
+    const ltree = (lc.categoryTree && typeof lc.categoryTree === 'object') ? lc.categoryTree : {};
+    Object.keys(ltree).forEach(cat => {
+      if (!out.categoryTree[cat]) out.categoryTree[cat] = deepClone(ltree[cat]);
+      else {
+        // サブカテゴリを補完
+        const a = Array.isArray(out.categoryTree[cat]) ? out.categoryTree[cat] : [];
+        const b = Array.isArray(ltree[cat]) ? ltree[cat] : [];
+        out.categoryTree[cat] = [...new Set([...a,...b])];
+      }
+    });
+
+    return out;
+  }
+
+  function mergeDb(localDb, cloudDb) {
+    const ld = normalizeDb(deepClone(localDb || {}));
+    const cd = normalizeDb(deepClone(cloudDb || {}));
+
+    const merged = { products:{}, config:{} };
+    const keys = new Set([...Object.keys(ld.products||{}), ...Object.keys(cd.products||{})]);
+
+    keys.forEach(code => {
+      merged.products[code] = mergeProduct(ld.products[code], cd.products[code]);
+    });
+    merged.config = mergeConfig(ld.config, cd.config);
+    return normalizeDb(merged);
+  }
+
+  function lastHistoryTs(p) {
+    try {
+      const h = (p && Array.isArray(p.history) && p.history.length) ? p.history[p.history.length-1] : null;
+      return histTs(h);
+    } catch(e){ return 0; }
+  }
+
+  function deepClone(x) {
+    try { return JSON.parse(JSON.stringify(x)); } catch(e){ return x; }
+  }
+
+  // ✅ 同期処理を原子的に実行（ロック + 検証 + 一括保存）
+  async function syncFirebase() {
+    if(!fbUrl) return;
+    
+    // ロックチェック：既に実行中ならキューに追加して終了
+    if (syncInFlight) {
+      syncQueued = true;
+      if (isDebug()) console.log('[Sync] Already in flight, queued');
+      return;
+    }
+    
+    // ロック取得
+    syncInFlight = true;
+    syncQueued = false;
+    
+    const startTime = Date.now();
+    let syncResult = { success: false, itemsCount: 0, historyCount: 0, imageKeyCount: 0, error: null };
+    
+    try {
+      // 1. ローカルDBを読み込み
+      const localDb = deepClone(db);
+      
+      // 2. クラウドDBを取得
+      const targetUrl = getSafeUrl(fbUrl);
+      const res = await fetchWithTimeout(targetUrl, {}, 12000);
+      const cloudDb = await res.json();
+      
+      if (!cloudDb || typeof cloudDb !== 'object' || !cloudDb.products) {
+        throw new Error('クラウドデータが無効です');
+      }
+      
+      // 3. マージ（新規生成）
+      const mergedDb = mergeDb(localDb, cloudDb);
+      
+      // 4. 検証
+      const validation = validateMergedDb(mergedDb);
+      if (!validation.valid) {
+        throw new Error(`データ検証失敗: ${validation.error}`);
+      }
+      
+      // 5. 統計取得（デバッグ用）
+      syncResult.itemsCount = Object.keys(mergedDb.products || {}).length;
+      syncResult.historyCount = Object.values(mergedDb.products || {}).reduce((sum, p) => {
+        return sum + (Array.isArray(p.history) ? p.history.length : 0);
+      }, 0);
+      syncResult.imageKeyCount = Object.values(mergedDb.products || {}).filter(p => 
+        p && typeof p.imageKey === 'string' && p.imageKey.trim()
+      ).length;
+      
+      // 6. 一括保存（原子的）
+      db = mergedDb;
+      const saveOk = saveLocalOnly();
+      if (!saveOk) {
+        throw new Error('ローカル保存に失敗しました');
+      }
+      
+      // 7. UI更新
+      initCategorySelect();
+      await renderHistory();
+      renderStoreList();
+      
+      syncResult.success = true;
+      const elapsed = Date.now() - startTime;
+      
+      if (isDebug()) {
+        const msg = `同期成功: ${syncResult.itemsCount}商品 / ${syncResult.historyCount}履歴 / ${syncResult.imageKeyCount}画像 / ${elapsed}ms`;
+        showToast(msg, 5000);
+        console.log('[Sync]', msg);
+      } else {
+        showToast("同期完了", 2000);
+      }
+      
+    } catch(e) {
+      syncResult.error = e.message || String(e);
+      if (isDebug()) {
+        showToast(`同期失敗: ${syncResult.error}`, 8000);
+        console.error('[Sync]', syncResult.error, e);
+      } else {
+        showToast("同期に失敗しました", 5000);
+      }
+    } finally {
+      // ロック解除
+      syncInFlight = false;
+      
+      // キューがあれば1回だけ再実行
+      if (syncQueued) {
+        syncQueued = false;
+        setTimeout(() => syncFirebase(), 100);
+      }
+    }
+  }
+  
+  // ✅ マージ済みDBの検証
+  function validateMergedDb(mergedDb) {
+    try {
+      if (!mergedDb || typeof mergedDb !== 'object') {
+        return { valid: false, error: 'DBがオブジェクトではありません' };
+      }
+      
+      if (!mergedDb.products || typeof mergedDb.products !== 'object') {
+        return { valid: false, error: 'productsがオブジェクトではありません' };
+      }
+      
+      if (!mergedDb.config || typeof mergedDb.config !== 'object') {
+        return { valid: false, error: 'configがオブジェクトではありません' };
+      }
+      
+      // productsの各要素を検証
+      for (const [code, p] of Object.entries(mergedDb.products)) {
+        if (!p || typeof p !== 'object') {
+          return { valid: false, error: `商品${code}が無効です` };
+        }
+        if (!Array.isArray(p.history)) {
+          return { valid: false, error: `商品${code}のhistoryが配列ではありません` };
+        }
+        // historyの各要素を検証
+        for (let i = 0; i < p.history.length; i++) {
+          const h = p.history[i];
+          if (!h || typeof h !== 'object') {
+            return { valid: false, error: `商品${code}の履歴${i}が無効です` };
+          }
+        }
+      }
+      
+      return { valid: true };
+    } catch(e) {
+      return { valid: false, error: `検証中に例外: ${e.message || String(e)}` };
+    }
+  }
+
+  // ✅ 旧 data:image が端末に残っている場合のみ復活できる（残っていない端末は無理）
+  async function migrateLegacyImagesToIdb() {
+    const dbi = await openImgDb();
+    if (!dbi) return;
+
+    let changed = false;
+    const keys = Object.keys(db.products || {});
+    for (const code of keys) {
+      const p = db.products[code];
+      if (!p) continue;
+
+      // 旧 image が data の場合 → idbへ移行
+      if (typeof p.image === 'string' && p.image.startsWith('data:') && !p.imageKey) {
+        const blob = dataUrlToBlob(p.image);
+        if (blob) {
+          const key = `img_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          const ok = await idbPut(key, blob);
+          if (ok) {
+            p.imageKey = key;
+            delete p.image;
+            changed = true;
+          }
+        }
+      }
+
+      // 旧 image が http の場合 → imageUrlへ
+      if (typeof p.image === 'string' && (p.image.startsWith('http://') || p.image.startsWith('https://'))) {
+        p.imageUrl = p.image;
+        delete p.image;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveLocalOnly();
+      // 画像本体は送らないが、文字情報更新はOK
+      syncFirebasePut();
+      if (isDebug()) showToast("旧画像を端末内へ移行しました", 5000);
+    }
+  }
+
+  // ========= Category UI =========
+  function initCategorySelect() {
+    db = normalizeDb(db);
+    const sel = document.getElementById('inputCategory');
+    const sub = document.getElementById('inputSubCategory');
+    if(!sel) return;
+
+    const cats = Object.keys(db.config.categoryTree || {});
+    sel.innerHTML = `<option value="__NONE__">カテゴリを選ぶ</option>` +
+      cats.map(c => `<option value="${c}">${c}</option>`).join('') +
+      `<option value="ADD">+ 追記</option>`;
+
+    sel.onchange = async () => {
+      if(sel.value === "ADD") {
+        const n = await customPrompt("新しいカテゴリ名");
+        if(n && n.trim()) {
+          const name = n.trim();
+          if (!db.config.categoryTree[name]) db.config.categoryTree[name] = ["その他"];
+          db.config.categories = Object.keys(db.config.categoryTree);
+          initCategorySelect();
+          sel.value = name;
+          initSubCategorySelect(name);
+          saveLocalOnly(); syncFirebasePut();
+        } else {
+          sel.selectedIndex = 0;
+          if (sub) sub.style.display = 'none';
+        }
+        return;
+      }
+      initSubCategorySelect(sel.value);
+    };
+
+    // 初期は隠す
+    if (sub) sub.style.display = 'none';
+  }
+
+  function initSubCategorySelect(cat) {
+    const sub = document.getElementById('inputSubCategory');
+    if (!sub) return;
+    if (!cat || cat === "__NONE__") { sub.style.display = 'none'; return; }
+
+    db = normalizeDb(db); // ✅ 正規化を確実に実行
+    
+    // ✅ categoryTreeが存在しない、または空の場合、DEFAULT_CATEGORY_TREEから取得
+    let list = [];
+    if (db.config.categoryTree && db.config.categoryTree[cat] && Array.isArray(db.config.categoryTree[cat]) && db.config.categoryTree[cat].length > 0) {
+      list = db.config.categoryTree[cat];
+    } else if (DEFAULT_CATEGORY_TREE[cat] && Array.isArray(DEFAULT_CATEGORY_TREE[cat])) {
+      // ✅ DEFAULT_CATEGORY_TREEから取得して、db.config.categoryTreeに保存
+      list = DEFAULT_CATEGORY_TREE[cat];
+      if (!db.config.categoryTree) db.config.categoryTree = {};
+      db.config.categoryTree[cat] = [...list];
+      saveLocalOnly(); // 保存して次回から使えるように
+    } else {
+      list = ["その他"];
+    }
+    
+    if (!list.includes("その他")) list = [...list, "その他"];
+
+    sub.style.display = 'block';
+    sub.innerHTML = `<option value="__NONE__">サブカテゴリを選ぶ</option>` +
+      list.map(s => `<option value="${s}">${s}</option>`).join('') +
+      `<option value="ADD_SUB">+ 追記</option>`;
+
+    sub.onchange = async () => {
+      if (sub.value === "ADD_SUB") {
+        const n = await customPrompt("新しいサブカテゴリ名");
+        if (n && n.trim()) {
+          const name = n.trim();
+          if (!db.config.categoryTree) db.config.categoryTree = {};
+          if (!db.config.categoryTree[cat]) db.config.categoryTree[cat] = [];
+          if (!db.config.categoryTree[cat].includes(name)) db.config.categoryTree[cat].push(name);
+          if (!db.config.categoryTree[cat].includes("その他")) db.config.categoryTree[cat].push("その他");
+          initSubCategorySelect(cat);
+          sub.value = name;
+          saveLocalOnly(); syncFirebasePut();
+        } else {
+          sub.selectedIndex = 0;
+        }
+      }
+    };
+  }
+
+  // ========= Stores =========
+  function addCustomStore(name) {
+    db = normalizeDb(db);
+    const s = (name || "").trim();
+    if (!s) return;
+    db.config.customStores = [s, ...(db.config.customStores || []).filter(x => x !== s)].slice(0, 20);
+    saveLocalOnly();
+    syncFirebasePut();
+  }
+
+  async function promptAddStore() {
+    const n = await customPrompt("店名を手入力（例：○○スーパー）");
+    if(n && n.trim()) {
+      const s = n.trim();
+      addCustomStore(s);
+      curStore = s;
+      const ind = document.getElementById('curStoreIndicator');
+      if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+      renderStoreList();
+      showToast("店名を追加しました", 3000);
+    }
+  }
+
+  function renderStoreList(manualPriority = []) {
+    db = normalizeDb(db);
+    const list = document.getElementById('store-list');
+    if(!list) return;
+
+    const freq = {};
+    const storePositions = {}; // 店名 → {lat, lng} のマップ（履歴から取得）
+    
+    Object.values(db.products).forEach(p => p.history?.forEach(h => {
+      if(!h.store || h.store === "未設定") return;
+      freq[h.store] = (freq[h.store] || 0) + 1;
+      // GPS位置情報があれば保存
+      if (h.lat && h.lng && !storePositions[h.store]) {
+        storePositions[h.store] = { lat: h.lat, lng: h.lng };
+      }
+    }));
+    
+    let sortedFreq = Object.keys(freq).sort((a,b) => freq[b] - freq[a]);
+    
+    // ✅ GPSが有効で位置情報がある場合、近い順に並び替え
+    if (isGpsOn && curPos && Object.keys(storePositions).length > 0) {
+      sortedFreq = sortedFreq.sort((a, b) => {
+        const distA = storePositions[a] ? calcDistance(curPos.lat, curPos.lng, storePositions[a].lat, storePositions[a].lng) : 999;
+        const distB = storePositions[b] ? calcDistance(curPos.lat, curPos.lng, storePositions[b].lat, storePositions[b].lng) : 999;
+        return distA - distB;
+      });
+    }
+    
+    const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
+    const customStores = db.config.customStores || [];
+    
+    // ✅ 近隣店舗候補を統合（nearbyStoreNames）
+    const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
+    
+    // ✅ 空なら プリセット + customStores を必ず表示
+    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
+    if (curStore === "未設定" && finalSet.length > 1) {
+      curStore = finalSet[1]; // 「未設定」以外の最初の候補
+      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
+    }
+
+    const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
+    list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
+
+    finalSet.forEach(name => {
+      const span = document.createElement('span');
+      span.className = 'store-tag' + (name === curStore ? ' active' : '');
+      span.innerText = name;
+      span.onclick = () => {
+        document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active'));
+        span.classList.add('active');
+        curStore = name;
+        const ind = document.getElementById('curStoreIndicator');
+        if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        
+        // ✅ ストアの税別/税込既定値を自動反映
+        const storeTaxMode = db.config.storeTaxModes && db.config.storeTaxModes[curStore];
+        if (storeTaxMode) {
+          const taxModeId = storeTaxMode === "in" ? 'taxIn' : 'taxEx';
+          const taxEl = document.getElementById(taxModeId);
+          if (taxEl) {
+            taxEl.checked = true;
+            if (isDebug()) {
+              console.log('[StoreTaxMode] Auto-switch:', curStore, '→', storeTaxMode);
+              showToast(`税${storeTaxMode === "in" ? "込" : "別"}に自動切替`, 2000);
+            }
+          }
+        }
+      };
+      list.appendChild(span);
+    });
+
+    const addBtn = document.createElement('span');
+    addBtn.className = 'store-tag add-store';
+    addBtn.innerText = '＋店名入力';
+    addBtn.onclick = () => promptAddStore();
+    list.appendChild(addBtn);
+  }
+
+  // ========= Home History =========
+  function placeholderImg() {
+    return 'https://placehold.jp/24/333/ccc/68x68.png?text=NoImage';
+  }
+
+  // ✅ renderHistory() の二重起動防止
+  let renderHistoryInFlight = false;
+  let renderHistorySeq = 0;
+
+  async function renderHistory() {
+    // ✅ 二重起動防止: 既に実行中なら最新の呼び出しだけを反映
+    const mySeq = ++renderHistorySeq;
+    
+    if (renderHistoryInFlight) {
+      if (isDebug()) console.log('[renderHistory] Already in flight, queued:', mySeq);
+      // 最新の呼び出しだけを反映するため、少し待って再実行
+      setTimeout(() => {
+        if (renderHistorySeq === mySeq) {
+          renderHistory();
+        }
+      }, 100);
+      return;
+    }
+    
+    renderHistoryInFlight = true;
+    
+    try {
+    const list = document.getElementById('historyList');
+    if(!list) return;
+      
+      // ✅ 必ずまっさらにする
+    list.innerHTML = "";
+
+    const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
+    items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
+
+    // ✅ 重複防止ガード（codeキー + 正規化キー）
+    const renderedKeys = new Set();
+    const renderedNormalizedKeys = new Set();
+
+    for (const it of items) {
+      if (!it.history || !it.history.length) continue;
+      
+      // codeキーで重複チェック
+      if (renderedKeys.has(it.code)) {
+        if (isDebug()) console.log('[renderHistory] Skipped duplicate code:', it.code);
+        continue;
+      }
+      
+      // 正規化キーで重複チェック
+      const normalized = normalizeProductName(it.name, it.maker);
+      if (normalized && normalized !== '|' && renderedNormalizedKeys.has(normalized)) {
+        if (isDebug()) console.log('[renderHistory] Skipped duplicate normalized:', it.code, normalized);
+        continue;
+      }
+      
+      renderedKeys.add(it.code);
+      if (normalized && normalized !== '|') {
+        renderedNormalizedKeys.add(normalized);
+      }
+      const last = it.history[it.history.length-1];
+      const div = document.createElement('div');
+      div.className = 'card price-card';
+      div.onclick = (e) => {
+        // ✅ 他の選択を解除
+        document.querySelectorAll('.price-card.selected').forEach(el => el.classList.remove('selected'));
+        // ✅ 自分を選択
+        div.classList.add('selected');
+        openForm(it.code);
+      };
+
+      // ✅ 画像表示：優先順位
+      // 1. 自分の画像（IndexedDB / imageUrl）
+      // 2. 共有画像からランダム表示（固定しない）
+      const imgId = `img_${it.code.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+      let imgSrc = placeholderImg();
+      let hasMyImage = false;
+
+      // 自分の画像を確認
+      if (it.imageKey && typeof it.imageKey === 'string') {
+        imgSrc = placeholderImg();
+        hasMyImage = true;
+      } else if (last && last.imageKey && typeof last.imageKey === 'string') {
+        imgSrc = placeholderImg();
+        hasMyImage = true;
+      } else if (it.imageUrl && typeof it.imageUrl === 'string' && 
+                 (it.imageUrl.startsWith('http://') || it.imageUrl.startsWith('https://') || it.imageUrl.startsWith('data:'))) {
+        imgSrc = it.imageUrl;
+        hasMyImage = true;
+      } else if (last && last.imageUrl && typeof last.imageUrl === 'string' && 
+                 (last.imageUrl.startsWith('http://') || last.imageUrl.startsWith('https://') || last.imageUrl.startsWith('data:'))) {
+        imgSrc = last.imageUrl;
+        hasMyImage = true;
+      }
+
+      // 自分の画像がない場合、共有画像からランダム表示
+      if (!hasMyImage && fbUrl) {
+        try {
+          const sharedImages = await getSharedImages(it.code);
+          if (sharedImages.length > 0) {
+            // ランダムに1つ選ぶ
+            const randomImg = sharedImages[Math.floor(Math.random() * sharedImages.length)];
+            if (randomImg && randomImg.imageUrl) {
+              imgSrc = randomImg.imageUrl;
+            }
+          }
+        } catch(e) {
+          if (isDebug()) console.warn('[renderHistory] getSharedImages failed:', e);
+        }
+      }
+
+      div.innerHTML = `
+        <div class="d-flex align-items-center">
+          <img id="${imgId}" src="${imgSrc}" class="prod-thumb" referrerpolicy="no-referrer">
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="fw-bold text-white small text-truncate">${it.name || ''}</div>
+            <div class="text-secondary" style="font-size:0.6rem;">${last.store || '未設定'}</div>
+          </div>
+          <div class="text-end ms-2">
+            <div class="price-main">${last.price}<span style="font-size:0.6rem;">円</span></div>
+          </div>
+        </div>`;
+      list.appendChild(div);
+
+      // ✅ IndexedDB画像を適用（優先順位：last.imageKey → it.imageKey、失敗時はimageUrlへフォールバック）
+      const imgEl = div.querySelector('img.prod-thumb');
+      if (imgEl) {
+        imgEl.referrerPolicy = "no-referrer";
+        
+        // 自分の画像がある場合
+        if (hasMyImage) {
+          const fallbackUrl = (last && last.imageUrl && typeof last.imageUrl === 'string' && 
+                              (last.imageUrl.startsWith('http://') || last.imageUrl.startsWith('https://') || last.imageUrl.startsWith('data:'))) 
+                              ? last.imageUrl 
+                              : (it.imageUrl && typeof it.imageUrl === 'string' && 
+                                 (it.imageUrl.startsWith('http://') || it.imageUrl.startsWith('https://') || it.imageUrl.startsWith('data:'))) 
+                                 ? it.imageUrl 
+                                 : null;
+          
+          if (last && last.imageKey && typeof last.imageKey === 'string') {
+            applyImageKeyToImg(imgEl, last.imageKey).catch(() => {
+              if (imgEl) {
+                imgEl.src = fallbackUrl || placeholderImg();
+              }
+            });
+          } else if (it.imageKey && typeof it.imageKey === 'string') {
+            applyImageKeyToImg(imgEl, it.imageKey).catch(() => {
+              if (imgEl) {
+                imgEl.src = fallbackUrl || placeholderImg();
+              }
+            });
+          } else if (fallbackUrl) {
+            if (fallbackUrl.startsWith('shared:')) {
+              // 共有画像の参照（実際の画像はFirebaseから取得）
+              const imageId = fallbackUrl.replace('shared:', '');
+              if (fbUrl) {
+                (async () => {
+                  try {
+                    const imageUrl = getImageUrl(fbUrl, it.code, imageId);
+                    const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                    const record = await res.json();
+                    if (record && record.imageUrl) {
+                      imgEl.src = record.imageUrl;
+                    } else {
+                      imgEl.src = placeholderImg();
+                    }
+                  } catch(e) {
+                    imgEl.src = placeholderImg();
+                  }
+                })();
+              } else {
+                imgEl.src = placeholderImg();
+              }
+            } else {
+              imgEl.src = fallbackUrl;
+            }
+          }
+        } else {
+          // 共有画像の場合、読み込み失敗時は別画像に差し替え
+          imgEl.onerror = async () => {
+            try {
+              const sharedImages = await getSharedImages(it.code);
+              if (sharedImages.length > 0) {
+                const randomImg = sharedImages[Math.floor(Math.random() * sharedImages.length)];
+                if (randomImg && randomImg.imageUrl) {
+                  imgEl.src = randomImg.imageUrl;
+                } else {
+                  imgEl.src = placeholderImg();
+                }
+              } else {
+                imgEl.src = placeholderImg();
+              }
+            } catch(e) {
+              imgEl.src = placeholderImg();
+            }
+          };
+        }
+      }
+    }
+    } finally {
+      // ✅ ロック解除
+      renderHistoryInFlight = false;
+    }
+  }
+
+  // ========= Form =========
+  async function openForm(code) {
+    const calcArea = document.getElementById('calcOptionArea');
+    const saveBtn = document.getElementById('saveBtn');
+    const delBtn = document.getElementById('delHistBtn');
+    const storeJumpBtn = document.getElementById('storeJumpBtn');
+    if(calcArea) calcArea.style.display = 'flex';
+    if(saveBtn) saveBtn.innerText = '保存';
+    if(delBtn) delBtn.style.display = 'none';
+    if(storeJumpBtn) storeJumpBtn.style.display = 'none';
+
+    curBarcode = code; editingHistIdx = null;
+    const p = db.products[code];
+    const exists = !!p;
+
+    initCategorySelect();
+    document.getElementById('mainView').style.display='none';
+    document.getElementById('formView').style.display='block';
+
+    const ind = document.getElementById('curStoreIndicator');
+    if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+    document.getElementById('inputPrice').value = "";
+
+    const catSel = document.getElementById('inputCategory');
+    const subSel = document.getElementById('inputSubCategory');
+
+    if (!exists) {
+      document.getElementById('inputName').value = "";
+      document.getElementById('inputMaker').value = "";
+      if (catSel) catSel.value = "__NONE__";
+      if (subSel) { subSel.style.display = 'none'; subSel.value = "__NONE__"; }
+      const prev = document.getElementById('previewImg');
+      if (prev) {
+        prev.src = placeholderImg();
+        prev.referrerPolicy = "no-referrer";
+      }
+      tempImgData = null;
+      
+      // ✅ 新規商品の場合、JANコードならYahoo検索を試行
+      if (code && /^\d{8,14}$/.test(String(code))) {
+        try {
+          const info = await lookupYahooByJan(String(code));
+          if (info) {
+            if (info.name) document.getElementById('inputName').value = info.name;
+            if (info.maker) document.getElementById('inputMaker').value = info.maker;
+            if (info.imageUrl && prev) {
+              prev.src = info.imageUrl;
+              tempImgData = { type:'url', url: info.imageUrl };
+            }
+            showToast("商品情報を取得しました", 3000);
+          }
+        } catch(e) {
+          if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+        }
+      }
+    } else {
+      document.getElementById('inputName').value = p.name || "";
+      document.getElementById('inputMaker').value = p.maker || "";
+
+      const catVal = p.category || "__NONE__";
+      if (catSel) {
+        catSel.value = ([...catSel.options].some(o => o.value === catVal)) ? catVal : "__NONE__";
+      }
+
+      if (catVal && catVal !== "__NONE__") {
+        initSubCategorySelect(catVal);
+        const subVal = p.subCategory || "__NONE__";
+        if (subSel) {
+          subSel.value = ([...subSel.options].some(o => o.value === subVal)) ? subVal : "__NONE__";
+        }
+      } else {
+        if (subSel) subSel.style.display = 'none';
+      }
+
+      // ✅ 画像表示：優先順位
+      // 1. 自分の画像（IndexedDB / imageUrl）
+      // 2. 共有画像からランダム表示（固定しない）
+      const prev = document.getElementById('previewImg');
+      if (prev) {
+        const last = p.history && p.history.length > 0 ? p.history[p.history.length - 1] : null;
+        prev.src = placeholderImg();
+        prev.referrerPolicy = "no-referrer";
+        
+        let hasMyImage = false;
+        
+        // 自分の画像を確認
+        if (last && last.imageKey && typeof last.imageKey === 'string') {
+          hasMyImage = true;
+          applyImageKeyToImg(prev, last.imageKey).catch(() => {
+            if (p.imageKey && typeof p.imageKey === 'string') {
+              applyImageKeyToImg(prev, p.imageKey).catch(() => {
+                if (last && last.imageUrl && typeof last.imageUrl === 'string' && (last.imageUrl.startsWith('http') || last.imageUrl.startsWith('data:'))) {
+                  prev.src = last.imageUrl;
+                } else if (p.imageUrl && typeof p.imageUrl === 'string' && (p.imageUrl.startsWith('http') || p.imageUrl.startsWith('data:') || p.imageUrl.startsWith('shared:'))) {
+                if (p.imageUrl.startsWith('shared:')) {
+                  const imageId = p.imageUrl.replace('shared:', '');
+                  if (fbUrl) {
+                    (async () => {
+                      try {
+                        const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+                        const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                        const record = await res.json();
+                        if (record && record.imageUrl) {
+                          prev.src = record.imageUrl;
+                        } else {
+                          prev.src = placeholderImg();
+                        }
+                      } catch(e) {
+                        prev.src = placeholderImg();
+                      }
+                    })();
+                  } else {
+                    prev.src = placeholderImg();
+                  }
+                } else {
+                  prev.src = p.imageUrl;
+                }
+                } else {
+                  prev.src = placeholderImg();
+                }
+              });
+            } else {
+              if (last && last.imageUrl && typeof last.imageUrl === 'string' && (last.imageUrl.startsWith('http') || last.imageUrl.startsWith('data:') || last.imageUrl.startsWith('shared:'))) {
+                if (last.imageUrl.startsWith('shared:')) {
+                  const imageId = last.imageUrl.replace('shared:', '');
+                  if (fbUrl) {
+                    (async () => {
+                      try {
+                        const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+                        const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                        const record = await res.json();
+                        if (record && record.imageUrl) {
+                          prev.src = record.imageUrl;
+                        } else {
+                          prev.src = placeholderImg();
+                        }
+                      } catch(e) {
+                        prev.src = placeholderImg();
+                      }
+                    })();
+                  } else {
+                    prev.src = placeholderImg();
+                  }
+                } else {
+                  prev.src = last.imageUrl;
+                }
+              } else if (p.imageUrl && typeof p.imageUrl === 'string' && (p.imageUrl.startsWith('http') || p.imageUrl.startsWith('data:') || p.imageUrl.startsWith('shared:'))) {
+                if (p.imageUrl.startsWith('shared:')) {
+                  const imageId = p.imageUrl.replace('shared:', '');
+                  if (fbUrl) {
+                    (async () => {
+                      try {
+                        const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+                        const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                        const record = await res.json();
+                        if (record && record.imageUrl) {
+                          prev.src = record.imageUrl;
+                        } else {
+                          prev.src = placeholderImg();
+                        }
+                      } catch(e) {
+                        prev.src = placeholderImg();
+                      }
+                    })();
+                  } else {
+                    prev.src = placeholderImg();
+                  }
+                } else {
+                  prev.src = p.imageUrl;
+                }
+              } else {
+                prev.src = placeholderImg();
+              }
+            }
+          });
+        } else if (p.imageKey && typeof p.imageKey === 'string') {
+          hasMyImage = true;
+          applyImageKeyToImg(prev, p.imageKey).catch(() => {
+            if (last && last.imageUrl && typeof last.imageUrl === 'string' && (last.imageUrl.startsWith('http') || last.imageUrl.startsWith('data:') || last.imageUrl.startsWith('shared:'))) {
+              if (last.imageUrl.startsWith('shared:')) {
+                const imageId = last.imageUrl.replace('shared:', '');
+                if (fbUrl) {
+                  (async () => {
+                    try {
+                      const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+                      const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                      const record = await res.json();
+                      if (record && record.imageUrl) {
+                        prev.src = record.imageUrl;
+                      } else {
+                        prev.src = placeholderImg();
+                      }
+                    } catch(e) {
+                      prev.src = placeholderImg();
+                    }
+                  })();
+                } else {
+                  prev.src = placeholderImg();
+                }
+              } else {
+                prev.src = last.imageUrl;
+              }
+            } else if (p.imageUrl && typeof p.imageUrl === 'string' && (p.imageUrl.startsWith('http') || p.imageUrl.startsWith('data:') || p.imageUrl.startsWith('shared:'))) {
+              if (p.imageUrl.startsWith('shared:')) {
+                const imageId = p.imageUrl.replace('shared:', '');
+                if (fbUrl) {
+                  (async () => {
+                    try {
+                      const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+                      const res = await fetchWithTimeout(imageUrl, {}, 8000);
+                      const record = await res.json();
+                      if (record && record.imageUrl) {
+                        prev.src = record.imageUrl;
+                      } else {
+                        prev.src = placeholderImg();
+                      }
+                    } catch(e) {
+                      prev.src = placeholderImg();
+                    }
+                  })();
+                } else {
+                  prev.src = placeholderImg();
+                }
+              } else {
+                prev.src = p.imageUrl;
+              }
+            } else {
+              prev.src = placeholderImg();
+            }
+          });
+      } else if (last && last.imageUrl && typeof last.imageUrl === 'string' && (last.imageUrl.startsWith('http') || last.imageUrl.startsWith('data:') || last.imageUrl.startsWith('shared:'))) {
+        if (last.imageUrl.startsWith('shared:')) {
+          // 共有画像の参照（自分の画像として扱う）
+          hasMyImage = true;
+          const imageId = last.imageUrl.replace('shared:', '');
+          if (fbUrl) {
+            try {
+              const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+              const res = await fetchWithTimeout(imageUrl, {}, 8000);
+              const record = await res.json();
+              if (record && record.imageUrl) {
+                prev.src = record.imageUrl;
+              } else {
+                prev.src = placeholderImg();
+              }
+            } catch(e) {
+              prev.src = placeholderImg();
+            }
+          } else {
+            prev.src = placeholderImg();
+          }
+        } else {
+          prev.src = last.imageUrl;
+          hasMyImage = true;
+        }
+      } else if (p.imageUrl && typeof p.imageUrl === 'string' && (p.imageUrl.startsWith('http') || p.imageUrl.startsWith('data:') || p.imageUrl.startsWith('shared:'))) {
+        if (p.imageUrl.startsWith('shared:')) {
+          // 共有画像の参照（自分の画像として扱う）
+          hasMyImage = true;
+          const imageId = p.imageUrl.replace('shared:', '');
+          if (fbUrl) {
+            try {
+              const imageUrl = getImageUrl(fbUrl, curBarcode, imageId);
+              const res = await fetchWithTimeout(imageUrl, {}, 8000);
+              const record = await res.json();
+              if (record && record.imageUrl) {
+                prev.src = record.imageUrl;
+              } else {
+                prev.src = placeholderImg();
+              }
+            } catch(e) {
+              prev.src = placeholderImg();
+            }
+          } else {
+            prev.src = placeholderImg();
+          }
+        } else {
+          prev.src = p.imageUrl;
+          hasMyImage = true;
+        }
+      }
+
+        // 自分の画像がない場合、共有画像からランダム表示
+        if (!hasMyImage && fbUrl) {
+          (async () => {
+            try {
+              const sharedImages = await getSharedImages(curBarcode);
+              if (sharedImages.length > 0) {
+                const randomImg = sharedImages[Math.floor(Math.random() * sharedImages.length)];
+                if (randomImg && randomImg.imageUrl) {
+                  prev.src = randomImg.imageUrl;
+                  // 読み込み失敗時は別画像に差し替え
+                  prev.onerror = async () => {
+                    try {
+                      const retryImages = await getSharedImages(curBarcode);
+                      if (retryImages.length > 0) {
+                        const retryImg = retryImages[Math.floor(Math.random() * retryImages.length)];
+                        if (retryImg && retryImg.imageUrl) {
+                          prev.src = retryImg.imageUrl;
+                        } else {
+                          prev.src = placeholderImg();
+                        }
+                      } else {
+                        prev.src = placeholderImg();
+                      }
+                    } catch(e) {
+                      prev.src = placeholderImg();
+                    }
+                  };
+                }
+              }
+            } catch(e) {
+              if (isDebug()) console.warn('[openForm] getSharedImages failed:', e);
+            }
+          })();
+        }
+      }
+      tempImgData = null; // 新規選択があれば上書き
+    }
+
+    renderDetailHistory(exists ? p.history : []);
+    renderStats(exists ? p.history : []);
+  }
+
+  function renderStats(history) {
+    const box = document.getElementById('statsBox');
+    if (!box) return;
+    if (!Array.isArray(history) || history.length === 0) { box.innerHTML = "過去データなし"; return; }
+    const pArr = history.map(h => h.price);
+    const avg = Math.floor(pArr.reduce((a,b)=>a+b,0)/pArr.length);
+    const low = Math.min(...pArr);
+    const last = pArr[pArr.length-1];
+    box.innerHTML = `<div class="stats-row">
+      <div class="stat-item">平均<span class="stat-val">${avg}円</span></div>
+      <div class="stat-item">最安<span class="stat-val text-danger">${low}円</span></div>
+      <div class="stat-item">前回<span class="stat-val">${last}円</span></div>
+    </div>`;
+  }
+
+  function renderDetailHistory(history) {
+    const div = document.getElementById('detailHistory');
+    if(!div) return;
+    div.innerHTML = "";
+    const safeHistory = Array.isArray(history) ? history : [];
+
+    [...safeHistory].reverse().forEach((h, idx) => {
+      const row = document.createElement('div');
+      row.className = "history-row";
+      const actIdx = safeHistory.length - 1 - idx;
+
+      if (editingHistIdx !== null && actIdx === editingHistIdx) row.classList.add("selected");
+      row.onclick = () => editHistoryMode(actIdx);
+
+      const t = histTs(h);
+      const dateStr = t ? new Date(t).toLocaleString() : "(不明)";
+      row.innerHTML = `
+        <div class="flex-grow-1">
+          <span class="text-secondary small">${dateStr}</span><br>
+          <span class="text-white fw-bold">${h.store || '未設定'}</span>
+        </div>
+        <div class="text-end">
+          <span class="fw-bold text-white">${h.price}円</span><br>
+          <span class="text-info small">タップで編集</span>
+        </div>`;
+      div.appendChild(row);
+    });
+  }
+
+  function editHistoryMode(idx) {
+    editingHistIdx = idx;
+
+    const p = db.products[curBarcode];
+    const h = p && Array.isArray(p.history) ? p.history[idx] : null;
+    if(!h) return;
+
+    document.getElementById('inputPrice').value = h.price;
+    document.getElementById('inputDisc').value = 0;
+    document.getElementById('taxIn').checked = true;
+
+    curStore = h.store || "未設定";
+    const ind = document.getElementById('curStoreIndicator');
+    if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+
+    renderStoreList();
+    document.getElementById('calcOptionArea').style.display = "none";
+    document.getElementById('saveBtn').innerText = "変更確定";
+    document.getElementById('delHistBtn').style.display = "block";
+    document.getElementById('storeJumpBtn').style.display = "block";
+
+    renderDetailHistory(p.history);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast("店名は上のチップで変更できます", 3000);
+    document.getElementById('priceSection').scrollIntoView({behavior: 'smooth'});
+  }
+
+  function jumpToStoreChips() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast("上の店名チップで変更できます", 3000);
+  }
+
+  async function saveData() {
+    const saveBtn = document.getElementById('saveBtn');
+    
+    // ✅ ボタンを無効化（二度押し防止）
+    if (saveBtn) saveBtn.disabled = true;
+    
+    try {
+      if (curStore === "未設定") {
+        showToast("店名を選んでください", 4000);
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
+
+      const cat = document.getElementById('inputCategory').value;
+      if (cat === "__NONE__") {
+        showToast("カテゴリを選んでください", 4000);
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
+
+      const subSel = document.getElementById('inputSubCategory');
+      const needsSub = (subSel && subSel.style.display !== 'none');
+      const sub = needsSub ? subSel.value : "__NONE__";
+      if (needsSub && sub === "__NONE__") {
+        showToast("サブカテゴリを選んでください", 4000);
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
+
+      const p = db.products[curBarcode] || { history: [] };
+      p.name = document.getElementById('inputName').value || "名称なし";
+      p.category = cat;
+      p.subCategory = needsSub ? sub : "";
+      p.maker = document.getElementById('inputMaker').value || "";
+
+      // ✅ デバッグログ
+      if (isDebug()) {
+        console.log("[SaveData] code:", curBarcode, "store:", curStore, "category:", cat, "subCategory:", sub);
+      }
+
+      // ✅ 画像（プレビュー）→ Firebase共有またはIndexedDBへ保存
+      if (tempImgData && tempImgData.type === 'shared' && tempImgData.imageId) {
+        // 共有画像の場合、imageUrlに共有画像のURLを保存（参照のみ）
+        // 実際の画像データはFirebaseに保存済み
+        p.imageUrl = `shared:${tempImgData.imageId}`;
+        delete p.image;
+        delete p.imageKey; // 共有画像はimageKeyを使わない
+      } else if (tempImgData && typeof tempImgData === 'string' && tempImgData.startsWith('data:')) {
+        // 旧方式：dataURL → IndexedDB
+        const blob = dataURLtoBlob(tempImgData);
+        if (blob) {
+          const key = 'img_' + String(curBarcode || '').replace(/[^\w\-]/g, '_');
+          await idbPut(key, blob);
+          p.imageKey = key;
+        }
+        delete p.imageData;
+        delete p.image;
+      } else if (tempImgData && tempImgData.type === 'key') {
+        p.imageKey = tempImgData.key;
+        delete p.image;
+      } else if (tempImgData && tempImgData.type === 'url') {
+        p.imageUrl = tempImgData.url;
+        delete p.image;
+      }
+
+      const val = Number(document.getElementById('inputPrice').value);
+      if (!Number.isFinite(val) || val <= 0) {
+        showToast("価格を入力してください", 4000);
+        if (saveBtn) saveBtn.disabled = false;
+        return;
+      }
+
+      if (editingHistIdx !== null) {
+        p.history[editingHistIdx].price = val;
+        p.history[editingHistIdx].store = curStore;
+        showToast("変更を反映しました", 2000);
+        if (isDebug()) console.log("[SaveData] History updated:", editingHistIdx);
+      } else {
+        const disc = Number(document.getElementById('inputDisc').value || 0);
+        let finalP = Math.floor(val * (1 - disc/100));
+        const isTaxEx = document.getElementById('taxEx').checked;
+        if(isTaxEx) finalP = Math.floor(finalP * 1.08);
+        db.config.lastTax = isTaxEx ? "ex" : "in";
+        
+        // ✅ ストアの税別/税込既定値を保存（一度設定したら以後自動切替）
+        if (curStore && curStore !== "未設定") {
+          if (!db.config.storeTaxModes) db.config.storeTaxModes = {};
+          db.config.storeTaxModes[curStore] = isTaxEx ? "ex" : "in";
+          if (isDebug()) {
+            console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
+          }
+        }
+        const entry = { price: finalP, store: curStore, ts: Date.now() };
+        if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
+        p.history.push(entry);
+        showToast("保存完了", 2000);
+        if (isDebug()) console.log("[SaveData] New entry added:", entry);
+      }
+
+      db.products[curBarcode] = p;
+      db = normalizeDb(db);
+
+      saveLocalOnly();
+      syncFirebasePut();
+
+      renderHistory();
+      showHome();
+      
+      if (isDebug()) console.log("[SaveData] Save completed successfully");
+      
+    } catch(e) {
+      showToast("保存に失敗しました", 8000);
+      if (isDebug()) {
+        console.error("[SaveData] Error:", e);
+        console.error("[SaveData] Stack:", e.stack);
+      }
+    } finally {
+      // ✅ 確実にボタンを有効化
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
+  function toggleHistoryList() {
+    const div = document.getElementById('detailHistory');
+    const btn = document.getElementById('toggleHistBtn');
+    if (!div || !btn) return;
+    const isHidden = (div.style.display === "none" || !div.style.display);
+    div.style.display = isHidden ? "block" : "none";
+    btn.innerText = isHidden ? "購入履歴を隠す" : "購入履歴を表示（タップで編集）";
+  }
+
+  // ========= GPS距離計算（簡易版：ハーバーサイン公式） =========
+  function calcDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // 地球の半径（km）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function toggleGps() {
+    if(!isGpsOn) {
+      isGpsOn = true; lastGpsTime = "…"; renderStoreList(); 
+      showToast("GPS取得中…", 3000);
+      
+      if (!navigator.geolocation) {
+        showToast("GPS機能が利用できません", 5000);
+        isGpsOn = false; renderStoreList();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const d = new Date(); lastGpsTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
+        
+        // ✅ GPS取得成功後、近隣店舗を取得してリストを更新
+        try {
+          const nearbyStores = await fetchNearbyStores();
+          if (nearbyStores && nearbyStores.length > 0) {
+            window.nearbyStoreNames = nearbyStores;
+            if (isDebug()) console.log('[GPS] Nearby stores loaded:', nearbyStores.length);
+          }
+        } catch(e) {
+          if (isDebug()) console.warn('[GPS] fetchNearbyStores failed:', e);
+        }
+        
+        renderStoreList();
+        
+        const msg = isDebug() 
+          ? `GPS取得成功（${curPos.lat.toFixed(4)}, ${curPos.lng.toFixed(4)}）` 
+          : "GPS取得成功";
+        showToast(msg, 2000);
+      }, (err) => {
+        const errMsg = err.code === 1 ? "位置情報の取得が拒否されました" :
+                      err.code === 2 ? "位置情報が取得できませんでした" :
+                      err.code === 3 ? "位置情報の取得がタイムアウトしました" :
+                      `GPSエラー: ${err.message}`;
+        showToast(errMsg, 8000);
+        isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList();
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    } else {
+      isGpsOn = false; curPos = null; lastGpsTime = ""; 
+      window.nearbyStoreNames = []; // GPS OFF時は近隣店舗候補もクリア
+      renderStoreList(); 
+      showToast("GPS OFF", 1500);
+    }
+  }
+
+  // ========= Yahoo商品情報の自動整形（12本1箱問題対応） =========
+  // ========= 汎用正規化関数（メーカー名/販売店名混入除去） =========
+  function normalizeMakerName(maker) {
+    if (!maker || !maker.trim()) return maker || '';
+    let normalized = String(maker).trim();
+    
+    // ✅ 販売店名パターンを除去（強化版）
+    const storePatterns = [
+      /\s*店\s*$/gi,
+      /\s*ストア\s*$/gi,
+      /\s*ショップ\s*$/gi,
+      /\s*ストアーズ\s*$/gi,
+      /\s*ショップス\s*$/gi,
+      /\s*モール\s*$/gi,
+      /\s*マーケット\s*$/gi,
+      /\s*ドットコム\s*$/gi,
+      /\s*\.com\s*$/gi,
+      /\s*\.co\.jp\s*$/gi,
+      /楽天/gi,
+      /Amazon/gi,
+      /ヤフー/gi,
+      /Yahoo/gi,
+      /Rakuten/gi,
+      /メルカリ/gi,
+      /mercari/gi,
+      /公式/gi,
+      /Official/gi,
+      /本店/gi,
+      /支店/gi,
+      /オンライン/gi,
+      /ダイレクト/gi,
+      /\s*inc\s*$/gi,
+      /\s*ltd\s*$/gi,
+      /\s*corp\s*$/gi,
+      /\s*group\s*$/gi
+    ];
+    
+    storePatterns.forEach(pattern => {
+      normalized = normalized.replace(pattern, '');
+    });
+    
+    // ✅ メーカー重複を除去（例：「コカ・コーラ コカ・コーラ」→「コカ・コーラ」）
+    const words = normalized.split(/\s+/).filter(w => w.length > 0);
+    const uniqueWords = [];
+    const seen = new Set();
+    words.forEach(word => {
+      const lower = word.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueWords.push(word);
+      }
+    });
+    normalized = uniqueWords.join(' ');
+    
+    normalized = normalized.replace(/\s+/g, ' ').trim();
+    return normalized || maker; // 空になった場合は元に戻す
+  }
+
+  function normalizeYahooProductInfo(info) {
+    if (!info || !info.name) return info;
+    
+    const original = {
+      name: info.name,
+      maker: info.maker || '',
+      imageUrl: info.imageUrl || ''
+    };
+    
+    let name = original.name;
+    let maker = original.maker;
+    let packHint = false; // まとめ買い検出フラグ
+    let packCount = null; // まとめ買い個数
+    let isCase = false; // ケース商品フラグ
+    let trustScore = 100; // 信頼度スコア（初期値100）
+    
+    // ✅ 1. まとめ買い語を検出（信頼度スコア付き・強化版）
+    const bulkPatterns = [
+      { pattern: /×\s*(\d+)\s*(本|個|缶|袋|パック)/gi, trust: 90 }, // pack疑い強
+      { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*×/gi, trust: 90 },
+      { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*セット/gi, trust: 85 },
+      { pattern: /ケース/gi, trust: 80 },
+      { pattern: /箱/gi, trust: 75 }, // 「箱」単独も検出
+      { pattern: /箱買い/gi, trust: 75 },
+      { pattern: /まとめ買い/gi, trust: 70 },
+      { pattern: /セット販売/gi, trust: 70 },
+      { pattern: /業務用/gi, trust: 75 }, // 業務用も検出
+      { pattern: /\[\s*(\d+)\s*(本|個|缶|袋|パック)\s*\]/gi, trust: 85 }
+    ];
+    
+    let maxPackTrust = 0;
+    bulkPatterns.forEach(({ pattern, trust }) => {
+      const match = pattern.exec(name);
+      if (match) {
+        packHint = true;
+        if (trust > maxPackTrust) {
+          maxPackTrust = trust;
+        }
+        // packCountを抽出（数字部分）
+        if (match[1]) {
+          const count = parseInt(match[1], 10);
+          if (count > 1 && (!packCount || count > packCount)) {
+            packCount = count;
+          }
+        }
+        // ケース判定
+        if (/ケース|箱買い|まとめ買い|セット販売/i.test(match[0])) {
+          isCase = true;
+        }
+      }
+    });
+    
+    // ✅ 信頼度スコア調整（pack疑いが強いとき・強化版）
+    if (maxPackTrust >= 80) {
+      trustScore -= 30; // pack疑い強（スコアを下げる）
+    } else if (maxPackTrust >= 70) {
+      trustScore -= 20; // pack疑い中（スコアを下げる）
+    }
+    
+    // ✅ 追加：商品名に販売店名っぽい語が混入している場合もスコアを下げる
+    const storeNamePatterns = [
+      /楽天/gi, /Amazon/gi, /ヤフー/gi, /Yahoo/gi, /Rakuten/gi,
+      /メルカリ/gi, /mercari/gi, /公式/gi, /Official/gi,
+      /本店/gi, /支店/gi, /オンライン/gi, /ダイレクト/gi
+    ];
+    let hasStoreName = false;
+    storeNamePatterns.forEach(pattern => {
+      if (pattern.test(name)) {
+        hasStoreName = true;
+      }
+    });
+    if (hasStoreName) {
+      trustScore -= 15; // 販売店名混入でスコアを下げる
+    }
+    
+    // ✅ 2. 不要な販促文言を除去
+    const promoPatterns = [
+      /「[^」]*送料[^」]*」/gi,
+      /「[^」]*無料[^」]*」/gi,
+      /「[^」]*地域限定[^」]*」/gi,
+      /「[^」]*最短[^」]*」/gi,
+      /「[^」]*公式[^」]*」/gi,
+      /「[^」]*PayPay[^」]*」/gi,
+      /「[^」]*ポイント[^」]*」/gi,
+      /【[^】]*送料[^】]*】/gi,
+      /【[^】]*無料[^】]*】/gi,
+      /【[^】]*公式[^】]*】/gi,
+      /\([^)]*送料[^)]*\)/gi,
+      /\([^)]*無料[^)]*\)/gi,
+      /\s*\/ot\/\s*$/gi,
+      /\s*\/\s*$/gi
+    ];
+    
+    promoPatterns.forEach(pattern => {
+      name = name.replace(pattern, '');
+    });
+    
+    // ✅ 3. 重複・冗長な [ ] 内の情報を除去
+    // 例：[小岩井 ミルクココア ココア 400g] → 既に商品名に含まれている場合は削除
+    const bracketPattern = /\[[^\]]+\]/g;
+    const brackets = name.match(bracketPattern);
+    if (brackets) {
+      brackets.forEach(bracket => {
+        const content = bracket.replace(/[\[\]]/g, '').trim();
+        // 元の名前に既に含まれているか確認
+        const nameWithoutBracket = name.replace(bracket, '').trim();
+        if (nameWithoutBracket.includes(content.substring(0, 10))) {
+          // 重複している場合は削除
+          name = name.replace(bracket, '');
+        }
+      });
+    }
+    
+    // ✅ 4. まとめ買い表記を商品名本体から削除（別フィールドに逃がす準備）
+    if (packHint) {
+      // まとめ買い表記を一旦削除（商品名本体から外す）
+      bulkPatterns.forEach(({ pattern }) => {
+        name = name.replace(pattern.pattern || pattern, '');
+      });
+      // 「12本」「ケース」等も削除
+      name = name.replace(/\s*×\s*\d+\s*(本|個|缶|袋|パック)\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*×\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*セット\s*/gi, '');
+      name = name.replace(/\s*ケース\s*/gi, '');
+      name = name.replace(/\s*箱\s*/gi, '');
+      name = name.replace(/\s*箱買い\s*/gi, '');
+      name = name.replace(/\s*まとめ買い\s*/gi, '');
+      name = name.replace(/\s*セット販売\s*/gi, '');
+      name = name.replace(/\s*業務用\s*/gi, '');
+    }
+    
+    // ✅ 商品名から販売店名っぽい語を除去
+    const storeNameInProductPatterns = [
+      /\s*楽天\s*/gi, /\s*Amazon\s*/gi, /\s*ヤフー\s*/gi, /\s*Yahoo\s*/gi,
+      /\s*Rakuten\s*/gi, /\s*メルカリ\s*/gi, /\s*mercari\s*/gi,
+      /\s*公式\s*/gi, /\s*Official\s*/gi, /\s*本店\s*/gi, /\s*支店\s*/gi
+    ];
+    storeNameInProductPatterns.forEach(pattern => {
+      name = name.replace(pattern, ' ');
+    });
+    
+    // ✅ 5. メーカー名から販売店名を除去（汎用関数を使用）
+    maker = normalizeMakerName(maker);
+    
+    // ✅ 6. 空白・記号の整理
+    name = name.replace(/\s+/g, ' ').trim();
+    name = name.replace(/^[\s\-・]+|[\s\-・]+$/g, '');
+    maker = maker.replace(/\s+/g, ' ').trim();
+    
+    // ✅ 容量/個数が過剰な場合のpack疑い判定
+    if (!packHint && packCount === null) {
+      // 商品名に大きな数字が含まれる場合（例：24本、12個）
+      const largeNumberMatch = name.match(/(\d{2,})\s*(本|個|缶|袋|パック)/i);
+      if (largeNumberMatch) {
+        const count = parseInt(largeNumberMatch[1], 10);
+        if (count >= 12) {
+          packHint = true;
+          packCount = count;
+          trustScore -= 15; // pack疑い中
+        }
+      }
+    }
+    
+    // ✅ 7. まとめ買い注記を追加（短く）
+    if (packHint && name.length > 0) {
+      name = name + '（ケース）';
+    }
+    
+    // ✅ デバッグログ
+    if (isDebug() && (name !== original.name || maker !== original.maker)) {
+      console.log('[Normalize] Before:', original.name);
+      console.log('[Normalize] After:', name);
+      if (packHint) console.log('[Normalize] Pack hint detected');
+    }
+    
+    return {
+      name: name || original.name, // 空になった場合は元に戻す
+      maker: maker || original.maker,
+      imageUrl: original.imageUrl,
+      packHint: packHint, // まとめ買いフラグ
+      packCount: packCount, // まとめ買い個数
+      isCase: isCase, // ケース商品フラグ
+      trustScore: trustScore // 信頼度スコア（100が最高）
+    };
+  }
+
+  // ========= Open Food Facts API（JANコード検索） =========
+  async function lookupOffByJan(jan) {
+    try {
+      if (!jan || !/^\d{8,14}$/.test(jan)) {
+        return null;
+      }
+
+      // ✅ デバッグ: OFF検索開始
+      if (isDebug()) {
+        showToast(`[OFF] Fetching...`, 3000);
+        console.log("[OFF] JAN:", jan);
+      }
+
+      // ✅ エンドポイント（日本優先、フォールバックで世界版）
+      const endpoints = [
+        `https://jp.openfoodfacts.org/api/v2/product/${jan}.json`,
+        `https://world.openfoodfacts.org/api/v2/product/${jan}.json`
+      ];
+
+      // ✅ AbortController+timeout（12秒、Yahooと揃える）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      let lastError = null;
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            cache: 'no-store',
+            signal: controller.signal,
+            mode: 'cors',
+            credentials: 'omit'
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            lastError = new Error(`HTTP ${res.status}`);
+            continue; // 次のエンドポイントを試す
+          }
+
+          const json = await res.json();
+
+          // ✅ OFF APIのレスポンス構造を確認
+          if (json && json.status === 1 && json.product) {
+            const product = json.product;
+
+            // ✅ 商品名候補（優先順位: product_name_ja → product_name → generic_name_ja → generic_name）
+            let displayName = '';
+            if (product.product_name_ja && product.product_name_ja.trim()) {
+              displayName = product.product_name_ja.trim();
+            } else if (product.product_name && product.product_name.trim()) {
+              displayName = product.product_name.trim();
+            } else if (product.generic_name_ja && product.generic_name_ja.trim()) {
+              displayName = product.generic_name_ja.trim();
+            } else if (product.generic_name && product.generic_name.trim()) {
+              displayName = product.generic_name.trim();
+            }
+
+            // ✅ ブランド（カンマ区切りなら先頭だけ）
+            let brand = '';
+            if (product.brands && product.brands.trim()) {
+              const brands = product.brands.split(',').map(b => b.trim()).filter(b => b.length > 0);
+              brand = brands.length > 0 ? brands[0] : '';
+            }
+
+            // ✅ 画像（image_front_url → image_url）
+            let imageUrl = '';
+            if (product.image_front_url && product.image_front_url.trim()) {
+              imageUrl = product.image_front_url.trim();
+            } else if (product.image_url && product.image_url.trim()) {
+              imageUrl = product.image_url.trim();
+            }
+
+            // ✅ 商品身元情報が1つでも取得できたら成功
+            if (displayName || brand || imageUrl) {
+              // ✅ OFFの使い方ルール：条件チェック
+              let shouldUse = false;
+              let reason = '';
+
+              // ✅ 条件1: 商品名が日本語フィールドで取れる、または日本語が十分含まれる
+              const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(displayName);
+              const isJapaneseField = product.product_name_ja || product.generic_name_ja;
+
+              if (isJapaneseField || (displayName && hasJapanese && displayName.length > 0)) {
+                shouldUse = true;
+                reason = '日本語OK';
+                // ✅ 画像がユーザー投稿っぽい場合は画像を採用しない（商品名のみ）
+                if (isUserUploadImage) {
+                  imageUrl = ''; // 画像をクリア（商品名のみ採用）
+                  reason += '（画像はユーザー投稿のため除外）';
+                }
+              } else {
+                shouldUse = false;
+                reason = '英語名/日本語不足';
+              }
+
+              // ✅ 条件2: 画像が明らかに商品正面（自撮り/ユーザー投稿っぽいのは自動採用しない）
+              // 簡易判定：画像URLに "front" が含まれる、または "image_front_url" が存在する
+              const isFrontImage = imageUrl && (
+                imageUrl.includes('front') || 
+                imageUrl.includes('image_front') ||
+                product.image_front_url
+              );
+              
+              // ✅ 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              // 判定：画像URLに "user" や "upload" が含まれる、または "front" が含まれない場合は疑わしい
+              const isUserUploadImage = imageUrl && (
+                imageUrl.includes('user') || 
+                imageUrl.includes('upload') ||
+                imageUrl.includes('mobile') ||
+                (!isFrontImage && imageUrl.includes('images.openfoodfacts.org'))
+              );
+
+              if (imageUrl && (isUserUploadImage || !isFrontImage)) {
+                // 画像が存在するが、正面画像でない可能性がある、またはユーザー投稿っぽい
+                // ただし、商品名が日本語なら採用（画像は補完として、画像自体は採用しない）
+                if (!shouldUse) {
+                  shouldUse = false;
+                  reason = '画像品質不足（自撮り/棚写真の可能性）';
+                }
+              }
+
+              // ✅ 条件を満たさない場合の挙動
+              if (!shouldUse) {
+                if (isDebug()) {
+                  showToast(`[OFF] 英語/画像品質の理由で採用しない (${reason})`, 5000);
+                  console.log("[OFF] Rejected:", reason, { displayName, brand, imageUrl });
+                } else {
+                  // 通常モードではトースト1回だけでOK（UI追加なし）
+                  showToast(`[OFF] 商品情報の品質が不足のため採用しません`, 3000);
+                }
+                return null; // 自動入力しない
+              }
+
+              // ✅ 条件を満たした場合のみ採用
+              const result = {
+                name: displayName || '',
+                maker: brand || '',
+                imageUrl: imageUrl || ''
+              };
+
+              if (isDebug()) {
+                showToast(`[OFF] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+                console.log("[OFF] Found:", result);
+              }
+
+              return result;
+            }
+          }
+
+          // ✅ status=0 または productが無い場合は次のエンドポイントを試す
+          lastError = new Error('Product not found');
+          continue;
+
+        } catch(e) {
+          lastError = e;
+          if (e.name === 'AbortError') {
+            // タイムアウトの場合は次のエンドポイントを試さない
+            break;
+          }
+          // その他のエラーは次のエンドポイントを試す
+          continue;
+        }
+      }
+
+      // ✅ 全てのエンドポイントで失敗
+      if (isDebug()) {
+        const errorDetail = lastError && lastError.name === 'AbortError' ? 'タイムアウト（12秒）' : (lastError && lastError.message) || 'Product not found';
+        showToast(`[OFF] Miss/Fail → fallback Yahoo normalize (${errorDetail})`, 5000);
+        console.log("[OFF] Failed:", lastError);
+      }
+      return null;
+
+    } catch(e) {
+      // ✅ 予期しないエラー
+      if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[OFF] Error: ${errorDetail} → fallback Yahoo normalize`, 5000);
+        console.error("[OFF] Error:", e);
+      }
+      return null;
+    }
+  }
+
+  // ========= 楽天API（JANコード検索・国内DB第2優先） =========
+  async function lookupRakutenByJan(jan, keyword = null) {
+    try {
+      if (!jan || !/^\d{8,14}$/.test(jan)) {
+        return null;
+      }
+
+      // ✅ デバッグ: 楽天検索開始
+      if (isDebug()) {
+        showToast(`[楽天] Fetching...`, 3000);
+        console.log("[Rakuten] JAN:", jan, "Keyword:", keyword);
+      }
+
+      // ✅ Yahoo Proxy経由で楽天データを取得（action=rakuten）
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          showToast("[楽天] Proxy URL not configured", 5000);
+        }
+        return null;
+      }
+
+      // ✅ リクエストURL（JAN優先、ダメならキーワード）
+      let requestUrl = '';
+      if (jan) {
+        requestUrl = `${proxyUrl}?action=rakuten&jan=${encodeURIComponent(jan)}`;
+      } else if (keyword) {
+        requestUrl = `${proxyUrl}?action=rakuten&keyword=${encodeURIComponent(keyword)}`;
+      } else {
+        return null;
+      }
+
+      // ✅ AbortController+timeout（12秒、Yahooと揃える）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const res = await fetch(requestUrl, {
+        cache: 'no-store',
+        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        // ✅ P0: Proxy側が未実装（404/500等）なら即null返し
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (HTTP ${res.status})`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, HTTP:", res.status);
+        }
+        return null; // 即null返し（無効）
+      }
+
+      const json = await res.json();
+      
+      // ✅ P0: Proxy側が未実装（ok:false等）なら即null返し
+      if (!json || !json.ok) {
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (ok:false)`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, response:", json);
+        }
+        return null; // 即null返し（無効）
+      }
+
+      // ✅ 楽天APIのレスポンス構造を確認
+      if (json && json.ok && json.product) {
+        const product = json.product;
+
+        // ✅ 商品名
+        let displayName = '';
+        if (product.name && product.name.trim()) {
+          displayName = product.name.trim();
+        }
+
+        // ✅ ブランド/メーカー
+        let brand = '';
+        if (product.brand && product.brand.trim()) {
+          brand = product.brand.trim();
+        } else if (product.maker && product.maker.trim()) {
+          brand = product.maker.trim();
+        }
+
+        // ✅ 画像（単品画像を優先）
+        let imageUrl = '';
+        if (product.imageUrl && product.imageUrl.trim()) {
+          imageUrl = product.imageUrl.trim();
+        } else if (product.mediumImageUrl && product.mediumImageUrl.trim()) {
+          imageUrl = product.mediumImageUrl.trim();
+        }
+
+        // ✅ 商品身元情報が1つでも取得できたら成功
+        if (displayName || brand || imageUrl) {
+          // ✅ メーカー名の正規化（汎用関数を使用）
+          brand = normalizeMakerName(brand);
+
+          const result = {
+            name: displayName || '',
+            maker: brand || '',
+            imageUrl: imageUrl || ''
+          };
+
+          if (isDebug()) {
+            showToast(`[楽天] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+            console.log("[Rakuten] Found:", result);
+          }
+
+          return result;
+        }
+      }
+
+      // ✅ 取得失敗
+      if (isDebug()) {
+        showToast(`[楽天] Miss/Fail`, 3000);
+        console.log("[Rakuten] Failed: Product not found");
+      }
+      return null;
+
+    } catch(e) {
+      // ✅ P0: 予期しないエラー（Proxy未実装の可能性）→ 即null返し
+      if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[楽天] Proxy未実装の可能性 (${errorDetail})`, 5000);
+        console.error("[Rakuten] Proxy may not be implemented, error:", e);
+      }
+      return null; // 即null返し（無効）
+    }
+  }
+
+  // ========= Yahoo Shopping API（JANコード検索）with キャッシュ =========
+  async function lookupYahooByJan(jan, forceUpdate = false) {
+    try {
+      // ✅ キャッシュチェック（7日間有効）
+      const cacheKey = `yahoo_cache_${jan}`;
+      const cacheTtl = 7 * 24 * 60 * 60 * 1000; // 7日
+      
+      if (!forceUpdate) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const cacheData = JSON.parse(cached);
+            if (cacheData && cacheData.ts && (Date.now() - cacheData.ts < cacheTtl)) {
+              if (isDebug()) console.log("[YahooSearch] Cache hit:", jan);
+              return cacheData.data || null;
+            }
+          }
+        } catch(e) {
+          // キャッシュ読み込みエラーは無視
+        }
+      }
+      
+      // Config.jsonからYahoo Proxy URLを取得（最優先）
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          showToast("Yahoo検索プロキシURLが設定されていません", 5000);
+        }
+        return null;
+      }
+
+      // ✅ デバッグ: Yahoo検索開始
+      const requestUrl = `${proxyUrl}?jan=${encodeURIComponent(jan)}`;
+      if (isDebug()) {
+        showToast(`[Yahoo] Fetching: ${requestUrl}`, 5000);
+        console.log("[YahooSearch] JAN:", jan, "Proxy URL:", proxyUrl);
+        console.log("[YahooSearch] Request URL:", requestUrl);
+      }
+      
+      // ✅ AbortController+timeout（12秒）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      
+      showToast("Yahoo検索中…", 5000);
+      const res = await fetch(requestUrl, { 
+        cache: 'no-store', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Yahoo] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log("[YahooSearch] HTTP Status:", res.status, res.statusText);
+      }
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      const json = await res.json();
+      
+      if (json && json.name) {
+        const rawResult = {
+          name: json.name || "",
+          maker: json.maker || "",
+          imageUrl: json.imageUrl || ""
+        };
+        
+        // ✅ 商品情報を自動整形（12本1箱問題対応）
+        const result = normalizeYahooProductInfo(rawResult);
+        
+        // ✅ キャッシュに保存（整形後）
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            ts: Date.now(),
+            data: result
+          }));
+        } catch(e) {
+          // キャッシュ保存エラーは無視
+        }
+        
+        if (isDebug()) {
+          console.log("[YahooSearch] Found:", json.name);
+          if (result.packHint) {
+            showToast('[Yahoo] まとめ買い商品を検出しました', 3000);
+          }
+        }
+        return result;
+      }
+      return null;
+    } catch(e) {
+      // ✅ デバッグ: エラー詳細表示
+      if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[Yahoo] Error: ${errorDetail}`, 8000);
+        console.error("[YahooSearch] Error:", e);
+        console.error("[YahooSearch] Error name:", e.name);
+        console.error("[YahooSearch] Error stack:", e.stack);
+      } else {
+        showToast(`Yahoo検索失敗: ${e.name === 'AbortError' ? 'タイムアウト' : '通信エラー'}`, 5000);
+      }
+      return null;
+    }
+  }
+
+  // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
+  async function fetchNearbyStores() {
+    try {
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          console.log('[FetchStores] Proxy URL not configured');
+          showToast('Yahoo Proxy URLが設定されていません', 10000);
+        }
+        return [];
+      }
+
+      // 優先順位1: GPS座標（curPos）
+      if (isGpsOn && curPos && curPos.lat && curPos.lng) {
+        const radiusKm = 5; // GPS時は5km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&lat=${curPos.lat}&lng=${curPos.lng}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] GPS mode:', requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
+        }
+        return [];
+      }
+
+      // 優先順位2: 生活圏（area）
+      const area = (db && db.config && db.config.homeCity) ? String(db.config.homeCity).trim() : '';
+      if (area) {
+        const radiusKm = 15; // area時は15km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&area=${encodeURIComponent(area)}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] Area mode:', area, requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
+        } else if (json && !json.ok) {
+          // エラー時（例：使用できないアドレス）
+          if (isDebug()) {
+            console.log('[FetchStores] Area failed:', json.error || 'unknown');
+            showToast('店舗検索失敗: ' + (json.error || 'unknown'), 10000);
+          }
+          // GPSへのフォールバックは、すでに上で試しているので、ここでは空配列を返す
+          return [];
+        }
+        return [];
+      }
+
+      // GPS/areaどちらもない場合
+      if (isDebug()) console.log('[FetchStores] No GPS or area configured');
+      return [];
+
+    } catch(e) {
+      if (isDebug()) {
+        console.error('[FetchStores] Error:', e);
+      }
+      return [];
+    }
+  }
+
+  function startScanner() {
+    if(isScanning) {
+      if (isDebug()) {
+        console.log("[Scanner] Already scanning, skip");
+      }
+      return;
+    }
+    
+    // ✅ P0: Html5Qrcodeライブラリの読み込み確認
+    if (typeof Html5Qrcode === 'undefined') {
+      const errorMsg = "バーコードスキャンライブラリが読み込まれていません。ページを再読み込みしてください。";
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Html5Qrcode library not loaded");
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
+    isScanning = true;
+    document.getElementById('camera-area').style.display='block';
+    // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
+    if (isDebug()) {
+      showToast("カメラ起動中…", 2000);
+      console.log("[Scanner] Starting scanner...");
+    }
+    
+    try {
+      if(!scanner) {
+        scanner = new Html5Qrcode("interactive");
+        if (isDebug()) {
+          console.log("[Scanner] Html5Qrcode instance created");
+        }
+      }
+    } catch(e) {
+      isScanning = false;
+      document.getElementById('camera-area').style.display='none';
+      const errorMsg = `スキャナーの初期化に失敗しました: ${e.message || e}`;
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Initialization error:", e);
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
+    // ✅ P0: カメラのピント問題対応
+    // ✅ getUserMedia は最初は安全に取得（落ちにくい条件）
+    const cameraConfig = {
+      facingMode: "environment", // 背面カメラ固定
+      width: { ideal: 1920, min: 1280 }, // 解像度：ideal 1920×1080（最低1280×720）
+      height: { ideal: 1080, min: 720 },
+      aspectRatio: { ideal: 16/9 }
+    };
+    
+    // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
+    scanner.start(cameraConfig, {
+      fps: 15,
+      qrbox: {width: 280, height: 180}, // ROI内だけの検出を確実にする
+      aspectRatio: 1.0, // 正方形に近い形状で精度向上
+      disableFlip: false // フリップを有効にして検出精度向上
+    }, async (t)=> {
+      showToast("読み取りOK", 1500);
+      
+      // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
+      try {
+        const videoElement = document.querySelector('#interactive video');
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject;
+          const track = stream.getVideoTracks()[0];
+          if (track) {
+            // ✅ track.getCapabilities() で端末の対応状況を確認
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            const settings = track.getSettings ? track.getSettings() : {};
+            
+            // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
+            if (capabilities.torch && capabilities.torch.length > 0) {
+              try {
+                // 簡易的な明るさ判定（環境光センサーがない場合の代替）
+                // 実際の実装では、より高度な判定が必要な場合がある
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                // より確実な方法：明るさが低いと判断した場合のみ点灯
+                // ここでは、ユーザーが明示的に要求しない限り、自動点灯は控えめに
+                // 将来的には、実際の環境光センサーやカメラの明るさ情報を使用可能
+                if (isDebug()) {
+                  console.log("[Camera] torch capability available:", capabilities.torch);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  console.log("[Camera] torch check error:", e);
+                }
+              }
+            }
+            
+            // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+            // getCapabilities() を見て、対応端末は focusMode=continuous を優先
+            const constraints = [];
+            
+            // ✅ focusMode: continuous（連続オートフォーカス優先）
+            if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else {
+              // 対応していない場合は manual を試す（フォールバック）
+              if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
+                  (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
+                constraints.push({ focusMode: "manual" });
+              }
+            }
+            
+            // ✅ exposureMode: continuous（連続露出調整）
+            if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            }
+            
+            // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
+            if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            }
+            
+            // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
+            if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
+              constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
+            }
+            
+            for (let i = 0; i < constraints.length; i++) {
+              try {
+                await track.applyConstraints({ advanced: [constraints[i]] });
+                if (isDebug()) {
+                  const constraintName = Object.keys(constraints[i])[0];
+                  showToast(`[Camera] Constraint ${i+1} OK: ${constraintName}`, 2000);
+                  console.log("[Camera] Applied constraint:", constraints[i]);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  const constraintName = Object.keys(constraints[i])[0];
+                  console.log(`[Camera] Constraint ${i+1} failed: ${constraintName}`, e.message);
+                }
+                // 失敗しても継続
+              }
+            }
+          }
+        }
+      } catch(e) {
+        if (isDebug()) {
+          console.log("[Camera] applyConstraints error:", e);
+        }
+        // エラーは握りつぶして継続
+      }
+      
+      await stopScanner();
+      
+      // ✅ 共通処理へ（手入力と同じ）
+      await processBarcodeData(t);
+    }).catch((err) => {
+      // ✅ P0: スキャナー起動失敗時の詳細なエラーハンドリング
+      let errorMsg = "起動失敗";
+      let errorDetail = "";
+      
+      if (err) {
+        if (err instanceof Error) {
+          errorMsg = err.message || "起動失敗";
+          errorDetail = err.name || "";
+          if (err.stack) {
+            console.error("[Scanner] Error stack:", err.stack);
+          }
+        } else if (typeof err === 'string') {
+          errorMsg = err;
+        } else {
+          errorMsg = JSON.stringify(err) || "起動失敗";
+        }
+      }
+      
+      // エラーメッセージの詳細化
+      if (errorMsg.includes('NotAllowedError') || errorMsg.includes('Permission denied')) {
+        errorMsg = "カメラへのアクセスが拒否されました。ブラウザの設定でカメラの許可を確認してください。";
+      } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('No camera found')) {
+        errorMsg = "カメラが見つかりません。カメラが接続されているか確認してください。";
+      } else if (errorMsg.includes('NotReadableError') || errorMsg.includes('Could not start video source')) {
+        errorMsg = "カメラが使用中です。他のアプリでカメラを使用していないか確認してください。";
+      } else if (errorMsg.includes('OverconstrainedError') || errorMsg.includes('constraint')) {
+        errorMsg = "カメラの設定が端末に対応していません。";
+      }
+      
+      const fullErrorMsg = errorDetail ? `${errorDetail}: ${errorMsg}` : errorMsg;
+      
+      if (isDebug()) {
+        showToast(`[Scanner起動失敗] ${fullErrorMsg}`, 10000);
+        console.error("[Scanner] Start failed:", {
+          error: err,
+          message: errorMsg,
+          detail: errorDetail,
+          stack: err instanceof Error ? err.stack : ''
+        });
+      } else {
+        showToast(`起動失敗: ${errorMsg}`, 8000);
+      }
+      
+      stopScanner();
+    });
+  }
+
+  async function stopScanner() {
+    if(scanner) {
+      try { await scanner.stop(); } catch(e) {}
+      finally { document.getElementById('camera-area').style.display='none'; isScanning = false; }
+    } else {
+      document.getElementById('camera-area').style.display='none'; isScanning = false;
+    }
+  }
+
+  function showHome() {
+    document.getElementById('mainView').style.display='block';
+    document.getElementById('formView').style.display='none';
+    renderHistory();
+    renderStoreList();
+    tempImgData = null;
+    editingHistIdx = null;
+  }
+
+  async function showVeggieMenu() {
+    showToast('バーコードの下にある「13桁の数字」を入れてね', 6000);
+
+    const raw = await customPrompt('商品コード（バーコード下の13桁）');
+    if (!raw) return;
+
+    const code = String(raw).replace(/\D/g, '').slice(0, 13);
+    if (code.length !== 13) {
+      showToast('13桁の数字だけ入れてね（例：490xxxxxxxxxx）', 8000);
+      return;
+    }
+
+    showToast('OK。商品コードで探してみるね…', 2500);
+
+    // ✅ スキャン成功時と同じ処理へ渡す
+    manualBarcodeEntry(code);
+  }
+
+  // ✅ 商品名の正規化（統合判定用）
+  function normalizeProductName(name, maker) {
+    const n = String(name || '').trim().toLowerCase().replace(/\s+/g, '');
+    const m = String(maker || '').trim().toLowerCase().replace(/\s+/g, '');
+    return `${n}|${m}`;
+  }
+
+  // ✅ M_商品とJANの自動統合（起動時・Yahoo成功に依存しない）
+  function migrateMergeManualToJan() {
+    if (!db || !db.products) return;
+    
+    let mergedCount = 0;
+    const manualKeys = Object.keys(db.products).filter(k => k.startsWith('M_'));
+    const janKeys = Object.keys(db.products).filter(k => /^\d{8,14}$/.test(k));
+    
+    manualKeys.forEach(mKey => {
+      const mp = db.products[mKey];
+      if (!mp || !mp.name) return;
+      
+      const mNormalized = normalizeProductName(mp.name, mp.maker);
+      if (!mNormalized || mNormalized === '|') return;
+      
+      // 同一商品のJANを探す
+      const matchedJan = janKeys.find(jKey => {
+        const jp = db.products[jKey];
+        if (!jp || !jp.name) return false;
+        const jNormalized = normalizeProductName(jp.name, jp.maker);
+        return jNormalized === mNormalized;
+      });
+      
+      if (matchedJan) {
+        const jp = db.products[matchedJan];
+        
+        // history をマージ
+        if (Array.isArray(mp.history) && mp.history.length > 0) {
+          jp.history = [...(jp.history || []), ...mp.history];
+          // タイムスタンプでソート
+          jp.history.sort((a, b) => histTs(a) - histTs(b));
+        }
+        
+        // imageKey をマージ
+        if (mp.imageKey && !jp.imageKey) {
+          jp.imageKey = mp.imageKey;
+        }
+        
+        // imageUrl をマージ
+        if (mp.imageUrl && !jp.imageUrl) {
+          jp.imageUrl = mp.imageUrl;
+        }
+        
+        // M_商品を削除
+        delete db.products[mKey];
+        mergedCount++;
+        
+        if (isDebug()) console.log('[Migrate] Merged:', mKey, '→', matchedJan);
+      }
+    });
+    
+    if (mergedCount > 0) {
+      saveLocalOnly();
+      if (isDebug()) console.log('[Migrate] Total merged:', mergedCount);
+    }
+  }
+
+  // ✅ バーコードデータ処理（スキャン/手入力共通）with OFF優先 + dirtyフラグ保護 + P0タイムラグ対策
+  async function processBarcodeData(code) {
+    const jan = code.trim();
+    
+    // ✅ P0: 同一JANの二重発火を止める（連続読取り対策）
+    if (jan && processBarcodeInFlight.has(jan)) {
+      if (isDebug()) {
+        console.log("[ProcessBarcode] Already in flight, skip:", jan);
+        showToast("既に処理中です", 2000);
+      }
+      return;
+    }
+    
+    // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      const now = Date.now();
+      const lastTime = janCoolDown.get(jan);
+      if (lastTime && (now - lastTime) < 1000) { // 1秒以内（0.8〜1.2秒の中央値）
+        if (isDebug()) {
+          console.log("[ProcessBarcode] Cool down, skip:", jan, "last:", lastTime, "now:", now);
+          showToast("同じコードを検出しました（クールダウン中）", 1500);
+        }
+        return;
+      }
+      janCoolDown.set(jan, now);
+      // ✅ 古いクールダウン記録をクリーンアップ（5秒以上経過したものは削除）
+      for (const [key, time] of janCoolDown.entries()) {
+        if (now - time > 5000) {
+          janCoolDown.delete(key);
+        }
+      }
+    }
+    
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      processBarcodeInFlight.add(jan);
+    }
+    
+    curBarcode = code; // ✅ 先にセット（取得前）
+    
+    // ✅ P0: 対策A: openForm を先に出す（読めた瞬間に画面を動かす）
+    openForm(code);
+    
+    // ✅ P0: JAN表示・取得中トースト・入力欄を触れる状態にする
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      showToast(`JAN: ${jan}`, 2000);
+      // ✅ 対策A: 「取得中…」表示
+      const nameInput = document.getElementById('inputName');
+      const makerInput = document.getElementById('inputMaker');
+      const originalPlaceholder = nameInput ? nameInput.placeholder : '';
+      
+      // ✅ dirtyフラグ: openForm直後の値を記録
+      const nameAtStart = nameInput ? nameInput.value : '';
+      const makerAtStart = makerInput ? makerInput.value : '';
+      
+      if (nameInput && !nameAtStart) {
+        nameInput.placeholder = '商品情報を取得中…';
+      }
+      
+      try {
+          const p = db.products[jan] || { history: [] };
+        let yahooInfo = null;
+        let rakutenInfo = null;
+        let offInfo = null;
+        let finalInfo = { name: '', maker: '', imageUrl: '' };
+        let sourceUsed = 'none'; // デバッグ用：どのソースを採用したか
+
+        // ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
+        // ✅ 優先順位1: Yahoo最優先（商品身元情報＋価格情報）
+        yahooInfo = await lookupYahooByJan(jan);
+        
+        if (yahooInfo) {
+          // ✅ 品質スコアで採用を絞る（Yahooのスコア判定）
+          const yahooTrustScore = yahooInfo.trustScore || 100;
+          const yahooPackHint = yahooInfo.packHint || false;
+          
+          // ✅ Yahooが微妙（スコア低い）なら楽天を採用する
+          if (yahooTrustScore < 70 || (yahooPackHint && yahooTrustScore < 80)) {
+            // Yahooのスコアが低い場合は楽天を優先検討
+            if (isDebug()) {
+              showToast(`[Yahoo] スコア低 (${yahooTrustScore}) → 楽天検討`, 3000);
+            }
+          } else {
+            // ✅ Yahooで商品身元情報を埋める（スコアが十分な場合）
+            finalInfo.name = yahooInfo.name || '';
+            finalInfo.maker = yahooInfo.maker || '';
+            finalInfo.imageUrl = yahooInfo.imageUrl || '';
+            sourceUsed = 'yahoo';
+
+            // ✅ P0: Yahoo取得→整形→段階更新（先に仮反映）
+            const currentJanCheck = String(curBarcode || '').trim();
+            if (currentJanCheck === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
+
+            // ✅ デバッグ: Yahoo取得成功
+            if (isDebug()) {
+              showToast(`[Yahoo] OK (スコア:${yahooTrustScore})`, 3000);
+            }
+          }
+
+          // ✅ Yahoo結果が弱い/空、またはスコアが低い場合は楽天で補完
+          const yahooWeak = !finalInfo.name || !finalInfo.maker || !finalInfo.imageUrl || yahooTrustScore < 70;
+          if (yahooWeak) {
+            // ✅ 優先順位2: 楽天（国内DB第2優先）
+            rakutenInfo = await lookupRakutenByJan(jan);
+            
+            if (rakutenInfo) {
+              // ✅ 不足している項目だけ補完（上書きしない）
+              if (!finalInfo.name && rakutenInfo.name) {
+                finalInfo.name = rakutenInfo.name;
+                sourceUsed = 'yahoo+rakuten';
+              }
+              if (!finalInfo.maker && rakutenInfo.maker) {
+                finalInfo.maker = rakutenInfo.maker;
+                sourceUsed = 'yahoo+rakuten';
+              }
+              // ✅ 画像がケース画像っぽい→楽天の単品画像があれば差し替え（スコアを下げる）
+              if ((yahooInfo.packHint || yahooInfo.isCase) && rakutenInfo.imageUrl) {
+                finalInfo.imageUrl = rakutenInfo.imageUrl;
+                sourceUsed = 'yahoo+rakuten';
+                if (isDebug()) {
+                  showToast(`[楽天] ケース画像→単品画像に差し替え`, 3000);
+                }
+              } else if (!finalInfo.imageUrl && rakutenInfo.imageUrl) {
+                finalInfo.imageUrl = rakutenInfo.imageUrl;
+                sourceUsed = 'yahoo+rakuten';
+              }
+
+              // ✅ P0: 楽天取得→段階更新（不足項目だけ補完）
+              const currentJanCheck2 = String(curBarcode || '').trim();
+              if (currentJanCheck2 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
+              if (isDebug()) {
+                showToast(`[楽天] 補完OK`, 3000);
+              }
+            }
+          }
+        } else {
+          // ✅ Yahooが未取得の場合
+          // ✅ 優先順位2: 楽天（国内DB第2優先）
+          rakutenInfo = await lookupRakutenByJan(jan);
+          
+          if (rakutenInfo) {
+            // ✅ 楽天で商品身元情報を埋める
+            finalInfo.name = rakutenInfo.name || '';
+            finalInfo.maker = rakutenInfo.maker || '';
+            finalInfo.imageUrl = rakutenInfo.imageUrl || '';
+            sourceUsed = 'rakuten';
+
+            // ✅ P0: 楽天取得→段階更新（先に仮反映）
+            const currentJanCheck3 = String(curBarcode || '').trim();
+            if (currentJanCheck3 === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
+          } else {
+            // ✅ Yahooも楽天も未取得の場合のみ、OFFを使用（第3優先）
+            // ✅ OFFを使う条件: Yahooも楽天も「未取得」または「整形後も不自然」
+            offInfo = await lookupOffByJan(jan);
+            
+            if (offInfo) {
+              // ✅ OFFで商品身元情報を埋める（条件チェック済み・最終補助）
+              // OFFは「タイトル確定」ではなく、カテゴリ・成分・補助画像の穴埋めに寄せる（主役にしない）
+              // 日本語名がある、または日本向けデータっぽい時だけ採用
+              // 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              if (offInfo.name && offInfo.name.trim()) {
+                // 既にYahoo/楽天で名前が取れている場合は上書きしない（補助として使う）
+                if (!finalInfo.name || finalInfo.name.trim().length < 3) {
+                  finalInfo.name = offInfo.name;
+                  sourceUsed = 'off';
+                }
+              }
+              if (offInfo.maker && offInfo.maker.trim() && !finalInfo.maker) {
+                finalInfo.maker = offInfo.maker;
+                if (sourceUsed === 'none') sourceUsed = 'off';
+              }
+              // 画像は最後の手段（自撮り/ユーザー投稿っぽい場合は採用しない）
+              if (offInfo.imageUrl && offInfo.imageUrl.trim() && !finalInfo.imageUrl) {
+                // 画像URLに "front" が含まれる、または明らかに商品正面画像の場合のみ採用
+                if (offInfo.imageUrl.includes('front') || offInfo.imageUrl.includes('image_front')) {
+                  finalInfo.imageUrl = offInfo.imageUrl;
+                  if (sourceUsed === 'none') sourceUsed = 'off';
+                }
+              }
+
+              // ✅ P0: OFF取得→段階更新（最後の補助）
+              const currentJanCheck4 = String(curBarcode || '').trim();
+              if (currentJanCheck4 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
+              if (isDebug() && sourceUsed === 'off') {
+                showToast(`[OFF] 最終補助として採用`, 3000);
+              }
+            }
+          }
+        }
+
+        // ✅ P0: 古い結果の上書き防止（現在のJANと一致する時だけ反映）
+        const currentJan = String(curBarcode || '').trim();
+        if (currentJan !== jan) {
+          if (isDebug()) {
+            console.log("[ProcessBarcode] JAN mismatch, skip update:", currentJan, "!=", jan);
+            showToast("処理がキャンセルされました", 2000);
+          }
+          processBarcodeInFlight.delete(jan);
+          return; // 古い結果は反映しない
+        }
+
+        // ✅ デバッグ: どのソースを採用したか
+        if (isDebug()) {
+          showToast(`[採用] ${sourceUsed}`, 3000);
+          console.log("[ProcessBarcode] Source used:", sourceUsed, { yahooInfo, rakutenInfo, offInfo });
+        }
+
+        // ✅ 商品情報をDBに保存（finalInfoを使用）
+        if (finalInfo.name && (!p.name || !p.name.trim())) {
+          p.name = finalInfo.name;
+        }
+        if (finalInfo.maker && (!p.maker || !p.maker.trim())) {
+          p.maker = finalInfo.maker;
+        }
+        if (finalInfo.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
+          p.imageUrl = finalInfo.imageUrl;
+          }
+          
+          // ✅ 既存の M_ 商品（手入力由来）と統合
+        if (finalInfo.name || finalInfo.maker) {
+          const normalized = normalizeProductName(finalInfo.name, finalInfo.maker);
+          Object.keys(db.products || {}).forEach(key => {
+            if (key.startsWith('M_') && key !== jan) {
+              const mp = db.products[key];
+              if (!mp) return;
+              const mNormalized = normalizeProductName(mp.name, mp.maker);
+              if (mNormalized === normalized) {
+                // 統合：history と imageKey をマージ
+                if (Array.isArray(mp.history) && mp.history.length > 0) {
+                  p.history = [...(p.history || []), ...mp.history];
+                }
+                if (mp.imageKey && !p.imageKey) {
+                  p.imageKey = mp.imageKey;
+                }
+                if (mp.imageUrl && !p.imageUrl) {
+                  p.imageUrl = mp.imageUrl;
+                }
+                // M_ 商品を削除
+                delete db.products[key];
+                if (isDebug()) console.log('[Merge] M_ product merged:', key, '→', jan);
+              }
+            }
+          });
+        }
+          
+          db.products[jan] = p;
+          saveLocalOnly();
+        
+        // ✅ dirtyフラグで保護: ユーザーが入力し始めていたら上書きしない
+        if (nameInput) {
+          const nameNow = nameInput.value || '';
+          // 開始時と変わっていなければ（ユーザーが入力していない）自動反映
+          if (nameNow === nameAtStart && finalInfo.name) {
+            nameInput.value = finalInfo.name;
+          } else if (nameNow !== nameAtStart) {
+            if (isDebug()) console.log('[ProcessBarcode] Name dirty, skip auto-fill');
+          }
+          nameInput.placeholder = originalPlaceholder;
+        }
+        
+        if (makerInput) {
+          const makerNow = makerInput.value || '';
+          // 開始時と変わっていなければ（ユーザーが入力していない）自動反映
+          if (makerNow === makerAtStart && finalInfo.maker) {
+            makerInput.value = finalInfo.maker;
+          } else if (makerNow !== makerAtStart) {
+            if (isDebug()) console.log('[ProcessBarcode] Maker dirty, skip auto-fill');
+          }
+        }
+        
+        if (offInfo || yahooInfo) {
+          showToast("商品情報を取得しました", 3000);
+        }
+        
+        // ✅ 画像も更新（既存のopenForm処理と統合）
+        const prevImg = document.getElementById('previewImg');
+        if (prevImg && finalInfo.imageUrl) {
+          prevImg.src = finalInfo.imageUrl;
+        }
+      } catch(e) {
+        if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+        // エラー時もplaceholderを戻す
+        if (nameInput) {
+          nameInput.placeholder = originalPlaceholder;
+        }
+      } finally {
+        // ✅ P0: 処理完了時にフラグを解除
+        if (jan && /^\d{8,14}$/.test(jan)) {
+          processBarcodeInFlight.delete(jan);
+        }
+      }
+    } else {
+      // ✅ JANが無効な場合もフラグを解除
+      if (jan) {
+        processBarcodeInFlight.delete(jan);
+      }
+    }
+  }
+
+  // ✅ 手入力バーコード処理（共通関数を呼ぶ）
+  async function manualBarcodeEntry(code) {
+    try {
+      await processBarcodeData(code);
+    } catch(e) {
+      if (isDebug()) console.warn('[manualBarcodeEntry]', e);
+      showToast('読み込みに失敗したみたい。もう一度やってみてね', 8000);
+    }
+  }
+
+  function setupFocusGuides() {
+    const gs = { 'inputName': "例：コーラ 500ml", 'inputPrice': "価格を入力" };
+    Object.keys(gs).forEach(id => {
+      const el=document.getElementById(id);
+      if(el) el.onfocus = () => showToast(gs[id], 1500);
+    });
+  }
+
+  // ✅ 検索ボタン：商品コード＋商品名で画像検索を開く
+  function searchImageWeb() {
+    const name = (document.getElementById('inputName')?.value || '').trim();
+    const code = String(curBarcode || '').trim();
+
+    const q = (code && name) ? `${code} ${name}` : (code || name);
+    if (!q) {
+      showToast('商品コード（13桁）か商品名を入れてね', 6000);
+      return;
+    }
+
+    const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`;
+    window.open(url, '_blank', 'noopener');
+    showToast('画像検索を開いたよ。画像を保存して「フォルダ」から選んでね', 7000);
+  }
+
+  // ✅ 画像をアップロード（SNS共有用：Firebaseに保存）
+  async function handleImage(input) {
+    if (!input || !input.files || !input.files[0]) {
+      return;
+    }
+    const file = input.files[0];
+    showToast("画像を処理中…", 2000);
+
+    try {
+      // ✅ 画像を縮小（サイズ制限対策・EXIF削除）
+      const blob = await fileToThumbBlob(file, 512, 0.85); // 最大512px、品質85%
+      if (!blob) {
+        showToast("画像の読み込みに失敗しました", 8000);
+        return;
+      }
+
+      // プレビュー表示
+      const prev = document.getElementById('previewImg');
+      if (prev) {
+        try {
+          const url = URL.createObjectURL(blob);
+          prev.src = url;
+          prev.referrerPolicy = "no-referrer";
+        } catch(e) {
+          console.warn('[Image] createObjectURL failed:', e);
+        }
+      }
+
+      // ✅ Firebaseにアップロード（SNS共有）
+      if (fbUrl && curBarcode) {
+        showToast("画像を共有中…", 3000);
+        try {
+          const { imageId } = await uploadImageToFirebase(curBarcode, blob);
+          tempImgData = { type:'shared', imageId, blob };
+          showToast("画像を共有しました", 3000);
+        } catch(e) {
+          showToast(`共有失敗: ${e.message || '不明なエラー'}`, 8000);
+          // 共有失敗時も端末内に保存（フォールバック）
+          const key = `img_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          const ok = await idbPut(key, blob);
+          if (ok) {
+            tempImgData = { type:'key', key };
+            showToast("端末内に保存しました（共有は失敗）", 5000);
+          }
+        }
+      } else {
+        // Firebase未設定時は端末内のみ保存
+        const key = `img_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const ok = await idbPut(key, blob);
+        if (!ok) {
+          showToast("端末の画像保存に失敗しました（設定/容量を確認）", 10000);
+          return;
+        }
+        tempImgData = { type:'key', key };
+        showToast("画像を端末内に保存しました", 5000);
+      }
+    } catch(e) {
+      showToast(`画像処理エラー: ${e.message || '不明なエラー'}`, 8000);
+      if (isDebug()) console.error('[handleImage]', e);
+    }
+  }
+
+  function customPrompt(msg, def = "") {
+    return new Promise(res => {
+      document.getElementById('dialogMsg').innerText = msg;
+      document.getElementById('dialogInputArea').style.display="block";
+      const i = document.getElementById('dialogInput');
+      i.value = def;
+      document.getElementById('dialogCancel').style.display="block";
+      document.getElementById('dialogModal').style.display="flex";
+      document.getElementById('dialogOk').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(i.value); };
+      document.getElementById('dialogCancel').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(null); };
+    });
+  }
+
+  function customConfirm(msg) {
+    return new Promise(res => {
+      document.getElementById('dialogMsg').innerText = msg;
+      document.getElementById('dialogInputArea').style.display="none";
+      document.getElementById('dialogCancel').style.display="block";
+      document.getElementById('dialogModal').style.display="flex";
+      document.getElementById('dialogOk').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(true); };
+      document.getElementById('dialogCancel').onclick = () => { document.getElementById('dialogModal').style.display="none"; res(false); };
+    });
+  }
+
+  async function confirmDeleteHist() {
+    if(editingHistIdx === null) return;
+    const ok = await customConfirm("この履歴を削除しますか？");
+    if(!ok) return;
+    db.products[curBarcode].history.splice(editingHistIdx, 1);
+    saveLocalOnly();
+    syncFirebasePut();
+    showHome();
+  }
+
+  // ========= Settings / Sync =========
+  async function startMigration() {
+    const btn = document.getElementById('syncBtn');
+    const urlEl = document.getElementById('fb-url-input');
+    const cityEl = document.getElementById('home-city-input');
+
+    const u = (urlEl ? urlEl.value : '').trim();
+    const cityInput = (cityEl ? cityEl.value : '').trim();
+
+    if (btn) { btn.disabled = true; btn.innerText = "同期中…"; }
+    showToast("同期を開始…", 3000);
+    activeSyncController = new AbortController();
+
+    try {
+      db.config.homeCity = cityInput;
+      db = normalizeDb(db);
+      saveLocalOnly();
+
+      if(!u) {
+        showToast("ローカル保存完了", 3000);
+        closeSettings(); showHome();
+        return;
+      }
+
+      const targetUrl = getSafeUrl(u);
+
+      // ✅ PUT前にクラウドを読み、マージしてから送る（端末間の取りこぼし減、画像情報も保護）
+      try {
+        const res0 = await fetchWithTimeout(targetUrl, { signal: activeSyncController.signal }, 9000);
+        const cloud0 = await res0.json();
+        if (cloud0 && cloud0.products) {
+          db = mergeDb(db, cloud0); // ✅ マージ方式で画像情報が消えない
+          saveLocalOnly();
+        }
+      } catch(e) {
+        // 読めなくても続行
+      }
+
+      // PUT（画像は送らない）
+      const payload = stripForCloud(db);
+      await fetchWithTimeout(targetUrl, {
+        method: 'PUT',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: activeSyncController.signal
+      }, 12000);
+
+      // ✅ 成功後：GETで読み直し（Edgeの空表示対策、マージ方式で画像が消えない）
+      fbUrl = u; // let なのでOK
+      localStorage.setItem('smartPriceFirebaseUrl', u);
+      await syncFirebase(); // ✅ マージ方式
+
+      showToast("同期成功！", 3000);
+      closeSettings(); showHome();
+
+    } catch(e) {
+      const msg = (e.name === 'AbortError') ? "タイムアウト/中断" : e.message;
+      showToast(`同期失敗（${msg}）`, 10000);
+    } finally {
+      activeSyncController = null;
+      resetSyncBtn();
+    }
+  }
+
+  function openSettings() {
+    try {
+      db = normalizeDb(db);
+      resetSyncBtn();
+      const modal = document.getElementById('settingsModal');
+      if(!modal) { showToast('設定画面を開けません', 8000); return; }
+      modal.style.display = 'flex';
+      const urlInput = document.getElementById('fb-url-input');
+      if(urlInput) urlInput.value = fbUrl;
+      const cityInput = document.getElementById('home-city-input');
+      if(cityInput) cityInput.value = db.config.homeCity || '';
+      renderCityChips();
+      
+      // ✅ デバッグモード時のみバックアップボタンを表示
+      const backupButtons = document.getElementById('debugBackupButtons');
+      if (backupButtons) {
+        backupButtons.style.display = isDebug() ? 'block' : 'none';
+      }
+    } catch(e) {
+      showToast('設定画面エラー', 8000);
+    }
+  }
+
+  function closeSettings() {
+    const modal = document.getElementById('settingsModal');
+    if(modal) modal.style.display = 'none';
+  }
+
+  function renderCityChips() {
+    const chipArea = document.getElementById('city-history-chips');
+    if(!chipArea) return;
+    chipArea.innerHTML = "";
+    db = normalizeDb(db);
+    const cities = Array.isArray(db.config.homeCities) ? db.config.homeCities : [];
+    cities.forEach(city => {
+      if(typeof city !== 'string' || !city.trim()) return;
+      const chip = document.createElement('span');
+      chip.className = 'city-chip';
+      chip.innerText = city;
+      chip.onclick = () => {
+        const inp = document.getElementById('home-city-input');
+        if(inp) inp.value = city;
+        showToast(`${city}を選択`, 1500);
+      };
+      chipArea.appendChild(chip);
+    });
+  }
+
+  // ✅ P0: 現在のlocationに自動追従するURL生成
+  function buildBaseUrl() {
+    let pathname = location.pathname;
+    // index.htmlで終わる場合はファイル名を外す
+    if (pathname.endsWith('/index.html') || pathname.endsWith('index.html')) {
+      pathname = pathname.replace(/\/?index\.html$/, '');
+    }
+    // 最後のスラッシュを削除（ただしルートの場合は残す）
+    pathname = pathname.replace(/\/+$/, '') || '/';
+    return location.origin + pathname;
+  }
+  
+  function buildUrl(withDebug=false) {
+    // ✅ 検証URLは必ず/dev/を明示（/dev/ or /）
+    let basePath = '/dev/';
+    if (location.pathname.includes('/dev/')) {
+      basePath = '/dev/';
+    } else if (location.pathname.includes('/patch/')) {
+      basePath = location.pathname; // patch/YYYY-MM-DD/をそのまま使用
+    } else {
+      basePath = '/'; // ルートの場合
+    }
+    
+    const base = location.origin + basePath;
+    
+    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
+    const currentParams = new URLSearchParams(location.search);
+    const buildParam = currentParams.get('b') || BUILD_ID;
+    
+    // URLを組み立て
+    let url = base;
+    if (buildParam) {
+      url += (basePath.endsWith('/') ? '' : '/') + `?b=${encodeURIComponent(buildParam)}`;
+    }
+    
+    // デバッグURLだけに &debug=1 を付ける
+    if (withDebug) {
+      url += (buildParam ? '&' : '?') + 'debug=1';
+    }
+    
+    return url;
+  }
+
+  function openWebModal() {
+    const m = document.getElementById('webModal');
+    if(!m) return;
+    const n = document.getElementById('webUrlNormal');
+    const d = document.getElementById('webUrlDebug');
+    if(n) n.value = buildUrl(false);
+    if(d) d.value = buildUrl(true);
+    
+    // ✅ 現在のパスを表示（/dev/ or /）
+    const pathDisplay = document.getElementById('current-path-text');
+    if (pathDisplay) {
+      let currentPath = '/';
+      if (location.pathname.includes('/dev/')) {
+        currentPath = '/dev/';
+      } else if (location.pathname.includes('/patch/')) {
+        currentPath = location.pathname.replace(/\/[^\/]*$/, '') + '/'; // patch/YYYY-MM-DD/まで
+      } else {
+        currentPath = '/';
+      }
+      pathDisplay.textContent = currentPath;
+    }
+    
+    // ✅ PWAインストールボタンの表示制御
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+      if (deferredPrompt) {
+        installBtn.style.display = 'block';
+      } else {
+        installBtn.style.display = 'none';
+      }
+    }
+    
+    m.style.display = "flex";
+  }
+  function closeWebModal() {
+    const m = document.getElementById('webModal');
+    if(m) m.style.display = "none";
+  }
+  
+  // ✅ PWAインストール実行
+  async function installPWA() {
+    if (!deferredPrompt) {
+      showToast('インストール準備ができていません', 3000);
+      return;
+    }
+    
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        showToast('インストールが開始されました！', 3000);
+      } else {
+        showToast('インストールがキャンセルされました', 3000);
+      }
+      
+      deferredPrompt = null;
+      const installBtn = document.getElementById('pwaInstallBtn');
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    } catch(e) {
+      if (isDebug()) console.error('[PWA] Install failed:', e);
+      showToast('インストールに失敗しました', 3000);
+    }
+  }
+  async function copyUrl(id) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const text = el.value || "";
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("コピーしました", 2000);
+    } catch(e) {
+      el.focus(); el.select();
+      try { document.execCommand('copy'); showToast("コピーしました", 2000); }
+      catch(e2) { showToast("コピーできませんでした", 8000); }
+    }
+  }
+  function openUrlFromBox(id) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const text = el.value || "";
+    window.open(text, "_blank", "noopener");
+  }
+
+  // ========= バックアップ機能（&debug=1時のみ） =========
+  
+  // ✅ バックアップ出力（データ＋画像をファイルとして保存）
+  async function exportBackup() {
+    if (!isDebug()) return;
+    
+    try {
+      showToast("バックアップ出力中…", 3000);
+      
+      // 1. データ（localStorage）を取得
+      const dataStr = localStorage.getItem('smart_price_db');
+      if (!dataStr) {
+        showToast("データがありません", 5000);
+        return;
+      }
+      const data = JSON.parse(dataStr);
+      
+      // 2. 画像（IndexedDB）を取得
+      const dbi = await openImgDb();
+      const images = {};
+      if (dbi && dbi.objectStoreNames.contains(IMG_STORE)) {
+        const tx = dbi.transaction(IMG_STORE, "readonly");
+        const store = tx.objectStore(IMG_STORE);
+        const keys = await new Promise((resolve) => {
+          const req = store.getAllKeys();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        });
+        
+        for (const key of keys) {
+          const blob = await idbGet(key);
+          if (blob) {
+            // Blobをbase64に変換
+            const dataUrl = await new Promise((resolve, reject) => {
+              const fr = new FileReader();
+              fr.onload = () => resolve(fr.result);
+              fr.onerror = () => reject(new Error('画像読み込み失敗'));
+              fr.readAsDataURL(blob);
+            });
+            images[key] = dataUrl;
+          }
+        }
+      }
+      
+      // 3. バックアップデータを作成
+      const backup = {
+        version: FULL_VERSION,
+        buildId: BUILD_ID,
+        exportDate: new Date().toISOString(),
+        data: data,
+        images: images
+      };
+      
+      // 4. ファイルとしてダウンロード
+      const jsonStr = JSON.stringify(backup, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smart_price_backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showToast("バックアップ出力完了", 3000);
+      if (isDebug()) {
+        console.log('[Backup] Exported:', Object.keys(backup.data.products || {}).length, 'products,', Object.keys(backup.images).length, 'images');
+      }
+    } catch(e) {
+      showToast(`バックアップ出力失敗: ${e.message}`, 8000);
+      if (isDebug()) console.error('[Backup] Export failed:', e);
+    }
+  }
+  
+  // ✅ バックアップ読み込み（ファイルから復元）
+  async function importBackup() {
+    if (!isDebug()) return;
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      try {
+        showToast("バックアップ読み込み中…", 3000);
+        
+        // 1. ファイルを読み込み
+        const text = await file.text();
+        const backup = JSON.parse(text);
+        
+        if (!backup.data || typeof backup.data !== 'object') {
+          throw new Error('バックアップデータが無効です');
+        }
+        
+        // 2. データを復元（localStorage）
+        localStorage.setItem('smart_price_db', JSON.stringify(backup.data));
+        db = normalizeDb(backup.data);
+        
+        // 3. 画像を復元（IndexedDB）
+        if (backup.images && typeof backup.images === 'object') {
+          const dbi = await openImgDb();
+          if (dbi && dbi.objectStoreNames.contains(IMG_STORE)) {
+            let restored = 0;
+            for (const [key, dataUrl] of Object.entries(backup.images)) {
+              if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+                const blob = dataURLtoBlob(dataUrl);
+                if (blob) {
+                  const ok = await idbPut(key, blob);
+                  if (ok) restored++;
+                }
+              }
+            }
+            if (isDebug()) {
+              console.log('[Backup] Restored:', restored, 'images');
+            }
+          }
+        }
+        
+        // 4. UI更新
+        initCategorySelect();
+        renderStoreList();
+        await renderHistory();
+        
+        showToast("バックアップ読み込み完了", 3000);
+        if (isDebug()) {
+          console.log('[Backup] Imported:', Object.keys(backup.data.products || {}).length, 'products');
+        }
+      } catch(e) {
+        showToast(`バックアップ読み込み失敗: ${e.message}`, 8000);
+        if (isDebug()) console.error('[Backup] Import failed:', e);
+      }
+    };
+    input.click();
+  }
+</script>
+<script>
+// Service Worker 暫定無効化（キャッシュ汚染対策）
+if (false && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(()=>{});
+  });
+}
+// 既存のService Workerを解除（PC真っ黒対策）
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for(let registration of registrations) {
+      registration.unregister();
+    }
+  });
+}
+</script>
+</body>
+</html>
