@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Smart Price 開発ツール - 修正報告書生成・GitHub差分取得・コード保管">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <title>REX開発ツール</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'BIZ UDゴシック', 'Meiryo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 4px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success { background: #4caf50; }
+        .btn-success:hover { background: #45a049; }
+        .btn-warning { background: #ff9800; }
+        .btn-warning:hover { background: #f57c00; }
+        .btn-info { background: #2196f3; }
+        .btn-info:hover { background: #1976d2; }
+        .btn-danger { background: #f44336; }
+        .btn-danger:hover { background: #d32f2f; }
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .github-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #24292e;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .github-link:hover {
+            background: #2f363d;
+        }
+        .code-list {
+            margin-top: 15px;
+        }
+        .code-item {
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .code-item-info {
+            flex: 1;
+        }
+        .code-item-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .code-item-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .code-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+            .tabs {
+                flex-wrap: wrap;
+            }
+            .code-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .code-item-actions {
+                width: 100%;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 REX開発ツール <span style="font-size: 0.6em; color: #667eea; font-weight: normal;">(PWA対応)</span></h1>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; padding: 10px; background: #e3f2fd; border-radius: 8px; flex-wrap: wrap;">
+            <button onclick="refreshLatestInfo()" class="btn-info" style="padding: 8px 16px;">🔄 最新情報を取得</button>
+            <button id="pwa-install-button" onclick="installPWA()" class="btn-success" style="padding: 8px 16px; display: none; background: #4caf50;">📱 ホーム画面に追加</button>
+            <span style="font-size: 0.9rem; color: #666;">※ PWA対応: スマホ・タブレットからも使用可能です</span>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('report')">📝 修正報告書生成</button>
+            <button class="tab" onclick="switchTab('diff')">🔍 GitHub差分取得</button>
+            <button class="tab" onclick="switchTab('code')">💾 コード保管・取得</button>
+            <button class="tab" onclick="switchTab('patch-to-dev')">🚀 patch → dev反映</button>
+        </div>
+
+        <!-- 修正報告書生成タブ -->
+        <div id="report-tab" class="tab-content active">
+            <div class="info">
+                <strong>使い方:</strong><br>
+                1. 各項目を入力（バージョン番号は自動で+1されます）<br>
+                2. <strong>HEAD_COMMIT（今回のフルSHA）</strong>と<strong>BASE_COMMIT（前回のフルSHA）</strong>を必ず入力<br>
+                3. BUILD_IDを入力すると、検証URLに自動で追加されます<br>
+                4. 「報告書を生成」ボタンをクリック<br>
+                5. 生成されたMarkdownをコピーまたはダウンロード<br>
+                <br>
+                <strong>重要:</strong> compare URLは固定SHAで生成されます（HEAD~1...HEAD形式は禁止）<br>
+                <strong>必須:</strong> HEAD_COMMITとBASE_COMMITの両方を必ず入力してください（フルSHA推奨）<br>
+                <strong>注意:</strong> このHTMLファイルをダブルクリックしてもVisual Studioが開く場合は、<br>
+                ファイルを右クリック → 「プログラムから開く」 → ブラウザを選択してください。
+            </div>
+
+            <div class="section">
+                <h2>基本情報</h2>
+                <div class="row">
+                    <div>
+                        <label>現在のバージョン:</label>
+                        <input type="text" id="currentVersion" value="v19.9.25" placeholder="v19.9.25">
+                    </div>
+                    <div>
+                        <label>新しいバージョン（自動計算）:</label>
+                        <input type="text" id="newVersion" readonly style="background: #f0f0f0;">
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>日時（JST）:</label>
+                        <input type="text" id="dateTime" placeholder="2026-01-16 21:47 JST">
+                    </div>
+                    <div>
+                        <label>HEAD_COMMIT（今回のフルSHA）:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="commitHashSelect" onchange="document.getElementById('commitHash').value = this.value" style="flex: 1; padding: 8px; border-radius: 4px;">
+                                <option value="">（最新コミットを取得中...）</option>
+                            </select>
+                            <input type="text" id="commitHash" placeholder="（または手動入力）" title="v19.9.25の確定コミットSHA（フルSHA必須）" style="flex: 2;">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>BASE_COMMIT（前回のフルSHA）:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="baseCommitSelect" onchange="document.getElementById('baseCommit').value = this.value" style="flex: 1; padding: 8px; border-radius: 4px;">
+                                <option value="">（最新コミットを取得中...）</option>
+                            </select>
+                            <input type="text" id="baseCommit" value="8cfd30d08154cf71504cdba9d775c41f414deba9" placeholder="8cfd30d08154cf71504cdba9d775c41f414deba9" title="v19.9.24の確定コミットSHA（フルSHA必須）" style="flex: 2;">
+                        </div>
+                    </div>
+                    <div>
+                        <label>ファイルパス（compare用）:</label>
+                        <input type="text" id="filePath" value="dev/index.html" placeholder="dev/index.html">
+                    </div>
+                </div>
+                <div>
+                    <label>タイトル:</label>
+                    <input type="text" id="title" placeholder="P0追加（URL自動追従：dev/patch/rootに自動切り替え）">
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>変更内容</h2>
+                <label>変更点（箇条書き、1行1項目）:</label>
+                <textarea id="changes" placeholder="✅ P0追加: ブラウザ版（URL）モーダルのURLを現在のlocationに自動追従（dev/patch/rootに自動切り替え）
+✅ P0追加: buildUrl()関数を修正（現在のURLの?b=パラメータを優先、なければBUILD_IDを使用）"></textarea>
+            </div>
+
+            <div class="section">
+                <h2>検証情報</h2>
+                <div class="row">
+                    <div>
+                        <label>BUILD_ID:</label>
+                        <input type="text" id="buildId" placeholder="2026-01-16_2142_auto-url-follow-folder">
+                    </div>
+                    <div>
+                        <label>検証URL（BASE URL、?b=は自動追加）:</label>
+                        <input type="text" id="verifyUrlBase" placeholder="https://smart-price-official.github.io/Smart-Price-Book/dev/" value="https://smart-price-official.github.io/Smart-Price-Book/dev/">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="generateReport()">📝 報告書を生成</button>
+            <button onclick="copyToClipboard()" class="btn-success">📋 クリップボードにコピー</button>
+            <button onclick="downloadMarkdown()" class="btn-warning">💾 Markdownファイルをダウンロード</button>
+
+            <div class="output" id="report-output"></div>
+        </div>
+
+        <!-- GitHub差分取得タブ -->
+        <div id="diff-tab" class="tab-content">
+            <div class="info">
+                <strong>使い方:</strong><br>
+                1. 比較元と比較先のコミットハッシュ（固定SHA）を入力<br>
+                2. 「GitHub差分URLを生成」ボタンをクリック<br>
+                3. 生成されたURLをクリックしてGitHubで差分を確認<br>
+                <br>
+                <strong>重要:</strong> HEAD~1...HEAD形式は禁止されています。必ず固定SHAを入力してください。<br>
+                <strong>注意:</strong> ローカルのgitコマンドはブラウザから実行できません。<br>
+                GitHubのWebインターフェースで差分を確認してください。
+            </div>
+
+            <div class="section">
+                <h2>コミット情報</h2>
+                <div class="row">
+                    <div>
+                        <label>ブランチ選択:</label>
+                        <select id="branchSelect" onchange="onBranchChange()" style="width: 100%; padding: 8px; border-radius: 4px; margin-bottom: 10px;">
+                            <option value="main">mainブランチ（デフォルト）</option>
+                            <option value="patch" selected>patchブランチ（v19.9.25等の差分用）</option>
+                        </select>
+                        <div class="hint" style="background: #e3f2fd; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 0.9rem;">
+                            💡 <strong>patchブランチを選択</strong>: ユイとの差分確認用のブランチです。v19.9.25などのコミットはこちらに存在します。
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>比較元のコミット（BASE_COMMIT・固定SHA必須）:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="commit1Select" onchange="document.getElementById('commit1').value = this.value" style="flex: 1; padding: 8px; border-radius: 4px;">
+                                <option value="">（最新コミットを取得中...）</option>
+                            </select>
+                            <input type="text" id="commit1" placeholder="8cfd30d08154cf71504cdba9d775c41f414deba9" title="前回の確定コミットSHA（フルSHA推奨）" style="flex: 2;">
+                        </div>
+                    </div>
+                    <div>
+                        <label>比較先のコミット（HEAD_COMMIT・固定SHA必須）:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="commit2Select" onchange="document.getElementById('commit2').value = this.value" style="flex: 1; padding: 8px; border-radius: 4px;">
+                                <option value="">（最新コミットを取得中...）</option>
+                            </select>
+                            <input type="text" id="commit2" placeholder="v19.9.25のコミットSHAを入力（GitHubにpush後に確定）" title="v19.9.25の確定コミットSHA（フルSHA推奨）" style="flex: 2;">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>ファイルパス（デフォルト: dev/index.html）:</label>
+                        <input type="text" id="filePath" value="dev/index.html" placeholder="dev/index.html">
+                    </div>
+                    <div>
+                        <label>BUILD_ID（検証URL用・オプション）:</label>
+                        <input type="text" id="buildIdForDiff" placeholder="2026-01-17_0716_P0_scanner-error-handling" title="検証URLを生成する場合はBUILD_IDを入力">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="generateDiffUrl()" class="btn-info">🔍 GitHub差分URLを生成</button>
+            <button onclick="copyDiffUrl()" class="btn-success">📋 URLをコピー</button>
+            <button onclick="debugV1925Detection()" class="btn-warning" style="margin-left: 10px;">🔍 v19.9.25検出デバッグ</button>
+            <button onclick="pushToGitHub()" class="btn-success" style="margin-left: 10px; background: #4caf50;">🚀 GitHubにpush</button>
+            
+            <!-- 最新2つのSHA自動表示（AI先回り） -->
+            <div id="latest-commits-display" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                <h3 style="margin-top: 0; color: #1976d2; font-size: 1rem;">📋 最新2つのコミットSHA（自動取得）</h3>
+                <div id="latest-commits-list" style="margin-top: 10px;">
+                    <div style="color: #666; font-size: 0.9rem;">取得中...</div>
+                </div>
+            </div>
+
+            <div class="output" id="diff-output"></div>
+        </div>
+
+        <!-- コード保管・取得タブ -->
+        <div id="code-tab" class="tab-content">
+            <div class="info">
+                <strong>使い方:</strong><br>
+                1. コードを保管：バージョンとファイル名を入力してコードを貼り付け、「コードを保管」ボタンをクリック<br>
+                2. コードを取得：バージョンを選択して「コード一覧を表示」ボタンをクリック<br>
+                3. 過去のコードをコピー：コード一覧から「コピー」ボタンをクリック<br>
+                <br>
+                <strong>保存先:</strong> REX開発ツール/コード保管/バージョン/ファイル名<br>
+                <strong>対応ファイル:</strong> .html, .gs, .js, .md, .css などすべてのファイルタイプに対応
+            </div>
+
+            <div class="section">
+                <h2>コードを保管</h2>
+                <div class="info" style="background: #fff3cd; border-left-color: #ffc107;">
+                    <strong>📌 レックスが事前に最新コードを貼り込んでいます</strong><br>
+                    ユイと検証した後、「💾 コードを保管」ボタンを押してください。
+                </div>
+                <div class="row">
+                    <div>
+                        <label>バージョン（例: v19.9.24）:</label>
+                        <input type="text" id="saveVersion" placeholder="v19.9.24">
+                    </div>
+                    <div>
+                        <label>ファイル名（例: index.html）:</label>
+                        <input type="text" id="saveFileName" placeholder="index.html">
+                    </div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>最新コードを読み込む（dev/index.html）:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="fileInput" accept=".html,.gs,.js,.md,.css" style="flex: 1; padding: 8px;">
+                        <button onclick="loadLatestCode()" class="btn-info" style="margin: 0;">📂 最新コードを読み込む</button>
+                        <button onclick="document.getElementById('fileInput').click()" class="btn-warning" style="margin: 0;">🚀 自動読み込み</button>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                        デフォルトパス: <code style="background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">G:\マイドライブ\Cursor\Smart Price\Smart-Price-Book\dev\index.html</code>
+                    </div>
+                </div>
+                <div>
+                    <label>コード内容:</label>
+                    <textarea id="saveCode" rows="15" placeholder="ここにコードを貼り付けてください..."></textarea>
+                </div>
+                <button onclick="saveCode()" class="btn-success">💾 コードを保管（検証後に押す）</button>
+            </div>
+
+            <div class="section">
+                <h2>コードを取得</h2>
+                <div class="row">
+                    <div>
+                        <label>バージョンを選択（例: v19.9.22）:</label>
+                        <input type="text" id="loadVersion" placeholder="v19.9.22" list="versionList">
+                        <datalist id="versionList"></datalist>
+                    </div>
+                    <div>
+                        <label>ファイルタイプ（オプション、空欄で全て）:</label>
+                        <input type="text" id="fileType" placeholder=".html または空欄">
+                    </div>
+                </div>
+                <button onclick="loadCodeList()" class="btn-info">📋 コード一覧を表示</button>
+                <button onclick="loadAllVersions()" class="btn-info">📚 全バージョン一覧を表示</button>
+
+                <div id="code-list" class="code-list"></div>
+            </div>
+        </div>
+
+        <!-- patch → dev反映タブ -->
+        <div id="patch-to-dev-tab" class="tab-content">
+            <div class="info">
+                <strong>使い方:</strong><br>
+                1. patchフォルダから反映するファイルを選択（ファイル選択ダイアログ）<br>
+                2. ファイル内容を確認<br>
+                3. ユイのOK確認後、「devに反映（クリップボードにコピー）」ボタンをクリック<br>
+                4. Smart-Price-Book/dev/index.htmlを開いて、クリップボードの内容を貼り付け<br>
+                <br>
+                <strong>ワークフロー:</strong><br>
+                patchフォルダ（差分作成エリア）→ ユイがOK → devに正式反映<br>
+                <strong>注意:</strong> ブラウザのセキュリティ制約により、直接ファイルの上書きはできません。クリップボード経由でコピーします。
+            </div>
+
+            <div class="section">
+                <h2>patchフォルダからdevに反映</h2>
+                <div class="row">
+                    <div>
+                        <label>patchフォルダのファイルを選択:</label>
+                        <input type="file" id="patchFileInput" accept=".html" style="width: 100%; padding: 8px; border-radius: 4px; margin-bottom: 10px;">
+                        <div class="hint" style="background: #fff3cd; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 0.9rem;">
+                            💡 <strong>推奨パス:</strong> G:\マイドライブ\Cursor\Smart Price\patch\YYYY-MM-DD\修正_index__*.html
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>選択されたファイル:</label>
+                        <div id="selectedFileName" style="padding: 8px; background: #f5f5f5; border-radius: 4px; font-weight: bold; color: #333;">
+                            ファイルを選択してください
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>ファイル内容（プレビュー・最初の500行）:</label>
+                        <textarea id="patchFileContent" readonly style="width: 100%; min-height: 300px; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; background: #f9f9f9;" placeholder="ファイルを選択すると内容が表示されます"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="loadPatchFile()" class="btn-info">📂 ファイルを読み込む</button>
+            <button onclick="copyToDev()" class="btn-success">✅ devに反映（クリップボードにコピー）</button>
+            <button onclick="downloadPatchFile()" class="btn-warning">💾 dev/index.htmlとしてダウンロード</button>
+            
+            <div class="output" id="patch-to-dev-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // タブ切り替え
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // コード保管タブが開かれたときに最新コードを読み込む
+            if (tabName === 'code') {
+                setTimeout(() => {
+                    loadPreloadedCode();
+                }, 100);
+            }
+        }
+
+        // 現在時刻を自動入力
+        function updateDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('dateTime').value = `${year}-${month}-${day} ${hours}:${minutes} JST（正確な時刻）`;
+        }
+
+        // バージョン番号を自動計算
+        function updateVersion() {
+            const current = document.getElementById('currentVersion').value;
+            const match = current.match(/v(\d+)\.(\d+)\.(\d+)/);
+            if (match) {
+                const major = parseInt(match[1]);
+                const minor = parseInt(match[2]);
+                const patch = parseInt(match[3]) + 1;
+                document.getElementById('newVersion').value = `v${major}.${minor}.${patch}`;
+            }
+        }
+
+        // BUILD_IDを自動生成
+        function updateBuildId() {
+            const dateTime = document.getElementById('dateTime').value;
+            const newVersion = document.getElementById('newVersion').value;
+            if (dateTime && newVersion) {
+                const dateMatch = dateTime.match(/(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})/);
+                if (dateMatch) {
+                    const date = dateMatch[1];
+                    const time = dateMatch[2] + dateMatch[3];
+                    document.getElementById('buildId').value = `${date}_${time}_${newVersion.replace('v', '')}`;
+                }
+            }
+        }
+
+        // 報告書を生成
+        function generateReport() {
+            const currentVersion = document.getElementById('currentVersion').value;
+            const newVersion = document.getElementById('newVersion').value;
+            const dateTime = document.getElementById('dateTime').value;
+            const commitHash = document.getElementById('commitHash').value.trim();
+            const baseCommit = document.getElementById('baseCommit').value.trim();
+            const filePath = document.getElementById('filePath').value.trim() || 'dev/index.html';
+            const title = document.getElementById('title').value;
+            const changes = document.getElementById('changes').value;
+            const buildId = document.getElementById('buildId').value.trim();
+            let verifyUrlBase = document.getElementById('verifyUrlBase').value.trim();
+            
+            // ✅ 検証URLは必ず/dev/を明示
+            if (!verifyUrlBase || !verifyUrlBase.includes('/dev/')) {
+                verifyUrlBase = 'https://smart-price-official.github.io/Smart-Price-Book/dev/';
+            }
+
+            // 検証URLにBUILD_IDを必ず含める
+            const verifyUrlNormal = verifyUrlBase + (verifyUrlBase.includes('?') ? '&' : '?') + `b=${encodeURIComponent(buildId)}`;
+            const verifyUrlDebug = verifyUrlNormal + '&debug=1';
+
+            // compare URLを固定SHAで生成
+            const compareUrl = `https://github.com/smart-price-official/Smart-Price-Book/compare/${baseCommit}...${commitHash}?diff=split#${encodeURIComponent(filePath)}`;
+            const commitUrl = `https://github.com/smart-price-official/Smart-Price-Book/commit/${commitHash}`;
+
+            const changesList = changes.split('\n').filter(line => line.trim()).map(line => `- ${line.trim()}`).join('\n');
+
+            const report = `# 🔧 Smart Price 修正報告書
+
+**TO**: ユイ（監督）、なべさん（実機検証）  
+**FROM**: Rex  
+**DATE(JST)**: ${dateTime}  
+**VERSION**: ${newVersion}  
+**BUILD_ID**: ${buildId}  
+**HEAD_COMMIT（今回のフルSHA・${newVersion}）**: ${commitHash}（${commitUrl}）  
+**BASE_COMMIT（前回のフルSHA）**: ${baseCommit}（https://github.com/smart-price-official/Smart-Price-Book/commit/${baseCommit}）
+
+---
+
+## 📋 変更点（箇条書き）
+
+${changesList}
+
+---
+
+## ✅ 受け入れ条件
+
+- [ ] 実機で動作確認済み
+- [ ] VERSION表示が ${newVersion} になっている
+- [ ] 変更内容が正しく反映されている
+
+---
+
+## 🔗 検証URL
+
+**通常URL**: ${verifyUrlNormal}  
+**デバッグURL**: ${verifyUrlDebug}
+
+---
+
+## 🔍 コミット・差分URL
+
+**HEAD_COMMIT（今回のフルSHA・${newVersion}）**: ${commitHash}（${commitUrl}）  
+**BASE_COMMIT（前回のフルSHA）**: ${baseCommit}（https://github.com/smart-price-official/Smart-Price-Book/commit/${baseCommit}）  
+**COMPARE URL（固定SHA）**: ${compareUrl}  
+※ **重要**: compare URLは固定SHA形式です（HEAD~1...HEAD形式は禁止）
+
+---
+
+## 📝 テスト手順
+
+1. 通常タブで検証URLを開く
+2. 画面のVERSIONが ${newVersion} になっているか確認
+3. 変更内容をテスト
+4. debug=1でログを確認
+
+---
+
+**最終更新**: ${dateTime}`;
+
+            // 修正報告書を出力
+            const outputDiv = document.getElementById('report-output');
+            outputDiv.innerHTML = `<pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${report}</pre>`;
+            
+            // 検証URLを目立つ形で表示（コピーボタン付き）
+            const urlDiv = document.createElement('div');
+            urlDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;';
+            urlDiv.innerHTML = `
+                <h3 style="margin-top: 0; color: #1976d2;">🔗 検証URL（クリックでコピー）</h3>
+                <div style="margin: 10px 0;">
+                    <strong>通常URL:</strong><br>
+                    <code style="display: block; padding: 8px; background: white; border-radius: 4px; margin: 5px 0; word-break: break-all; cursor: pointer;" onclick="copyUrlToClipboard('${verifyUrlNormal}')" title="クリックでコピー">${verifyUrlNormal}</code>
+                    <button onclick="copyUrlToClipboard('${verifyUrlNormal}')" style="padding: 5px 10px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">📋 通常URLをコピー</button>
+                </div>
+                <div style="margin: 10px 0;">
+                    <strong>デバッグURL:</strong><br>
+                    <code style="display: block; padding: 8px; background: white; border-radius: 4px; margin: 5px 0; word-break: break-all; cursor: pointer;" onclick="copyUrlToClipboard('${verifyUrlDebug}')" title="クリックでコピー">${verifyUrlDebug}</code>
+                    <button onclick="copyUrlToClipboard('${verifyUrlDebug}')" style="padding: 5px 10px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">📋 デバッグURLをコピー</button>
+                </div>
+            `;
+            outputDiv.appendChild(urlDiv);
+        }
+
+        // クリップボードにコピー
+        function copyToClipboard() {
+            const output = document.getElementById('report-output').textContent;
+            if (!output) {
+                alert('先に報告書を生成してください');
+                return;
+            }
+            navigator.clipboard.writeText(output).then(() => {
+                alert('クリップボードにコピーしました！');
+            }).catch(err => {
+                alert('コピーに失敗しました: ' + err);
+            });
+        }
+
+        // Markdownファイルをダウンロード
+        function downloadMarkdown() {
+            const output = document.getElementById('report-output').textContent;
+            if (!output) {
+                alert('先に報告書を生成してください');
+                return;
+            }
+            
+            const newVersion = document.getElementById('newVersion').value;
+            const dateTime = document.getElementById('dateTime').value;
+            const dateMatch = dateTime.match(/(\d{4}-\d{2}-\d{2})/);
+            const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+            
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+            const filename = `修正報告書_${newVersion}_${date}_${timeStr}.md`;
+            
+            const blob = new Blob([output], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert(`Markdownファイル「${filename}」をダウンロードしました！`);
+        }
+
+        // GitHubから最新コミットリストを取得してプルダウンに設定（AI先回り）
+        async function loadLatestCommits(selectId, inputId, autoSelectIndex = 0) {
+            const select = document.getElementById(selectId);
+            const input = document.getElementById(inputId);
+            
+            if (!select) return;
+            
+            try {
+                // ブランチ選択を取得（デフォルト: patch）
+                const branchSelect = document.getElementById('branchSelect');
+                const branch = branchSelect ? branchSelect.value : 'patch';
+                
+                // GitHub REST API: GET /repos/:owner/:repo/commits?sha={branch} (最新30件・v19.9.xを探すため)
+                const apiUrl = `https://api.github.com/repos/smart-price-official/Smart-Price-Book/commits?sha=${branch}&per_page=30`;
+                console.log(`[loadLatestCommits] ${selectId}: ${branch}ブランチからコミットを取得中: ${apiUrl}`);
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`GitHub API エラー: ${response.status} ${response.statusText}`);
+                }
+                
+                const commits = await response.json();
+                if (!commits || commits.length === 0) {
+                    throw new Error('コミット情報が取得できませんでした');
+                }
+                
+                console.log(`[loadLatestCommits] ${selectId}: ${branch}ブランチから${commits.length}件のコミットを取得しました`);
+                console.log(`[loadLatestCommits] 最新5件:`, commits.slice(0, 5).map(c => ({
+                    sha: c.sha.substring(0, 7),
+                    message: c.commit.message.split('\n')[0].substring(0, 50)
+                })));
+                
+                // プルダウンをクリア
+                select.innerHTML = '<option value="">（最新コミットを選択）</option>';
+                
+                // バージョン番号を含むコミットを優先的に表示（v19.9.xを探す）
+                let foundVersionCommit = null;
+                let foundV1924 = null;
+                let foundV1925 = null;
+                
+                // コミットリストをプルダウンに追加
+                commits.forEach((commit, index) => {
+                    const sha = commit.sha;
+                    const shortSha = sha.substring(0, 7);
+                    const message = commit.commit.message.split('\n')[0];
+                    const date = new Date(commit.commit.author.date).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    
+                    // バージョン番号（v19.9.x）が含まれているかチェック（大文字小文字を区別しない）
+                    const versionMatch = message.match(/v19\.9\.(\d+)/i);
+                    const hasVersion = versionMatch !== null;
+                    const versionNum = hasVersion ? parseInt(versionMatch[1]) : 0;
+                    
+                    // デバッグ: v19.9.25を含むメッセージを確認
+                    if (message.toLowerCase().includes('v19.9.25') || message.toLowerCase().includes('v19.9.26')) {
+                        console.log(`[DEBUG] バージョン関連メッセージを検出 (index=${index}):`, {
+                            sha: shortSha,
+                            message: message,
+                            versionMatch: versionMatch,
+                            hasVersion: hasVersion,
+                            versionNum: versionNum,
+                            branch: branch
+                        });
+                    }
+                    
+                    const option = document.createElement('option');
+                    option.value = sha;
+                    
+                    // バージョン番号を含む場合は強調表示
+                    if (hasVersion) {
+                        option.textContent = `📌 ${shortSha} - ${message.substring(0, 60)} (${date}) [v19.9.${versionNum}]`;
+                        option.style.fontWeight = 'bold';
+                        // v19.9.24を探す（BASE_COMMIT用）
+                        if (!foundV1924 && versionNum === 24) {
+                            foundV1924 = { sha, index };
+                        }
+                        // v19.9.25を探す（HEAD_COMMIT用）
+                        if (!foundV1925 && versionNum === 25) {
+                            foundV1925 = { sha, index };
+                            foundVersionCommit = { sha, index };
+                            console.log(`[loadLatestCommits] ${selectId}: v19.9.25を検出 (index=${index}, sha=${sha.substring(0, 7)})`);
+                        }
+                    } else {
+                        option.textContent = `${shortSha} - ${message.substring(0, 50)} (${date})`;
+                    }
+                    
+                    select.appendChild(option);
+                    
+                    // 指定されたインデックスのコミットを自動選択（HEAD_COMMIT=0、BASE_COMMIT=1）
+                    // ただし、v19.9.25が見つかった場合はそれを優先
+                    if (index === autoSelectIndex && input && !input.value) {
+                        if (!foundVersionCommit || index === 0) {
+                            input.value = sha;
+                            select.value = sha;
+                        }
+                    }
+                });
+                
+                // v19.9.24とv19.9.25を自動選択
+                if (selectId === 'baseCommitSelect' || selectId === 'commit1Select') {
+                    // BASE_COMMIT: v19.9.24を自動選択
+                    if (foundV1924 && input) {
+                        input.value = foundV1924.sha;
+                        select.value = foundV1924.sha;
+                        console.log(`v19.9.24を検出して自動選択（BASE_COMMIT）: ${foundV1924.sha}`);
+                    } else if (!input.value || input.value === '8cfd30d08154cf71504cdba9d775c41f414deba9') {
+                        // デフォルト値がそのままなら保持（既にv19.9.24のSHAが設定されている）
+                        console.log('v19.9.24が見つかりませんでした。デフォルト値を使用します。');
+                    }
+                }
+                
+                if (selectId === 'commitHashSelect' || selectId === 'commit2Select') {
+                    // HEAD_COMMIT: v19.9.25を自動選択
+                    if (foundV1925 && input) {
+                        input.value = foundV1925.sha;
+                        select.value = foundV1925.sha;
+                        console.log(`[loadLatestCommits] ${selectId}: v19.9.25を検出して自動選択（HEAD_COMMIT）: ${foundV1925.sha}`);
+                        // 成功メッセージを表示
+                        const outputDiv = document.getElementById('diff-output');
+                        if (outputDiv) {
+                            outputDiv.innerHTML = `<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;">
+                                ✅ <strong>v19.9.25を検出しました</strong><br>
+                                コミットSHA: <code>${foundV1925.sha}</code> を比較先に設定しました。
+                            </div>`;
+                        }
+                    } else if (input && !input.value && commits.length > 0) {
+                        // v19.9.25が見つからない場合は最新を選択（ただし、v19.9.25が見つかるまで待つ）
+                        input.value = commits[0].sha;
+                        select.value = commits[0].sha;
+                        // v19.9.25が見つからない場合のメッセージ
+                        const outputDiv = document.getElementById('diff-output');
+                        if (outputDiv && selectId === 'commit2Select') {
+                            outputDiv.innerHTML = `<div style="color: #ff9800; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; margin: 10px 0;">
+                                ⚠️ <strong>v19.9.25が見つかりませんでした</strong><br>
+                                v19.9.25のコミットSHAを手動で入力してください。<br>
+                                GitHubにpushされていない場合は、push後に再度試してください。<br>
+                                <small>現在の最新コミット: <code>${commits[0].sha.substring(0, 7)}</code> を一時的に設定しました。</small>
+                            </div>`;
+                        }
+                        console.warn('v19.9.25を含むコミットが見つかりませんでした。GitHubにpushされているか確認してください。');
+                    } else if (!foundV1925) {
+                        const outputDiv = document.getElementById('diff-output');
+                        if (outputDiv && selectId === 'commit2Select') {
+                            outputDiv.innerHTML = `<div style="color: #ff9800; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; margin: 10px 0;">
+                                ⚠️ <strong>v19.9.25が見つかりませんでした</strong><br>
+                                v19.9.25のコミットSHAを手動で入力してください。<br>
+                                GitHubにpushされていない場合は、push後に再度試してください。
+                            </div>`;
+                        }
+                        console.warn('v19.9.25を含むコミットが見つかりませんでした。GitHubにpushされているか確認してください。');
+                    }
+                }
+                
+                // ✅ 最新2つのSHAを自動表示（AI先回り・GitHub差分取得タブ用）
+                // commit2Selectの場合のみ、最新2つのコミットを表示（最新の結果を使用）
+                if (selectId === 'commit2Select' && commits.length >= 2) {
+                    // v19.9.25が見つかった場合はそれを優先表示
+                    let displayCommits = commits.slice(0, 2);
+                    
+                    // v19.9.25が見つかった場合は、それを最新として表示
+                    if (foundV1925 && commits.length > 0) {
+                        const v1925Index = commits.findIndex(c => c.sha === foundV1925.sha);
+                        if (v1925Index >= 0) {
+                            // v19.9.25を最新として、その1つ前を表示
+                            displayCommits = [commits[v1925Index]];
+                            if (v1925Index + 1 < commits.length) {
+                                displayCommits.push(commits[v1925Index + 1]);
+                            } else if (commits.length > 1) {
+                                displayCommits.push(commits[0]);
+                            }
+                        }
+                    }
+                    
+                    updateLatestCommitsDisplay(displayCommits);
+                    console.log(`最新2つのコミットを表示: ${displayCommits.map(c => c.sha.substring(0, 7)).join(', ')}`);
+                }
+                
+            } catch (error) {
+                select.innerHTML = '<option value="">（取得失敗・手動入力してください）</option>';
+                console.warn('GitHubコミット取得エラー:', error);
+            }
+        }
+        
+        // ブランチ選択が変更されたときに再読み込み
+        function onBranchChange() {
+            const branchSelect = document.getElementById('branchSelect');
+            const branch = branchSelect ? branchSelect.value : 'patch';
+            
+            // 選択されたブランチを表示
+            const outputDiv = document.getElementById('diff-output');
+            if (outputDiv) {
+                outputDiv.innerHTML = `<div style="color: #0288d1; padding: 10px; background: #e0f2f7; border-left: 4px solid #0288d1; border-radius: 4px; margin: 10px 0;">
+                    🔄 <strong>${branch}ブランチからコミットを取得中...</strong>
+                </div>`;
+            }
+            
+            // コミットリストを再読み込み
+            loadLatestCommits('commit1Select', 'commit1', 1);  // BASE_COMMIT
+            loadLatestCommits('commit2Select', 'commit2', 0);  // HEAD_COMMIT
+        }
+        
+        // 最新2つのSHAを自動表示（AI先回り）
+        function updateLatestCommitsDisplay(latestCommits) {
+            const displayDiv = document.getElementById('latest-commits-list');
+            if (!displayDiv || !latestCommits || latestCommits.length < 2) return;
+            
+            const commit1 = latestCommits[0]; // 最新（HEAD_COMMIT）
+            const commit2 = latestCommits[1]; // 1つ前（BASE_COMMIT）
+            
+            const sha1 = commit1.sha;
+            const sha2 = commit2.sha;
+            const shortSha1 = sha1.substring(0, 7);
+            const shortSha2 = sha2.substring(0, 7);
+            const message1 = commit1.commit.message.split('\n')[0].substring(0, 40);
+            const message2 = commit2.commit.message.split('\n')[0].substring(0, 40);
+            
+            displayDiv.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <div style="font-weight: bold; color: #1976d2; margin-bottom: 5px;">📌 最新（HEAD_COMMIT）:</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <code style="flex: 1; padding: 8px; background: white; border-radius: 4px; word-break: break-all; font-size: 0.85rem;">${sha1}</code>
+                        <button onclick="copyCommitSha('${sha1}')" style="padding: 8px 15px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">📋 コピー</button>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">${shortSha1} - ${message1}</div>
+                </div>
+                <div>
+                    <div style="font-weight: bold; color: #1976d2; margin-bottom: 5px;">📌 1つ前（BASE_COMMIT）:</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <code style="flex: 1; padding: 8px; background: white; border-radius: 4px; word-break: break-all; font-size: 0.85rem;">${sha2}</code>
+                        <button onclick="copyCommitSha('${sha2}')" style="padding: 8px 15px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">📋 コピー</button>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">${shortSha2} - ${message2}</div>
+                </div>
+            `;
+        }
+        
+        // v19.9.25検出デバッグ
+        async function debugV1925Detection() {
+            const outputDiv = document.getElementById('diff-output');
+            if (outputDiv) {
+                outputDiv.innerHTML = '<div style="color: #0288d1; padding: 10px; background: #e0f2f7; border-left: 4px solid #0288d1; border-radius: 4px; margin: 10px 0;">🔄 v19.9.25検出デバッグ中...</div>';
+            }
+            
+            try {
+                const branchSelect = document.getElementById('branchSelect');
+                const branch = branchSelect ? branchSelect.value : 'patch';
+                const apiUrl = `https://api.github.com/repos/smart-price-official/Smart-Price-Book/commits?sha=${branch}&per_page=30`;
+                
+                console.log(`[DEBUG] v19.9.25検出デバッグ開始: branch=${branch}, apiUrl=${apiUrl}`);
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`GitHub API エラー: ${response.status} ${response.statusText}`);
+                }
+                
+                const commits = await response.json();
+                console.log(`[DEBUG] 取得したコミット数: ${commits.length}`);
+                
+                // v19.9.25を含むコミットを検索
+                let foundV25 = null;
+                const versionCommits = [];
+                
+                commits.forEach((commit, index) => {
+                    const message = commit.commit.message.split('\n')[0];
+                    const versionMatch = message.match(/v19\.9\.(\d+)/i);
+                    
+                    if (versionMatch) {
+                        const versionNum = parseInt(versionMatch[1]);
+                        versionCommits.push({ index, sha: commit.sha, version: versionNum, message });
+                        console.log(`[DEBUG] バージョン検出: index=${index}, v19.9.${versionNum}, sha=${commit.sha.substring(0, 7)}, message="${message.substring(0, 60)}"`);
+                        
+                        if (versionNum === 25 && !foundV25) {
+                            foundV25 = { index, sha: commit.sha, message, commit };
+                            console.log(`[DEBUG] ✅ v19.9.25を検出！ index=${index}, sha=${commit.sha.substring(0, 7)}`);
+                        }
+                    }
+                });
+                
+                let debugInfo = `<div style="color: #1976d2; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; margin: 10px 0;">`;
+                debugInfo += `<h3 style="margin-top: 0;">🔍 v19.9.25検出デバッグ結果</h3>`;
+                debugInfo += `<p><strong>ブランチ:</strong> ${branch}</p>`;
+                debugInfo += `<p><strong>取得したコミット数:</strong> ${commits.length}</p>`;
+                debugInfo += `<p><strong>バージョンを含むコミット数:</strong> ${versionCommits.length}</p>`;
+                
+                if (foundV25) {
+                    debugInfo += `<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-radius: 4px; margin-top: 10px;">`;
+                    debugInfo += `<strong>✅ v19.9.25が見つかりました！</strong><br>`;
+                    debugInfo += `インデックス: ${foundV25.index}<br>`;
+                    debugInfo += `SHA: <code>${foundV25.sha}</code><br>`;
+                    debugInfo += `短縮SHA: <code>${foundV25.sha.substring(0, 7)}</code><br>`;
+                    debugInfo += `メッセージ: ${foundV25.message}<br>`;
+                    debugInfo += `</div>`;
+                    debugInfo += `<p style="color: #ff9800; margin-top: 10px;"><strong>💡 結論:</strong> GitHub側（${branch}ブランチ）にv19.9.25が存在します。プログラム側の検出ロジックは正常に動作しています。</p>`;
+                } else {
+                    debugInfo += `<div style="color: #ff5252; padding: 10px; background: #ffebee; border-radius: 4px; margin-top: 10px;">`;
+                    debugInfo += `<strong>❌ v19.9.25が見つかりませんでした</strong><br>`;
+                    debugInfo += `</div>`;
+                    debugInfo += `<p style="color: #ff9800; margin-top: 10px;"><strong>💡 結論:</strong> GitHub側（${branch}ブランチ）にv19.9.25が存在しません。<br>`;
+                    debugInfo += `考えられる理由:<br>`;
+                    debugInfo += `1. v19.9.25がまだGitHubにpushされていない（ローカルにのみ存在）<br>`;
+                    debugInfo += `2. v19.9.25が別のブランチ（main等）にpushされている<br>`;
+                    debugInfo += `3. コミットメッセージに「v19.9.25」が含まれていない</p>`;
+                }
+                
+                if (versionCommits.length > 0) {
+                    debugInfo += `<div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px;">`;
+                    debugInfo += `<strong>バージョン一覧（最新10件）:</strong><br>`;
+                    versionCommits.slice(0, 10).forEach(vc => {
+                        debugInfo += `• v19.9.${vc.version}: <code>${vc.sha.substring(0, 7)}</code> - ${vc.message.substring(0, 50)}<br>`;
+                    });
+                    debugInfo += `</div>`;
+                }
+                
+                // 最新5件のコミットメッセージも表示
+                debugInfo += `<div style="margin-top: 15px; padding: 10px; background: #fff3e0; border-radius: 4px;">`;
+                debugInfo += `<strong>最新5件のコミットメッセージ（デバッグ用）:</strong><br>`;
+                commits.slice(0, 5).forEach((c, i) => {
+                    const msg = c.commit.message.split('\n')[0];
+                    debugInfo += `${i + 1}. <code>${c.sha.substring(0, 7)}</code> - ${msg}<br>`;
+                });
+                debugInfo += `</div>`;
+                
+                debugInfo += `</div>`;
+                
+                if (outputDiv) {
+                    outputDiv.innerHTML = debugInfo;
+                }
+                
+                // コンソールにも出力
+                console.log(`[DEBUG] 検出結果:`, {
+                    branch,
+                    totalCommits: commits.length,
+                    versionCommits: versionCommits.length,
+                    foundV25: foundV25 ? {
+                        index: foundV25.index,
+                        sha: foundV25.sha.substring(0, 7),
+                        message: foundV25.message
+                    } : null,
+                    versionList: versionCommits.slice(0, 10).map(vc => `v19.9.${vc.version}: ${vc.sha.substring(0, 7)}`)
+                });
+                
+            } catch (error) {
+                console.error('[DEBUG] エラー:', error);
+                if (outputDiv) {
+                    outputDiv.innerHTML = `<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">❌ <strong>エラー:</strong> ${error.message}</div>`;
+                }
+            }
+        }
+        
+        // コミットSHAをクリップボードにコピー
+        function copyCommitSha(sha) {
+            navigator.clipboard.writeText(sha).then(() => {
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                successDiv.innerHTML = `✅ SHAをコピーしました！<br><code style="font-size: 0.8em; color: #1b5e20;">${sha.substring(0, 20)}...</code>`;
+                document.body.appendChild(successDiv);
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.parentNode.removeChild(successDiv);
+                    }
+                }, 2000);
+            }).catch(err => {
+                console.error('コピーに失敗:', err);
+            });
+        }
+
+        // GitHubのpatchブランチにpush
+        async function pushToGitHub() {
+            const outputDiv = document.getElementById('diff-output');
+            
+            const batFilePath = 'G:\\マイドライブ\\Cursor\\Smart Price\\GitHubにpushする.bat';
+            
+            // ブラウザのセキュリティ制約により、.batファイルを直接実行することはできません
+            // エクスプローラーでフォルダを開くか、手動でダブルクリックする必要があります
+            
+            // エクスプローラーでフォルダを開く
+            try {
+                const folderPath = 'G:\\マイドライブ\\Cursor\\Smart Price';
+                const folderUri = 'file:///' + folderPath.replace(/\\/g, '/').replace(/ /g, '%20');
+                window.open(folderUri, '_blank');
+            } catch (err) {
+                console.warn('フォルダを開けませんでした:', err);
+            }
+            
+            // メッセージを表示
+            let message = `<div style="color: #1976d2; padding: 20px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; margin: 10px 0;">`;
+            message += `<h3 style="margin-top: 0; color: #1976d2;">🚀 GitHubのpatchブランチにpush</h3>`;
+            message += `<div style="background: #e8f5e9; padding: 20px; border-left: 4px solid #4caf50; border-radius: 4px; margin: 15px 0;">`;
+            message += `<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.2rem;">✅ エクスプローラーでフォルダを開きました</h4>`;
+            message += `<p style="margin: 15px 0; font-size: 1.1rem;"><strong>次のステップ:</strong></p>`;
+            message += `<ol style="margin-left: 20px; font-size: 1.05rem; line-height: 1.8;">`;
+            message += `<li>開いたエクスプローラーで「<strong>GitHubにpushする.bat</strong>」を探す</li>`;
+            message += `<li>そのファイルを<strong>ダブルクリック</strong>する</li>`;
+            message += `<li>コマンドプロンプトウィンドウが開き、push処理が自動的に実行されます</li>`;
+            message += `</ol>`;
+            message += `<p style="margin: 10px 0; color: #666; font-size: 0.95rem;">💡 <strong>重要:</strong> ブラウザのセキュリティ制約により、ブラウザから直接実行することはできません。エクスプローラーからダブルクリックしてください。</p>`;
+            message += `<button onclick="openExplorerFolder()" class="btn-success" style="margin-top: 10px; padding: 10px 20px; font-size: 1rem; background: #4caf50;">📁 もう一度フォルダを開く</button>`;
+            message += `</div>`;
+            message += `<div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 15px 0;">`;
+            message += `<h4 style="margin-top: 0; color: #f57c00;">📋 ファイルの場所（コピー用）:</h4>`;
+            message += `<div style="background: #fff; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.9rem; word-break: break-all; border: 2px solid #ffc107;">`;
+            message += `<code style="color: #f57c00; font-weight: bold;">${batFilePath}</code>`;
+            message += `</div>`;
+            message += `<button onclick="copyPushCommand()" class="btn-info" style="margin-top: 5px; padding: 8px 16px;">📋 ファイルパスをコピー</button>`;
+            message += `</div>`;
+            message += `<div style="background: #e0f2f7; padding: 15px; border-radius: 4px; margin-top: 15px;">`;
+            message += `<p style="margin: 5px 0; color: #0277bd;"><strong>📌 バッチファイルが実行すること:</strong></p>`;
+            message += `<ul style="margin-left: 20px; color: #666; margin-top: 10px;">`;
+            message += `<li>dev/index.htmlの変更を自動的に検出</li>`;
+            message += `<li>バージョン情報（v19.9.25など）を自動抽出してコミット</li>`;
+            message += `<li>patchブランチに自動的に切り替え（存在しない場合は作成）</li>`;
+            message += `<li>GitHubのpatchブランチにpush</li>`;
+            message += `<li>Gitリポジトリが初期化されていない場合は、自動的に初期化</li>`;
+            message += `</ul>`;
+            message += `</div>`;
+            message += `</div>`;
+            
+            if (outputDiv) {
+                outputDiv.innerHTML = message;
+            }
+        }
+        
+        // エクスプローラーでフォルダを開く
+        function openExplorerFolder() {
+            const folderPath = 'G:\\マイドライブ\\Cursor\\Smart Price';
+            try {
+                const folderUri = 'file:///' + folderPath.replace(/\\/g, '/').replace(/ /g, '%20');
+                window.open(folderUri, '_blank');
+                
+                // 成功メッセージ
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'color: #2e7d32; padding: 12px 20px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                successDiv.innerHTML = '✅ エクスプローラーでフォルダを開きました！<br><small style="color: #666;">「GitHubにpushする.bat」をダブルクリックしてください</small>';
+                document.body.appendChild(successDiv);
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.parentNode.removeChild(successDiv);
+                    }
+                }, 5000);
+            } catch (err) {
+                console.error('フォルダを開けませんでした:', err);
+            }
+        }
+        
+        // バッチファイルを開く（実行）- 非推奨（ブラウザから直接実行不可）
+        function openBatchFile() {
+            const batFilePath = 'G:\\マイドライブ\\Cursor\\Smart Price\\GitHubにpushする.bat';
+            
+            try {
+                // 方法1: file://プロトコルで開く（Windowsでは実行される可能性がある）
+                const batFileUri = 'file:///' + batFilePath.replace(/\\/g, '/').replace(/ /g, '%20');
+                
+                // 方法2: 新しいウィンドウで開く
+                const link = document.createElement('a');
+                link.href = batFileUri;
+                link.download = ''; // ダウンロードではなく実行
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 方法3: フォールバック - エクスプローラーでファイルを開く
+                setTimeout(() => {
+                    try {
+                        // Windowsのshell:コマンドを使用（エクスプローラーで開く）
+                        const explorerPath = batFilePath.replace(/\\/g, '/');
+                        window.open('file:///' + explorerPath.replace(/ /g, '%20'), '_blank');
+                    } catch (e) {
+                        console.warn('ファイルを開けませんでした:', e);
+                    }
+                }, 300);
+                
+                console.log('バッチファイルを開きました:', batFilePath);
+                
+            } catch (err) {
+                console.error('バッチファイルを開けませんでした:', err);
+                
+                // エラーメッセージを表示（アラートではなく画面上に表示）
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'color: #ff5252; padding: 12px 20px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                errorDiv.innerHTML = '⚠️ バッチファイルを自動的に開けませんでした。<br><small style="color: #666;">以下のファイルを手動でダブルクリックしてください:</small><br><code style="font-size: 0.85em; word-break: break-all;">' + batFilePath + '</code>';
+                document.body.appendChild(errorDiv);
+                setTimeout(() => {
+                    if (errorDiv.parentNode) {
+                        errorDiv.parentNode.removeChild(errorDiv);
+                    }
+                }, 10000);
+            }
+        }
+        
+        // pushコマンドをクリップボードにコピー
+        function copyPushCommand() {
+            const batFilePath = 'G:\\マイドライブ\\Cursor\\Smart Price\\GitHubにpushする.bat';
+            navigator.clipboard.writeText(batFilePath).then(() => {
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'color: #2e7d32; padding: 12px 20px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                successDiv.innerHTML = '✅ ファイルパスをクリップボードにコピーしました！<br><small style="color: #666; font-size: 0.85em;">エクスプローラーのアドレスバーに貼り付けて開けます</small>';
+                document.body.appendChild(successDiv);
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.parentNode.removeChild(successDiv);
+                    }
+                }, 5000);
+            }).catch(err => {
+                console.error('コピーに失敗:', err);
+            });
+        }
+
+        // GitHub差分URLを生成（固定SHA形式）
+        function generateDiffUrl() {
+            const commit1 = document.getElementById('commit1').value.trim();
+            const commit2 = document.getElementById('commit2').value.trim();
+            const filePath = document.getElementById('filePath').value || 'dev/index.html';
+            const outputDiv = document.getElementById('diff-output');
+            
+            // エラーチェック（アラートなし・画面上に表示）
+            if (!commit1 || !commit2) {
+                outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">⚠️ <strong>エラー:</strong> 比較元と比較先のコミットSHAを必ず入力してください。<br>HEAD~1...HEAD形式は禁止されています。固定SHAを入力してください。<br><br>💡 <strong>ヒント:</strong> プルダウンから最新コミットを選択するか、手動でコミットSHAを入力してください。</div>';
+                return;
+            }
+            
+            if (commit1 === 'HEAD~1' || commit1 === 'HEAD' || commit2 === 'HEAD~1' || commit2 === 'HEAD') {
+                outputDiv.innerHTML = '<div style="color: #ff9800; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; margin: 10px 0;">⚠️ <strong>警告:</strong> HEAD~1...HEAD形式は禁止されています。固定SHAを入力してください。<br>例: 8cfd30d08154cf71504cdba9d775c41f414deba9</div>';
+                return;
+            }
+            
+            const baseUrl = 'https://github.com/smart-price-official/Smart-Price-Book';
+            const diffUrl = `${baseUrl}/compare/${commit1}...${commit2}#diff-${btoa(filePath).replace(/[+/=]/g, m => ({'+':'-', '/':'_', '=':''})[m])}`;
+            const fileUrl = `${baseUrl}/compare/${commit1}...${commit2}?diff=split&file=1#${encodeURIComponent(filePath)}`;
+            
+            // BUILD_IDから検証URLを生成
+            const buildId = document.getElementById('buildIdForDiff')?.value.trim() || '';
+            const verifyUrlBase = 'https://smart-price-official.github.io/Smart-Price-Book/dev/';
+            let verifyUrls = '';
+            if (buildId) {
+                const verifyUrlNormal = `${verifyUrlBase}?b=${encodeURIComponent(buildId)}`;
+                const verifyUrlDebug = `${verifyUrlNormal}&debug=1`;
+                verifyUrls = `
+
+## 🔗 検証URL
+
+**通常URL**: ${verifyUrlNormal}
+**デバッグURL**: ${verifyUrlDebug}`;
+            }
+            
+            const output = `## 🔍 GitHub差分URL
+
+**推奨URL（split表示）**: ${fileUrl}
+**比較URL**: ${diffUrl}
+${verifyUrls}
+
+使い方:
+1. 上記のURLをクリックしてGitHubで差分を確認
+2. または、URLをコピーしてブラウザで開く
+
+注意:
+- ローカルのgitコマンドはブラウザから実行できません
+- GitHubのWebインターフェースで差分を確認してください`;
+
+            // 出力エリアをクリアして結果を表示
+            outputDiv.innerHTML = `<pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${output}</pre>`;
+            
+            const linkDiv = document.createElement('div');
+            linkDiv.style.marginTop = '15px';
+            linkDiv.innerHTML = `
+                <a href="${fileUrl}" target="_blank" class="github-link" style="display: inline-block; padding: 10px 20px; background: #1976d2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-right: 10px;">🔍 GitHubで差分を開く</a>
+            `;
+            
+            // 検証URLが存在する場合はコピーボタンを追加
+            if (buildId) {
+                const verifyUrlNormal = `${verifyUrlBase}?b=${encodeURIComponent(buildId)}`;
+                const verifyUrlDebug = `${verifyUrlNormal}&debug=1`;
+                linkDiv.innerHTML += `
+                    <button onclick="copyUrlToClipboard('${verifyUrlNormal}')" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;">📋 通常URLをコピー</button>
+                    <button onclick="copyUrlToClipboard('${verifyUrlDebug}')" style="padding: 10px 20px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📋 デバッグURLをコピー</button>
+                `;
+            }
+            
+            outputDiv.appendChild(linkDiv);
+        }
+
+        // URLをクリップボードにコピー（検証URL用）
+        function copyUrlToClipboard(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                // 成功メッセージを画面上に表示（固定表示）
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'color: #2e7d32; padding: 12px 20px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px; word-break: break-all;';
+                successDiv.innerHTML = '✅ URLをクリップボードにコピーしました！<br><code style="font-size: 0.85em; color: #1b5e20;">' + url + '</code>';
+                document.body.appendChild(successDiv);
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.parentNode.removeChild(successDiv);
+                    }
+                }, 3000);
+            }).catch(err => {
+                // エラーメッセージを画面上に表示（固定表示）
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'color: #ff5252; padding: 12px 20px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                errorDiv.innerHTML = `⚠️ コピーに失敗しました: ${err.message || err}`;
+                document.body.appendChild(errorDiv);
+                setTimeout(() => {
+                    if (errorDiv.parentNode) {
+                        errorDiv.parentNode.removeChild(errorDiv);
+                    }
+                }, 5000);
+            });
+        }
+
+        // 差分URLをコピー
+        function copyDiffUrl() {
+            const outputDiv = document.getElementById('diff-output');
+            const preElement = outputDiv.querySelector('pre');
+            
+            if (!preElement || !preElement.textContent) {
+                outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">⚠️ 先にGitHub差分URLを生成してください</div>';
+                return;
+            }
+            
+            const output = preElement.textContent;
+            const urlMatch = output.match(/https:\/\/[^\s]+/);
+            if (urlMatch) {
+                navigator.clipboard.writeText(urlMatch[0]).then(() => {
+                    // 成功メッセージを画面上に表示
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = 'color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;';
+                    successDiv.innerHTML = '✅ URLをクリップボードにコピーしました！';
+                    outputDiv.insertBefore(successDiv, outputDiv.firstChild);
+                    setTimeout(() => successDiv.remove(), 3000);
+                }).catch(err => {
+                    // エラーメッセージを画面上に表示
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;';
+                    errorDiv.innerHTML = `⚠️ コピーに失敗しました: ${err.message || err}`;
+                    outputDiv.insertBefore(errorDiv, outputDiv.firstChild);
+                });
+            }
+        }
+
+        // コードを保管（localStorage使用）
+        function saveCode() {
+            const version = document.getElementById('saveVersion').value.trim();
+            const fileName = document.getElementById('saveFileName').value.trim();
+            const code = document.getElementById('saveCode').value;
+
+            if (!version || !fileName || !code) {
+                alert('バージョン、ファイル名、コード内容をすべて入力してください');
+                return;
+            }
+
+            // localStorageに保存（キー: REX_CODE_バージョン_ファイル名）
+            const key = `REX_CODE_${version}_${fileName}`;
+            const data = {
+                version: version,
+                fileName: fileName,
+                code: code,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem(key, JSON.stringify(data));
+
+            alert(`コードを保管しました！\nバージョン: ${version}\nファイル名: ${fileName}`);
+            
+            // 入力欄をクリア
+            document.getElementById('saveCode').value = '';
+            
+            // バージョンリストを更新
+            updateVersionList();
+        }
+
+        // コード一覧を表示
+        function loadCodeList() {
+            const version = document.getElementById('loadVersion').value.trim();
+            const fileType = document.getElementById('fileType').value.trim();
+
+            if (!version) {
+                alert('バージョンを入力してください');
+                return;
+            }
+
+            const codeList = document.getElementById('code-list');
+            codeList.innerHTML = '';
+
+            // localStorageから該当バージョンのコードを取得
+            const keys = Object.keys(localStorage).filter(key => key.startsWith(`REX_CODE_${version}_`));
+            
+            if (keys.length === 0) {
+                codeList.innerHTML = '<p>該当バージョンのコードが見つかりませんでした。</p>';
+                return;
+            }
+
+            // ファイルタイプでフィルタ
+            const filteredKeys = fileType 
+                ? keys.filter(key => key.endsWith(fileType))
+                : keys;
+
+            if (filteredKeys.length === 0) {
+                codeList.innerHTML = `<p>該当ファイルタイプ（${fileType}）のコードが見つかりませんでした。</p>`;
+                return;
+            }
+
+            filteredKeys.forEach(key => {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    const fileName = data.fileName;
+                    const savedAt = new Date(data.savedAt).toLocaleString('ja-JP');
+
+                    const item = document.createElement('div');
+                    item.className = 'code-item';
+                    item.innerHTML = `
+                        <div class="code-item-info">
+                            <div class="code-item-name">${fileName}</div>
+                            <div class="code-item-meta">保存日時: ${savedAt}</div>
+                        </div>
+                        <div class="code-item-actions">
+                            <button onclick="copyCode('${key}')" class="btn-success btn-sm">📋 コピー</button>
+                            <button onclick="viewCode('${key}')" class="btn-info btn-sm">👁️ 表示</button>
+                        </div>
+                    `;
+                    codeList.appendChild(item);
+                } catch(e) {
+                    console.error('Error loading code:', e);
+                }
+            });
+        }
+
+        // 全バージョン一覧を表示
+        function loadAllVersions() {
+            const codeList = document.getElementById('code-list');
+            codeList.innerHTML = '';
+
+            // localStorageからすべてのREX_CODE_キーを取得
+            const keys = Object.keys(localStorage).filter(key => key.startsWith('REX_CODE_'));
+            
+            if (keys.length === 0) {
+                codeList.innerHTML = '<p>保管されているコードがありません。</p>';
+                return;
+            }
+
+            // バージョンごとにグループ化
+            const versionMap = {};
+            keys.forEach(key => {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    const version = data.version;
+                    if (!versionMap[version]) {
+                        versionMap[version] = [];
+                    }
+                    versionMap[version].push({ key, ...data });
+                } catch(e) {
+                    console.error('Error loading code:', e);
+                }
+            });
+
+            // バージョンごとに表示
+            Object.keys(versionMap).sort().reverse().forEach(version => {
+                const versionDiv = document.createElement('div');
+                versionDiv.style.marginBottom = '20px';
+                versionDiv.innerHTML = `<h3 style="color: #667eea; margin-bottom: 10px;">${version}</h3>`;
+                
+                versionMap[version].forEach(item => {
+                    const savedAt = new Date(item.savedAt).toLocaleString('ja-JP');
+                    const codeItem = document.createElement('div');
+                    codeItem.className = 'code-item';
+                    codeItem.innerHTML = `
+                        <div class="code-item-info">
+                            <div class="code-item-name">${item.fileName}</div>
+                            <div class="code-item-meta">保存日時: ${savedAt}</div>
+                        </div>
+                        <div class="code-item-actions">
+                            <button onclick="copyCode('${item.key}')" class="btn-success btn-sm">📋 コピー</button>
+                            <button onclick="viewCode('${item.key}')" class="btn-info btn-sm">👁️ 表示</button>
+                        </div>
+                    `;
+                    versionDiv.appendChild(codeItem);
+                });
+                
+                codeList.appendChild(versionDiv);
+            });
+        }
+
+        // コードをコピー
+        function copyCode(key) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                navigator.clipboard.writeText(data.code).then(() => {
+                    alert(`コードをクリップボードにコピーしました！\nファイル名: ${data.fileName}`);
+                }).catch(err => {
+                    alert('コピーに失敗しました: ' + err);
+                });
+            } catch(e) {
+                alert('コードの取得に失敗しました: ' + e);
+            }
+        }
+
+        // コードを表示
+        function viewCode(key) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                const output = document.getElementById('code-tab').querySelector('.output') || document.createElement('div');
+                output.className = 'output';
+                output.id = 'code-view-output';
+                output.textContent = data.code;
+                
+                // 既存の出力を削除して新しいものを追加
+                const existing = document.getElementById('code-view-output');
+                if (existing) existing.remove();
+                
+                const codeList = document.getElementById('code-list');
+                codeList.parentNode.insertBefore(output, codeList.nextSibling);
+                
+                // スクロール
+                output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch(e) {
+                alert('コードの表示に失敗しました: ' + e);
+            }
+        }
+
+        // バージョンリストを更新
+        function updateVersionList() {
+            const keys = Object.keys(localStorage).filter(key => key.startsWith('REX_CODE_'));
+            const versions = new Set();
+            keys.forEach(key => {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    versions.add(data.version);
+                } catch(e) {
+                    // 無視
+                }
+            });
+            
+            const datalist = document.getElementById('versionList');
+            datalist.innerHTML = '';
+            Array.from(versions).sort().reverse().forEach(version => {
+                const option = document.createElement('option');
+                option.value = version;
+                datalist.appendChild(option);
+            });
+        }
+
+        // 最新コードを読み込む（ファイル選択）
+        function loadLatestCode() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('ファイルを選択してください');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                // ファイル名を自動設定
+                document.getElementById('saveFileName').value = file.name;
+                
+                // バージョンを自動抽出（dev/index.htmlの場合）
+                if (file.name === 'index.html' || file.name.endsWith('.html')) {
+                    const versionMatch = content.match(/VERSION:\s*(v[\d.]+)/);
+                    if (versionMatch) {
+                        document.getElementById('saveVersion').value = versionMatch[1];
+                    }
+                }
+                
+                // コード内容を設定
+                document.getElementById('saveCode').value = content;
+                
+                alert(`最新コードを読み込みました！\nファイル名: ${file.name}\nバージョン: ${document.getElementById('saveVersion').value || '（自動抽出できませんでした）'}`);
+            };
+            
+            reader.onerror = function() {
+                alert('ファイルの読み込みに失敗しました');
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // ファイル選択時の自動読み込み
+        // PWA: Service Worker登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('[PWA] Service Worker登録成功:', registration.scope);
+                        
+                        // 更新がある場合は通知（デバッグ用）
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[PWA] 新しいバージョンが利用可能です。ページを再読み込みしてください。');
+                                    // 必要に応じて、ユーザーに再読み込みを促すUIを表示
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.warn('[PWA] Service Worker登録失敗:', error);
+                        // Service Workerが登録できなくてもアプリは動作する
+                    });
+            });
+        }
+        
+        // PWA: インストールプロンプト（ホーム画面に追加）
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // デフォルトのプロンプトを防止
+            e.preventDefault();
+            // 後で使用するためにイベントを保存
+            deferredPrompt = e;
+            // インストールボタンを表示
+            const installButton = document.getElementById('pwa-install-button');
+            if (installButton) {
+                installButton.style.display = 'inline-block';
+            }
+        });
+        
+        // PWA: インストールボタンのクリック処理
+        function installPWA() {
+            if (!deferredPrompt) {
+                // すでにインストールされている、またはプロンプトが利用できない
+                const infoDiv = document.createElement('div');
+                infoDiv.style.cssText = 'color: #ff9800; padding: 12px 20px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                infoDiv.innerHTML = '📱 インストールプロンプトが利用できません。<br><small style="color: #666;">既にインストールされているか、ブラウザが対応していない可能性があります。</small>';
+                document.body.appendChild(infoDiv);
+                setTimeout(() => {
+                    if (infoDiv.parentNode) {
+                        infoDiv.parentNode.removeChild(infoDiv);
+                    }
+                }, 5000);
+                return;
+            }
+            
+            // インストールプロンプトを表示
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('[PWA] ユーザーがインストールを承認しました');
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = 'color: #2e7d32; padding: 12px 20px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); max-width: 400px;';
+                    successDiv.innerHTML = '✅ インストールを開始しました！<br><small style="color: #666;">ホーム画面からREX開発ツールを起動できます</small>';
+                    document.body.appendChild(successDiv);
+                    setTimeout(() => {
+                        if (successDiv.parentNode) {
+                            successDiv.parentNode.removeChild(successDiv);
+                        }
+                    }, 5000);
+                } else {
+                    console.log('[PWA] ユーザーがインストールを拒否しました');
+                }
+                deferredPrompt = null;
+                const installButton = document.getElementById('pwa-install-button');
+                if (installButton) installButton.style.display = 'none';
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', function() {
+                    if (this.files && this.files.length > 0) {
+                        loadLatestCode();
+                        // 自動読み込みメッセージを削除
+                        const infoDiv = document.querySelector('#code-tab .info');
+                        if (infoDiv) {
+                            const autoLoadMsg = infoDiv.querySelector('div[style*="e3f2fd"]');
+                            if (autoLoadMsg) {
+                                autoLoadMsg.remove();
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // AI先回り: ページ読み込み時にGitHubから最新コミットリストを自動取得
+            // v19.9.25（HEAD_COMMIT）とv19.9.24（BASE_COMMIT）を自動検出して比較できるように設定
+            loadLatestCommits('commitHashSelect', 'commitHash', 0);  // 修正報告書生成タブ（HEAD_COMMIT・v19.9.25を自動検出）
+            loadLatestCommits('baseCommitSelect', 'baseCommit', 1);  // 修正報告書生成タブ（BASE_COMMIT・v19.9.24を自動検出）
+            loadLatestCommits('commit1Select', 'commit1', 1);        // GitHub差分取得タブ（BASE_COMMIT・v19.9.24を自動検出）
+            loadLatestCommits('commit2Select', 'commit2', 0);        // GitHub差分取得タブ（HEAD_COMMIT・v19.9.25を自動検出）
+            
+            // patchファイル入力のイベントリスナー
+            const patchFileInput = document.getElementById('patchFileInput');
+            if (patchFileInput) {
+                patchFileInput.addEventListener('change', function() {
+                    loadPatchFile();
+                });
+            }
+        });
+        
+        // 最新情報を取得（リロードまたはGitHub APIから取得）
+        function refreshLatestInfo() {
+            const outputDiv = document.getElementById('patch-to-dev-output') || 
+                             document.getElementById('diff-output') || 
+                             document.getElementById('report-output');
+            
+            if (outputDiv) {
+                outputDiv.innerHTML = '<div style="color: #0288d1; padding: 10px; background: #e0f2f7; border-left: 4px solid #0288d1; border-radius: 4px; margin: 10px 0;">🔄 <strong>最新情報を取得中...</strong></div>';
+            }
+            
+            // GitHubから最新コミットを再取得
+            loadLatestCommits('commitHashSelect', 'commitHash', 0);
+            loadLatestCommits('baseCommitSelect', 'baseCommit', 1);
+            loadLatestCommits('commit1Select', 'commit1', 1);
+            loadLatestCommits('commit2Select', 'commit2', 0);
+            
+            setTimeout(() => {
+                if (outputDiv) {
+                    outputDiv.innerHTML = '<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;">✅ <strong>最新情報を取得しました</strong></div>';
+                }
+            }, 2000);
+        }
+        
+        // patchファイルを読み込む
+        let currentPatchFileContent = '';
+        
+        function loadPatchFile() {
+            const fileInput = document.getElementById('patchFileInput');
+            const fileNameDiv = document.getElementById('selectedFileName');
+            const contentTextarea = document.getElementById('patchFileContent');
+            const outputDiv = document.getElementById('patch-to-dev-output');
+            
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                if (outputDiv) {
+                    outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">⚠️ <strong>エラー:</strong> ファイルを選択してください。</div>';
+                }
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                currentPatchFileContent = e.target.result;
+                const lines = currentPatchFileContent.split('\n');
+                const previewLines = lines.slice(0, 500).join('\n');
+                
+                if (fileNameDiv) {
+                    fileNameDiv.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(2)} KB, ${lines.length}行)`;
+                }
+                
+                if (contentTextarea) {
+                    contentTextarea.value = previewLines;
+                    if (lines.length > 500) {
+                        contentTextarea.value += `\n\n... (以下${lines.length - 500}行は省略されています)`;
+                    }
+                }
+                
+                if (outputDiv) {
+                    outputDiv.innerHTML = `<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;">
+                        ✅ <strong>ファイルを読み込みました</strong><br>
+                        ファイル名: <code>${file.name}</code><br>
+                        サイズ: ${(file.size / 1024).toFixed(2)} KB<br>
+                        行数: ${lines.length}行<br>
+                        <br>
+                        ユイのOK確認後、「devに反映（クリップボードにコピー）」ボタンをクリックしてください。
+                    </div>`;
+                }
+            };
+            
+            reader.onerror = function() {
+                if (outputDiv) {
+                    outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">❌ <strong>エラー:</strong> ファイルの読み込みに失敗しました。</div>';
+                }
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+        
+        // devに反映（クリップボードにコピー）
+        function copyToDev() {
+            if (!currentPatchFileContent) {
+                const outputDiv = document.getElementById('patch-to-dev-output');
+                if (outputDiv) {
+                    outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">⚠️ <strong>エラー:</strong> まずファイルを読み込んでください。</div>';
+                }
+                return;
+            }
+            
+            navigator.clipboard.writeText(currentPatchFileContent).then(() => {
+                const outputDiv = document.getElementById('patch-to-dev-output');
+                if (outputDiv) {
+                    outputDiv.innerHTML = `<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;">
+                        ✅ <strong>クリップボードにコピーしました！</strong><br>
+                        <br>
+                        <strong>次のステップ:</strong><br>
+                        1. Smart-Price-Book/dev/index.html を開く<br>
+                        2. ファイルの全内容を選択（Ctrl+A）<br>
+                        3. クリップボードの内容を貼り付け（Ctrl+V）<br>
+                        4. ファイルを保存（Ctrl+S）<br>
+                        <br>
+                        💡 <strong>注意:</strong> 元のファイルはバックアップを取ることを推奨します。
+                    </div>`;
+                }
+            }).catch(err => {
+                const outputDiv = document.getElementById('patch-to-dev-output');
+                if (outputDiv) {
+                    outputDiv.innerHTML = `<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">
+                        ❌ <strong>エラー:</strong> クリップボードへのコピーに失敗しました。<br>
+                        エラー詳細: ${err.message || err}
+                    </div>`;
+                }
+            });
+        }
+        
+        // dev/index.htmlとしてダウンロード
+        function downloadPatchFile() {
+            if (!currentPatchFileContent) {
+                const outputDiv = document.getElementById('patch-to-dev-output');
+                if (outputDiv) {
+                    outputDiv.innerHTML = '<div style="color: #ff5252; padding: 10px; background: #ffebee; border-left: 4px solid #ff5252; border-radius: 4px; margin: 10px 0;">⚠️ <strong>エラー:</strong> まずファイルを読み込んでください。</div>';
+                }
+                return;
+            }
+            
+            const blob = new Blob([currentPatchFileContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const outputDiv = document.getElementById('patch-to-dev-output');
+            if (outputDiv) {
+                outputDiv.innerHTML = '<div style="color: #2e7d32; padding: 10px; background: #e8f5e9; border-left: 4px solid #2e7d32; border-radius: 4px; margin: 10px 0;">✅ <strong>index.htmlとしてダウンロードしました！</strong><br>ダウンロードしたファイルを Smart-Price-Book/dev/index.html にコピーしてください。</div>';
+            }
+        }
+
+        // イベントリスナー
+        document.getElementById('currentVersion').addEventListener('input', () => {
+            updateVersion();
+            updateBuildId();
+        });
+        document.getElementById('dateTime').addEventListener('input', updateBuildId);
+
+        // 最新コードを事前に読み込む（ページを開いたとき）
+        async function loadPreloadedCode() {
+            // 最新のdev/index.htmlの内容を事前に貼り込む
+            // レックスが事前に最新コードを貼り込んでおく
+            
+            // localStorageに最新コードが保存されている場合は、それを読み込む
+            const latestVersion = 'v19.9.24'; // 最新バージョンを手動で更新（レックスが更新）
+            const latestFileName = 'index.html';
+            const key = `REX_CODE_${latestVersion}_${latestFileName}`;
+            const savedData = localStorage.getItem(key);
+            
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    document.getElementById('saveVersion').value = data.version;
+                    document.getElementById('saveFileName').value = data.fileName;
+                    document.getElementById('saveCode').value = data.code;
+                    console.log('✅ 最新コードをlocalStorageから自動読み込みました');
+                    return;
+                } catch(e) {
+                    console.warn('localStorageからの読み込みに失敗:', e);
+                }
+            }
+            
+            // localStorageにない場合は、最新のdev/index.htmlを自動で読み込もうとする
+            // 注意: ブラウザのセキュリティ制限により、file://プロトコルではfetchは動作しません
+            // そのため、ファイル選択を促すメッセージを表示
+            const defaultPath = 'G:\\マイドライブ\\Cursor\\Smart Price\\Smart-Price-Book\\dev\\index.html';
+            console.log('📂 最新コードを自動読み込み中...');
+            console.log('デフォルトパス:', defaultPath);
+            
+            // ファイル選択を促すメッセージを表示
+            const infoDiv = document.querySelector('#code-tab .info');
+            if (infoDiv && !infoDiv.querySelector('div[data-autoload-msg]')) {
+                const autoLoadMsg = document.createElement('div');
+                autoLoadMsg.setAttribute('data-autoload-msg', 'true');
+                autoLoadMsg.style.background = '#e3f2fd';
+                autoLoadMsg.style.padding = '10px';
+                autoLoadMsg.style.borderRadius = '5px';
+                autoLoadMsg.style.marginTop = '10px';
+                autoLoadMsg.style.borderLeft = '4px solid #2196f3';
+                autoLoadMsg.innerHTML = `
+                    <strong>📂 最新コードを自動読み込み</strong><br>
+                    以下のパスから最新のindex.htmlを選択してください：<br>
+                    <code style="background: #f5f5f5; padding: 2px 5px; border-radius: 3px; font-size: 11px;">${defaultPath}</code><br>
+                    <button onclick="document.getElementById('fileInput').click()" class="btn-info" style="margin-top: 5px; padding: 6px 12px; font-size: 14px;">📂 ファイルを選択して自動読み込み</button>
+                `;
+                infoDiv.appendChild(autoLoadMsg);
+            }
+        }
+        
+        // 最新コードを自動で読み込む（ファイル選択後）
+        function autoLoadLatestCode() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                loadLatestCode();
+            }
+        }
+        
+        // レックスが最新コードを事前に貼り込む関数（手動実行用）
+        function preloadLatestCode() {
+            // この関数は、レックスが最新のdev/index.htmlの内容をコピーして
+            // ブラウザのコンソールで実行するか、またはファイル選択ボタンを使用する
+            alert('最新コードを事前に貼り込むには、以下のいずれかの方法を使用してください：\n\n1. ファイル選択ボタンで dev/index.html を選択\n2. ブラウザのコンソールで preloadLatestCodeManually() を実行');
+        }
+        
+        // 手動で最新コードを貼り込む関数（コンソール用）
+        window.preloadLatestCodeManually = function(codeContent, version, fileName) {
+            if (!codeContent) {
+                alert('コード内容を指定してください');
+                return;
+            }
+            document.getElementById('saveVersion').value = version || 'v19.9.24';
+            document.getElementById('saveFileName').value = fileName || 'index.html';
+            document.getElementById('saveCode').value = codeContent;
+            alert('最新コードを貼り込みました！\nバージョン: ' + (version || 'v19.9.24') + '\nファイル名: ' + (fileName || 'index.html'));
+        };
+
+        // 初期化
+        updateDateTime();
+        updateVersion();
+        updateBuildId();
+        updateVersionList();
+        
+        // コード保管タブが開かれたときに最新コードを読み込む
+        setTimeout(() => {
+            const codeTab = document.getElementById('code-tab');
+            if (codeTab && codeTab.classList.contains('active')) {
+                loadPreloadedCode();
+            }
+        }, 500);
+    </script>
+</body>
+</html>
