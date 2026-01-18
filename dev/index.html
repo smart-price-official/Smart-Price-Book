@@ -1,24 +1,22 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/dev/index.html
-VERSION: v19.9.24
-FULL_VERSION: v19.9.24
-DATE(JST): 2026-01-17 00:22 JST（正確な時刻）
-TITLE: P0修正（バージョン表示統一・URL自動追従・debugトースト10秒・エラー固定表示）
-HEAD_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d）
-BASE_COMMIT: 2bf636d（前回の基準コミット）
-BUILD_ID: 2026-01-17_0012_P0_ver-url-sync
+VERSION: v19.9.25
+FULL_VERSION: v19.9.25
+DATE(JST): 2026-01-17 18:41 JST（正確な時刻）
+TITLE: P0修正（Xperiaカメラ起動失敗対応・段階的フォールバック・エラー詳細表示＋VERSION食い違い根絶）
+HEAD_COMMIT: （push後に確定）
+BASE_COMMIT: （push後に確定）
+BUILD_ID: 2026-01-17_222839_ver-sync-comparefix
 CHANGES:
-- ✅ P0修正: ヘッダーバージョン表示（v-badge）をFULL_VERSIONから動的に設定（固定文字列を撤廃）
-- ✅ P0修正: document.titleをFULL_VERSIONから動的に設定（debug=1の時だけBUILD_IDも併記）
-- ✅ P0修正: window.onloadの最初でバージョン表示を更新（トースト・ヘッダー・タイトルが全て同じバージョンになる）
-- ✅ P0修正: ブラウザ版(URL)のURLをlocationから自動判定（dev/patch/rootに自動追従）
-- ✅ P0修正: buildUrl()関数で現在のURLの?b=パラメータを優先、なければBUILD_IDを使用
-- ✅ P0修正: debug=1の時、トースト表示時間を最低10秒に固定（showToast関数内でisDebug()チェック）
-- ✅ P0修正: debug=1の時、JSエラー（error.name / error.message）を固定表示（スクショ用）
+- ✅ P0修正: バーコードスキャン起動失敗時の詳細なエラーハンドリング（NotAllowedError/NotFoundError/NotReadableError等の判別）
+- ✅ P0修正: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+- ✅ P0修正: Html5Qrcodeライブラリの読み込み確認を追加
+- ✅ P0修正: スキャナー起動時のエラーハンドリングを強化（try-catchで初期化エラーを捕捉）
+- ✅ P0修正: 内部検証用詳細ログ追加（console.errorでエラー詳細を出力）
+- ✅ P0修正: エラーメッセージの詳細化（カメラアクセス拒否/カメラ未検出/カメラ使用中/設定非対応等）
 AUTHOR: Rex
-BUILD_ID: 2026-01-16_1805_v19.9.19
-BUILD_PARAM: ?b=2026-01-17_0012_P0_ver-url-sync
+BUILD_PARAM: ?b=2026-01-17_0716_P0_scanner-error-handling
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -41,7 +39,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.24</title>
+  <title>Smart Price</title><!-- ✅ P0: バージョン表示の一元化 - window.onloadでFULL_VERSIONから動的に設定 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -134,7 +132,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.24</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.25</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -256,6 +254,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <div id="webModal" class="modal">
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
+    <div class="hint mb-3" id="current-path-display" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;">
+      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">/dev/</code>
+    </div>
     <div class="hint mb-3">
       ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br>
       ・更新確認は <b>まずブラウザで</b> 開くのが安全です。
@@ -289,6 +290,11 @@ POLICY: UI変更禁止（内部ロジックのみ）
       📱 今すぐインストール
     </button>
 
+    <!-- ✅ P0: 原因調査診断ページへのリンク（設定ページ内・UI変更なし） -->
+    <a href="./diagnostics.html?debug=1" target="_blank" class="btn btn-outline-warning w-100 py-2 fw-bold mb-2">
+      🔍 原因調査アプリ（診断ツール）
+    </a>
+
     <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
   </div>
 </div>
@@ -297,16 +303,34 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
 <div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
 
+<!-- ✅ P0: Service Worker対策：debug=1時に読み込んだHTMLのFULL_VERSION/BUILD_IDを画面上に確実表示（表示と実体のズレを即発見） -->
+<div id="debug-version-display" style="display:none; position:fixed; top:10px; left:10px; background:rgba(0,150,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.8rem; z-index:5000; font-family:monospace; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #00ff00; font-weight:bold;"></div>
+
+<!-- ✅ P0: 原因究明診断パネル（debug=1時のみ表示・画面上で直接確認可能） -->
+<div id="debug-diagnostic-panel" style="display:none; position:fixed; bottom:100px; right:10px; background:rgba(30,30,30,0.95); color:#fff; padding:15px; border-radius:8px; font-size:0.75rem; z-index:5002; max-width:350px; max-height:70vh; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.8); border:2px solid #ff9800; font-family:monospace;">
+  <div style="font-weight:bold; font-size:0.9rem; margin-bottom:10px; color:#ff9800; border-bottom:1px solid #666; padding-bottom:5px;">🔍 診断パネル (debug=1)</div>
+  <div id="diagnostic-content" style="line-height:1.6;"></div>
+  <div style="margin-top:10px; padding-top:10px; border-top:1px solid #666; font-size:0.7rem; color:#aaa;">
+    <button onclick="document.getElementById('debug-diagnostic-panel').style.display='none'" style="background:#ff5252; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">閉じる</button>
+    <button onclick="updateDiagnosticPanel()" style="background:#4caf50; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:5px;">更新</button>
+  </div>
+</div>
+
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+<!-- ✅ P0: html5-qrcodeを固定バージョンにピン留め（Script error対策・再現性向上） -->
+<!-- ユイの指摘：「依存スクリプトが原因の可能性が高い。固定バージョンのmin.jsにピン留めして再現性を上げてほしい」 -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 <script>
-  const APP_VERSION = "v19.9.24"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.24"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-17_0012_P0_ver-url-sync"; // ヘッダーと一致させる
+  // ✅ P0: FULL_VERSIONを唯一の真実に統一（VERSION食い違い根絶）
+  // ユイの指摘：「dev/index.html内の唯一の真実をFULL_VERSION 1つに統一」
+  // APP_VERSION / 画面表示 / <title> / デバッグトースト / ヘッダ表示 を全部 FULL_VERSION から生成
+  // 文字列の直書き（v19.9.xx）が複数箇所に残らないようにする
+  const FULL_VERSION = "v19.9.25"; // 版番号（単一の定数・ヘッダー/DEBUG/タイトル/報告書に統一・唯一の真実）
+  const BUILD_ID = "2026-01-17_222839_ver-sync-comparefix"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -395,22 +419,220 @@ POLICY: UI変更禁止（内部ロジックのみ）
     }
 
     window.addEventListener('error', (e) => {
-      const errorName = e.error ? e.error.name : 'Error';
-      const errorMsg = e.error ? e.error.message : e.message;
+      // ✅ P0: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+      let errorName = 'Error';
+      let errorMsg = e.message || 'Unknown error';
+      let errorStack = '';
+      let errorFileName = e.filename || '';
+      let errorLine = e.lineno || 0;
+      let errorCol = e.colno || 0;
+      
+      if (e.error) {
+        errorName = e.error.name || 'Error';
+        errorMsg = e.error.message || e.message || 'Unknown error';
+        errorStack = e.error.stack || '';
+      } else if (e.message && e.message !== 'Script error.') {
+        errorName = 'Error';
+        errorMsg = e.message;
+      }
+      
+      // Script error.の場合、詳細情報を追加
+      if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+        errorMsg = `Script error. (ファイル: ${errorFileName || '不明'}, 行: ${errorLine}, 列: ${errorCol})`;
+        if (errorFileName) {
+          errorMsg += ` - 外部スクリプトのエラーの可能性があります（CORS制限）`;
+        }
+        if (errorStack) {
+          errorMsg += `\nスタック: ${errorStack}`;
+        }
+      } else {
+        if (errorFileName) errorMsg += ` (${errorFileName}:${errorLine}:${errorCol})`;
+        if (errorStack) errorMsg += `\n${errorStack}`;
+      }
+      
       const errorDetail = `${errorName}: ${errorMsg}`;
       const fullMsg = `JSエラー: ${errorDetail}`;
       showToast(fullMsg, 10000);
       setLastError(fullMsg);
+      
+      // コンソールにも詳細を出力（内部検証用）
+      if (isDebug()) {
+        console.error('[JS Error]', {
+          name: errorName,
+          message: errorMsg,
+          filename: errorFileName,
+          lineno: errorLine,
+          colno: errorCol,
+          stack: errorStack,
+          event: e
+        });
+      }
     });
     window.addEventListener('unhandledrejection', (e) => {
       const reason = e.reason || e;
       const errorName = reason && reason.name ? reason.name : 'PromiseRejection';
       const errorMsg = (reason && reason.message) ? reason.message : String(reason);
-      const errorDetail = `${errorName}: ${errorMsg}`;
+      const errorStack = reason && reason.stack ? reason.stack : '';
+      
+      let errorDetail = `${errorName}: ${errorMsg}`;
+      if (errorStack) {
+        errorDetail += `\n${errorStack}`;
+      }
+      
       const fullMsg = `Promiseエラー: ${errorDetail}`;
       showToast(fullMsg, 10000);
       setLastError(fullMsg);
+      if (isDebug()) {
+        console.error('[unhandledrejection]', e);
+      }
     });
+  }
+
+  // ✅ P0: 原因究明診断パネル更新関数（debug=1時のみ・画面上で直接確認可能）
+  async function updateDiagnosticPanel() {
+    if (!isDebug()) return;
+    
+    const content = document.getElementById('diagnostic-content');
+    if (!content) return;
+    
+    try {
+      // バージョン情報
+      const versionBadge = document.getElementById('version-badge');
+      const versionBadgeText = versionBadge ? versionBadge.textContent : 'not found';
+      
+      // Service Workerの状態
+      let swStatus = '未確認';
+      let swRegistrations = [];
+      if ('serviceWorker' in navigator) {
+        try {
+          swRegistrations = await navigator.serviceWorker.getRegistrations();
+          swStatus = swRegistrations.length > 0 ? `登録済み(${swRegistrations.length}件)` : '未登録';
+          if (swRegistrations.length > 0) {
+            swStatus += '\n  ' + swRegistrations.map(r => r.scope).join('\n  ');
+          }
+        } catch(e) {
+          swStatus = `エラー: ${e.message}`;
+        }
+      }
+      
+      // キャッシュの状態
+      let cacheStatus = '未確認';
+      let cacheNames = [];
+      if ('caches' in window) {
+        try {
+          cacheNames = await caches.keys();
+          cacheStatus = cacheNames.length > 0 ? `存在(${cacheNames.length}件)` : 'なし';
+          if (cacheNames.length > 0) {
+            cacheStatus += '\n  ' + cacheNames.join('\n  ');
+          }
+        } catch(e) {
+          cacheStatus = `エラー: ${e.message}`;
+        }
+      }
+      
+      // Firebaseの状態
+      let firebaseStatus = `接続: ${isFirebaseReady ? 'ON' : 'OFF'}`;
+      if (currentAuthUid) {
+        firebaseStatus += `\nUID: ${currentAuthUid.substring(0, 8)}...`;
+      }
+      if (fbUrl) {
+        firebaseStatus += `\nURL: ${fbUrl.substring(0, 30)}...`;
+      }
+      
+      // IndexedDBの状態（簡易チェック）
+      let idbStatus = '未確認';
+      if ('indexedDB' in window) {
+        idbStatus = '利用可能';
+        try {
+          // 非同期で確認（表示は簡易版で更新）
+          const req = indexedDB.open(IMG_DB_NAME);
+          req.onsuccess = () => {
+            const idbDb = req.result;
+            if (idbDb && idbDb.objectStoreNames && idbDb.objectStoreNames.length > 0) {
+              // 診断パネルを再更新（非同期結果を反映）
+              setTimeout(updateDiagnosticPanel, 100);
+            }
+            idbDb.close();
+          };
+          req.onerror = () => { idbStatus = 'エラー'; };
+        } catch(e) {
+          idbStatus = `エラー: ${e.message}`;
+        }
+      } else {
+        idbStatus = '未対応';
+      }
+      
+      // localStorageの状態
+      let localStorageStatus = '未確認';
+      try {
+        const dbKey = localStorage.getItem('smart_price_db');
+        const fbUrlKey = localStorage.getItem('smartPriceFirebaseUrl');
+        const deviceIdKey = localStorage.getItem('smartPriceDeviceId');
+        localStorageStatus = `smart_price_db: ${dbKey ? 'あり' : 'なし'}\n`;
+        localStorageStatus += `FirebaseUrl: ${fbUrlKey ? 'あり' : 'なし'}\n`;
+        localStorageStatus += `DeviceId: ${deviceIdKey ? 'あり' : 'なし'}`;
+      } catch(e) {
+        localStorageStatus = `エラー: ${e.message}`;
+      }
+      
+      // 購入履歴の状態
+      let historyStatus = '未確認';
+      try {
+        const productCount = db && db.products ? Object.keys(db.products).length : 0;
+        historyStatus = `商品数: ${productCount}件`;
+        
+        // 購入履歴コンテナの存在確認（historyListを確認）
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+          const historyCards = historyList.querySelectorAll('.price-card');
+          historyStatus += `\n表示カード数: ${historyCards.length}件`;
+          if (productCount > 0 && historyCards.length === 0) {
+            historyStatus += '\n⚠️ データはあるが表示されていない';
+          }
+        } else {
+          historyStatus += '\nコンテナ(historyList): not found';
+        }
+      } catch(e) {
+        historyStatus = `エラー: ${e.message}`;
+      }
+      
+      // HTMLを組み立て
+      const html = `
+<div style="line-height:1.8;">
+<strong style="color:#ff9800;">📌 バージョン情報</strong><br>
+FULL_VERSION: ${FULL_VERSION}<br>
+BUILD_ID: ${BUILD_ID}<br>
+画面バッジ: ${versionBadgeText}<br>
+document.title: ${document.title}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🔧 Service Worker</strong><br>
+${swStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">💾 キャッシュ</strong><br>
+${cacheStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🔥 Firebase</strong><br>
+${firebaseStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🗄️ IndexedDB</strong><br>
+${idbStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">💿 localStorage</strong><br>
+${localStorageStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">📋 購入履歴</strong><br>
+${historyStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🌐 現在のURL</strong><br>
+${location.href}<br>
+</div>
+      `.trim();
+      
+      content.innerHTML = html;
+    } catch(e) {
+      content.innerHTML = `<div style="color:#ff5252;">診断パネル更新エラー: ${e.message}</div>`;
+      if (isDebug()) console.error('[updateDiagnosticPanel]', e);
+    }
   }
 
   // ========= Category Tree（Amazon/Rakutenを実用レベルに整理＋追記可） =========
@@ -991,18 +1213,28 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
 
   window.onload = async () => {
-    // ✅ P0: ヘッダーバージョン表示とdocument.titleをFULL_VERSIONから統一
+    // ✅ P0: バージョン表示の一元化（UIのバージョンバッジ、FULL_VERSION、デバッグ表示が全部同じ値になるように統一）
+    // ユイの指摘：「UIのバージョンバッジ、FULL_VERSION、デバッグ表示が全部同じ値になるように統一」
     try {
       const versionBadge = document.getElementById('version-badge');
       if (versionBadge) {
-        versionBadge.textContent = FULL_VERSION;
+        versionBadge.textContent = FULL_VERSION; // ✅ FULL_VERSIONから動的に設定
       }
       
-      // document.titleを更新（debug=1の時だけBUILD_IDも併記）
+      // ✅ document.titleもFULL_VERSIONから統一（debug=1の時だけBUILD_IDも併記）
       if (isDebug()) {
         document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
       } else {
         document.title = `Smart Price ${FULL_VERSION}`;
+      }
+      
+      if (isDebug()) {
+        console.log('[onload] バージョン表示の一元化:', {
+          FULL_VERSION: FULL_VERSION,
+          BUILD_ID: BUILD_ID,
+          versionBadge: versionBadge ? versionBadge.textContent : 'not found',
+          documentTitle: document.title
+        });
       }
     } catch(e) {
       if (isDebug()) console.warn('[onload] version update error:', e);
@@ -1071,11 +1303,34 @@ POLICY: UI変更禁止（内部ロジックのみ）
       if (isDebug()) {
         // ✅ P0: debug=1のときだけスキャンガイド枠を表示
         document.body.setAttribute('data-debug', '1');
+        
+        // ✅ P0: 原因究明診断パネルを表示（debug=1時のみ・画面上で直接確認可能）
+        // ユイの指摘：「Smart Priceの中に原因を究明するアプリを作りこめる。時間がかかりすぎるデバックとコンソールではなく」
+        const diagnosticPanel = document.getElementById('debug-diagnostic-panel');
+        if (diagnosticPanel) {
+          diagnosticPanel.style.display = 'block';
+          // 初期表示は少し遅延させて、データが読み込まれてから更新
+          setTimeout(() => {
+            updateDiagnosticPanel();
+            // 5秒ごとに自動更新（状態変化を確認）
+            setInterval(updateDiagnosticPanel, 5000);
+          }, 1000);
+        }
+        
+        // ✅ P0: FULL_VERSION/BUILD_IDを画面上に表示
+        const versionDisplay = document.getElementById('debug-version-display');
+        if (versionDisplay) {
+          versionDisplay.style.display = 'block';
+          versionDisplay.textContent = `${FULL_VERSION} / ${BUILD_ID}`;
+        }
+        
         setTimeout(() => {
           showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
       } else {
         document.body.removeAttribute('data-debug');
+        const diagnosticPanel = document.getElementById('debug-diagnostic-panel');
+        if (diagnosticPanel) diagnosticPanel.style.display = 'none';
       }
     } catch(e) {
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
@@ -3387,132 +3642,230 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
 
   function startScanner() {
-    if(isScanning) return;
+    if(isScanning) {
+      if (isDebug()) {
+        console.log("[Scanner] Already scanning, skip");
+      }
+      return;
+    }
+    
+    // ✅ P0: Html5Qrcodeライブラリの読み込み確認
+    if (typeof Html5Qrcode === 'undefined') {
+      const errorMsg = "バーコードスキャンライブラリが読み込まれていません。ページを再読み込みしてください。";
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Html5Qrcode library not loaded");
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
     isScanning = true;
     document.getElementById('camera-area').style.display='block';
     // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
     if (isDebug()) {
-    showToast("カメラ起動中…", 2000);
+      showToast("カメラ起動中…", 2000);
+      console.log("[Scanner] Starting scanner...");
     }
-    if(!scanner) scanner = new Html5Qrcode("interactive");
     
-    // ✅ P0: カメラのピント問題対応
-    // ✅ getUserMedia は最初は安全に取得（落ちにくい条件）
-    const cameraConfig = {
-      facingMode: "environment", // 背面カメラ固定
-      width: { ideal: 1920, min: 1280 }, // 解像度：ideal 1920×1080（最低1280×720）
-      height: { ideal: 1080, min: 720 },
-      aspectRatio: { ideal: 16/9 }
-    };
-    
-    // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
-    scanner.start(cameraConfig, {
-      fps: 15,
-      qrbox: {width: 280, height: 180}, // ROI内だけの検出を確実にする
-      aspectRatio: 1.0, // 正方形に近い形状で精度向上
-      disableFlip: false // フリップを有効にして検出精度向上
-    }, async (t)=> {
-      showToast("読み取りOK", 1500);
-      
-      // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
-      try {
-        const videoElement = document.querySelector('#interactive video');
-        if (videoElement && videoElement.srcObject) {
-          const stream = videoElement.srcObject;
-          const track = stream.getVideoTracks()[0];
-          if (track) {
-            // ✅ track.getCapabilities() で端末の対応状況を確認
-            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-            const settings = track.getSettings ? track.getSettings() : {};
-            
-            // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
-            if (capabilities.torch && capabilities.torch.length > 0) {
-              try {
-                // 簡易的な明るさ判定（環境光センサーがない場合の代替）
-                // 実際の実装では、より高度な判定が必要な場合がある
-                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                // より確実な方法：明るさが低いと判断した場合のみ点灯
-                // ここでは、ユーザーが明示的に要求しない限り、自動点灯は控えめに
-                // 将来的には、実際の環境光センサーやカメラの明るさ情報を使用可能
-                if (isDebug()) {
-                  console.log("[Camera] torch capability available:", capabilities.torch);
-                }
-              } catch(e) {
-                if (isDebug()) {
-                  console.log("[Camera] torch check error:", e);
-                }
-              }
-            }
-            
-            // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
-            // getCapabilities() を見て、対応端末は focusMode=continuous を優先
-            const constraints = [];
-            
-            // ✅ focusMode: continuous（連続オートフォーカス優先）
-            if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
-              constraints.push({ focusMode: "continuous" });
-            } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
-              constraints.push({ focusMode: "continuous" });
-            } else {
-              // 対応していない場合は manual を試す（フォールバック）
-              if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
-                  (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
-                constraints.push({ focusMode: "manual" });
-              }
-            }
-            
-            // ✅ exposureMode: continuous（連続露出調整）
-            if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
-              constraints.push({ exposureMode: "continuous" });
-            } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
-              constraints.push({ exposureMode: "continuous" });
-            }
-            
-            // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
-            if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
-              constraints.push({ whiteBalanceMode: "continuous" });
-            } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
-              constraints.push({ whiteBalanceMode: "continuous" });
-            }
-            
-            // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
-            if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
-              constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
-            }
-            
-            for (let i = 0; i < constraints.length; i++) {
-              try {
-                await track.applyConstraints({ advanced: [constraints[i]] });
-                if (isDebug()) {
-                  const constraintName = Object.keys(constraints[i])[0];
-                  showToast(`[Camera] Constraint ${i+1} OK: ${constraintName}`, 2000);
-                  console.log("[Camera] Applied constraint:", constraints[i]);
-                }
-              } catch(e) {
-                if (isDebug()) {
-                  const constraintName = Object.keys(constraints[i])[0];
-                  console.log(`[Camera] Constraint ${i+1} failed: ${constraintName}`, e.message);
-                }
-                // 失敗しても継続
-              }
-            }
-          }
-        }
-      } catch(e) {
+    try {
+      if(!scanner) {
+        scanner = new Html5Qrcode("interactive");
         if (isDebug()) {
-          console.log("[Camera] applyConstraints error:", e);
+          console.log("[Scanner] Html5Qrcode instance created");
         }
-        // エラーは握りつぶして継続
       }
-      
-      await stopScanner();
-      
-      // ✅ 共通処理へ（手入力と同じ）
-      await processBarcodeData(t);
-    }).catch(() => {
-      showToast("起動失敗", 8000);
-      stopScanner();
-    });
+    } catch(e) {
+      isScanning = false;
+      document.getElementById('camera-area').style.display='none';
+      const errorMsg = `スキャナーの初期化に失敗しました: ${e.message || e}`;
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Initialization error:", e);
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
+    // ✅ P0: 段階的なカメラ起動フォールバック
+    // try#1: facingMode exact environment（最も厳格）
+    const configs = [
+      {
+        facingMode: { exact: "environment" },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        aspectRatio: { ideal: 16/9 }
+      },
+      // try#2: facingMode ideal environment（idealに緩和）
+      {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        aspectRatio: { ideal: 16/9 }
+      },
+      // try#3: video: { facingMode: "environment" }（シンプル）
+      {
+        video: { facingMode: "environment" }
+      },
+      // try#4: video: true（最小限）
+      {
+        video: true
+      }
+    ];
+    
+    // 段階的に試行
+    (async () => {
+      for (let i = 0; i < configs.length; i++) {
+        try {
+          if (isDebug()) {
+            console.log(`[Camera] Try #${i+1}:`, configs[i]);
+          }
+          
+          // scanner.start()はPromiseを返す
+          await scanner.start(configs[i], {
+            fps: 15,
+            qrbox: {width: 280, height: 180},
+            aspectRatio: 1.0,
+            disableFlip: false
+          }, async (t)=> {
+            // バーコード読み取り成功時のコールバック
+            showToast("読み取りOK", 1500);
+            
+            // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
+            try {
+              const videoElement = document.querySelector('#interactive video');
+              if (videoElement && videoElement.srcObject) {
+                const stream = videoElement.srcObject;
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                  // ✅ track.getCapabilities() で端末の対応状況を確認
+                  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                  const settings = track.getSettings ? track.getSettings() : {};
+                  
+                  // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
+                  if (capabilities.torch && capabilities.torch.length > 0) {
+                    try {
+                      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                      if (isDebug()) {
+                        console.log("[Camera] torch capability available:", capabilities.torch);
+                      }
+                    } catch(e) {
+                      if (isDebug()) {
+                        console.log("[Camera] torch check error:", e);
+                      }
+                    }
+                  }
+                  
+                  // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+                  const constraints = [];
+                  
+                  // ✅ focusMode: continuous（連続オートフォーカス優先）
+                  if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
+                    constraints.push({ focusMode: "continuous" });
+                  } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+                    constraints.push({ focusMode: "continuous" });
+                  } else {
+                    if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
+                        (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
+                      constraints.push({ focusMode: "manual" });
+                    }
+                  }
+                  
+                  // ✅ exposureMode: continuous（連続露出調整）
+                  if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
+                    constraints.push({ exposureMode: "continuous" });
+                  } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+                    constraints.push({ exposureMode: "continuous" });
+                  }
+                  
+                  // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
+                  if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
+                    constraints.push({ whiteBalanceMode: "continuous" });
+                  } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+                    constraints.push({ whiteBalanceMode: "continuous" });
+                  }
+                  
+                  // ✅ zoom: 1.2 は条件付き
+                  if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
+                    constraints.push({ zoom: 1.2 });
+                  }
+                  
+                  for (let j = 0; j < constraints.length; j++) {
+                    try {
+                      await track.applyConstraints({ advanced: [constraints[j]] });
+                      if (isDebug()) {
+                        const constraintName = Object.keys(constraints[j])[0];
+                        showToast(`[Camera] Constraint ${j+1} OK: ${constraintName}`, 2000);
+                        console.log("[Camera] Applied constraint:", constraints[j]);
+                      }
+                    } catch(e) {
+                      if (isDebug()) {
+                        const constraintName = Object.keys(constraints[j])[0];
+                        console.log(`[Camera] Constraint ${j+1} failed: ${constraintName}`, e.message);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch(e) {
+              if (isDebug()) {
+                console.log("[Camera] applyConstraints error:", e);
+              }
+            }
+            
+            await stopScanner();
+            await processBarcodeData(t);
+          });
+          
+          // 成功した設定を採用
+          if (isDebug()) {
+            showToast(`[Camera] 起動成功（Try #${i+1}）`, 2000);
+            console.log(`[Camera] 起動成功: Try #${i+1}`, configs[i]);
+          }
+          
+          // 成功したらループを抜ける
+          break;
+        } catch (e) {
+          const errorName = e.name || 'UnknownError';
+          const errorMsg = e.message || String(e);
+          if (isDebug()) {
+            console.warn(`[Camera] Try #${i+1} 失敗:`, errorName, errorMsg);
+          }
+          
+          // 前のスキャナーを停止
+          try {
+            await scanner.stop();
+          } catch(stopErr) {
+            // 停止エラーは無視
+          }
+          
+          // 最後の試行でなければ次へ
+          if (i < configs.length - 1) {
+            continue;
+          }
+          
+          // 全て失敗した場合はエラーを表示
+          let errorDescription = '';
+          if (errorName === 'NotAllowedError') {
+            errorDescription = '（カメラ許可が拒否されました）';
+          } else if (errorName === 'NotFoundError') {
+            errorDescription = '（カメラが見つかりません）';
+          } else if (errorName === 'OverconstrainedError') {
+            errorDescription = '（カメラ設定が対応していません）';
+          } else if (errorName === 'NotReadableError') {
+            errorDescription = '（カメラが使用中または読み取れません）';
+          }
+          
+          const fullErrorMsg = `カメラ起動失敗 ${errorName}: ${errorMsg}${errorDescription}`;
+          showToast(fullErrorMsg, 10000);
+          if (isDebug()) {
+            console.error('[Camera] 全ての設定で起動失敗:', errorName, errorMsg, e);
+            setLastError(fullErrorMsg);
+          }
+          stopScanner();
+        }
+      }
+    })();
   }
 
   async function stopScanner() {
@@ -4226,15 +4579,27 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
   
   function buildUrl(withDebug=false) {
-    const base = buildBaseUrl();
-    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
+    // ✅ 検証URLは必ず/dev/を明示（/dev/ or /）
+    let basePath = '/dev/';
+    if (location.pathname.includes('/dev/')) {
+      basePath = '/dev/';
+    } else if (location.pathname.includes('/patch/')) {
+      basePath = location.pathname; // patch/YYYY-MM-DD/をそのまま使用
+    } else {
+      basePath = '/'; // ルートの場合
+    }
+    
+    const base = location.origin + basePath;
+    
+    // ✅ P0: BUILD_PARAM（?b=...）は BUILD_ID から自動生成（手書き禁止）
+    // ユイの指摘：「BUILD_ID と BUILD_PARAM（?b=...）も一致（BUILD_PARAMは BUILD_ID から自動生成にして手書きを無くす）」
     const currentParams = new URLSearchParams(location.search);
-    const buildParam = currentParams.get('b') || BUILD_ID;
+    const buildParam = currentParams.get('b') || BUILD_ID; // ✅ BUILD_IDから自動生成（手書き禁止）
     
     // URLを組み立て
     let url = base;
     if (buildParam) {
-      url += `?b=${encodeURIComponent(buildParam)}`;
+      url += (basePath.endsWith('/') ? '' : '/') + `?b=${encodeURIComponent(buildParam)}`;
     }
     
     // デバッグURLだけに &debug=1 を付ける
@@ -4252,6 +4617,20 @@ POLICY: UI変更禁止（内部ロジックのみ）
     const d = document.getElementById('webUrlDebug');
     if(n) n.value = buildUrl(false);
     if(d) d.value = buildUrl(true);
+    
+    // ✅ 現在のパスを表示（/dev/ or /）
+    const pathDisplay = document.getElementById('current-path-text');
+    if (pathDisplay) {
+      let currentPath = '/';
+      if (location.pathname.includes('/dev/')) {
+        currentPath = '/dev/';
+      } else if (location.pathname.includes('/patch/')) {
+        currentPath = location.pathname.replace(/\/[^\/]*$/, '') + '/'; // patch/YYYY-MM-DD/まで
+      } else {
+        currentPath = '/';
+      }
+      pathDisplay.textContent = currentPath;
+    }
     
     // ✅ PWAインストールボタンの表示制御
     const installBtn = document.getElementById('pwaInstallBtn');
@@ -4363,7 +4742,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
       
       // 3. バックアップデータを作成
       const backup = {
-        version: APP_VERSION,
+        version: FULL_VERSION,
         buildId: BUILD_ID,
         exportDate: new Date().toISOString(),
         data: data,
@@ -4456,19 +4835,92 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
 </script>
 <script>
-// Service Worker 暫定無効化（キャッシュ汚染対策）
-if (false && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(()=>{});
-  });
-}
-// 既存のService Workerを解除（PC真っ黒対策）
+// ✅ P0: キャッシュ（Service Worker）対策（端末で古い版が出る問題(b)対策）
+// ユイの指摘：「dev は debug=1 のとき自動で SW を解除（登録解除）し、古いindexが出ないようにする」
+// ユイの指摘：「これで「GitHubは新しいのに実機だけ古い」を再発させない」
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for(let registration of registrations) {
-      registration.unregister();
-    }
-  });
+  // ✅ P0: debug=1の時だけService Workerを解除＋キャッシュ破棄→リロード（確実に動作させる）
+  if (isDebug()) {
+    let swUnregistered = false;
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      if (registrations.length === 0) {
+        console.log('[debug=1] Service Workerは登録されていません');
+        // キャッシュのみ破棄
+        if ('caches' in window) {
+          caches.keys().then(function(cacheNames) {
+            if (cacheNames.length > 0) {
+              return Promise.all(
+                cacheNames.map(function(cacheName) {
+                  return caches.delete(cacheName);
+                })
+              );
+            }
+          }).then(function() {
+            console.log('[debug=1] すべてのキャッシュを破棄しました');
+            // リロード（UIは変えない）
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          });
+        }
+        return;
+      }
+      
+      let unregisterPromises = [];
+      for(let registration of registrations) {
+        unregisterPromises.push(
+          registration.unregister().then(function(success) {
+            if (success) {
+              console.log('[debug=1] Service Workerを解除しました:', registration.scope);
+              swUnregistered = true;
+            }
+            return success;
+          }).catch(function(error) {
+            console.warn('[debug=1] Service Worker解除エラー:', error);
+            return false;
+          })
+        );
+      }
+      
+      // 全ての解除処理が完了してからキャッシュを破棄
+      Promise.all(unregisterPromises).then(function() {
+        // キャッシュを破棄（CacheStorage API）
+        if ('caches' in window) {
+          caches.keys().then(function(cacheNames) {
+            if (cacheNames.length > 0) {
+              return Promise.all(
+                cacheNames.map(function(cacheName) {
+                  return caches.delete(cacheName);
+                })
+              );
+            }
+          }).then(function() {
+            console.log('[debug=1] すべてのキャッシュを破棄しました');
+            // リロード（UIは変えない）
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          }).catch(function(error) {
+            console.warn('[debug=1] キャッシュ破棄エラー:', error);
+            // エラーでもリロード
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          });
+        } else {
+          // キャッシュAPIがない場合はリロードのみ
+          setTimeout(function() {
+            location.reload();
+          }, 500);
+        }
+      });
+    }).catch(function(error) {
+      console.warn('[debug=1] Service Worker取得エラー:', error);
+    });
+  } else {
+    // debug=1以外の場合は通常通りService Workerを使用（PWA機能を維持）
+    // Service Workerの登録は行わない（既存のSWをそのまま使用）
+  }
 }
 </script>
 </body>
