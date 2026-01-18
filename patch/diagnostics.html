@@ -522,6 +522,12 @@
       const logArea = document.getElementById('network-log');
       logArea.textContent = '';
 
+      // ✅ P0: 変数スコープを関数スコープで宣言（version1 is not defined エラーを防止）
+      let version1 = '未取得';
+      let buildId1 = '未取得';
+      let version2 = '未取得';
+      let buildId2 = '未取得';
+
       try {
         // ✅ P0-3: 同じフォルダのindex.htmlのURLを生成（location.pathnameから自動判定）
         let indexHtmlUrl = './index.html';
@@ -539,8 +545,8 @@
           const versionMatch1 = text1.match(/FULL_VERSION:\s*(v[\d.]+)/) || text1.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
           const buildIdMatch1 = text1.match(/BUILD_ID:\s*([^\n]+)/) || text1.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
           
-          const version1 = versionMatch1 ? versionMatch1[1] : '抽出失敗';
-          const buildId1 = buildIdMatch1 ? buildIdMatch1[1].trim() : '抽出失敗';
+          version1 = versionMatch1 ? versionMatch1[1] : '抽出失敗';
+          buildId1 = buildIdMatch1 ? buildIdMatch1[1].trim() : '抽出失敗';
           
           // ✅ P0: コンフリクト記号の検査（<<<<<<< / ======= / >>>>>>>）
           const conflictMarkers1 = text1.match(/<<<<<<<|=======|>>>>>>>/g);
@@ -575,8 +581,8 @@
           const versionMatch2 = text2.match(/FULL_VERSION:\s*(v[\d.]+)/) || text2.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
           const buildIdMatch2 = text2.match(/BUILD_ID:\s*([^\n]+)/) || text2.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
           
-          const version2 = versionMatch2 ? versionMatch2[1] : '抽出失敗';
-          const buildId2 = buildIdMatch2 ? buildIdMatch2[1].trim() : '抽出失敗';
+          version2 = versionMatch2 ? versionMatch2[1] : '抽出失敗';
+          buildId2 = buildIdMatch2 ? buildIdMatch2[1].trim() : '抽出失敗';
           
           // ✅ P0: コンフリクト記号の検査（<<<<<<< / ======= / >>>>>>>）
           const conflictMarkers2 = text2.match(/<<<<<<<|=======|>>>>>>>/g);

@@ -39,7 +39,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.25</title>
+  <title>Smart Price</title><!-- ✅ P0: バージョン表示の一元化 - window.onloadでFULL_VERSIONから動的に設定 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -290,7 +290,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
       📱 今すぐインストール
     </button>
 
-    <!-- ✅ P0-3: 原因調査診断ページへのリンク（設定ページ内・UI変更なし） -->
+    <!-- ✅ P0: 原因調査診断ページへのリンク（設定ページ内・UI変更なし） -->
     <a href="./diagnostics.html?debug=1" target="_blank" class="btn btn-outline-warning w-100 py-2 fw-bold mb-2">
       🔍 原因調査アプリ（診断ツール）
     </a>
@@ -303,14 +303,64 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示（⚙が隠れないように右下に配置・pointer-events: noneでタップを邪魔しない） -->
 <div id="debug-error-display" style="display:none; position:fixed; bottom:60px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000; pointer-events:none;"></div>
 
+<!-- ✅ P0: Service Worker対策：debug=1時に読み込んだHTMLのFULL_VERSION/BUILD_IDを画面上に確実表示（表示と実体のズレを即発見） -->
+<div id="debug-version-display" style="display:none; position:fixed; top:10px; left:10px; background:rgba(0,150,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.8rem; z-index:5000; font-family:monospace; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #00ff00; font-weight:bold;"></div>
+
+<!-- ✅ P0-2: debug=1時に失敗したscriptを画面に文字で表示（コンソール不要） -->
+<div id="debug-script-errors" style="display:none; position:fixed; top:60px; left:10px; background:rgba(255,0,0,0.95); color:#fff; padding:12px; border-radius:8px; font-size:0.85rem; z-index:5003; max-width:400px; max-height:300px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.8); border:3px solid #ff0000; font-family:monospace; font-weight:bold;">
+  <div style="font-weight:bold; font-size:0.95rem; margin-bottom:8px; color:#fff; border-bottom:2px solid #fff; padding-bottom:5px;">⚠️ Script読み込み失敗 (debug=1)</div>
+  <div id="script-error-list" style="line-height:1.8;"></div>
+</div>
+
+<!-- ✅ P0: 原因究明診断パネル（debug=1時のみ表示・画面上で直接確認可能） -->
+<div id="debug-diagnostic-panel" style="display:none; position:fixed; bottom:100px; right:10px; background:rgba(30,30,30,0.95); color:#fff; padding:15px; border-radius:8px; font-size:0.75rem; z-index:5002; max-width:350px; max-height:70vh; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.8); border:2px solid #ff9800; font-family:monospace;">
+  <div style="font-weight:bold; font-size:0.9rem; margin-bottom:10px; color:#ff9800; border-bottom:1px solid #666; padding-bottom:5px;">🔍 診断パネル (debug=1)</div>
+  <div id="diagnostic-content" style="line-height:1.6;"></div>
+  <div style="margin-top:10px; padding-top:10px; border-top:1px solid #666; font-size:0.7rem; color:#aaa;">
+    <button onclick="document.getElementById('debug-diagnostic-panel').style.display='none'" style="background:#ff5252; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">閉じる</button>
+    <button onclick="updateDiagnosticPanel()" style="background:#4caf50; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:5px;">更新</button>
+  </div>
+</div>
+
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-<!-- ✅ P0: html5-qrcodeを固定バージョンにピン留め（Script error対策・再現性向上） -->
+<!-- ✅ P0-2: html5-qrcodeを固定バージョンにピン留め（Script error対策・再現性向上） -->
 <!-- ユイの指摘：「依存スクリプトが原因の可能性が高い。固定バージョンのmin.jsにピン留めして再現性を上げてほしい」 -->
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<!-- P0-2: CDN読み込み＋debug=1時のエラー表示強化 -->
+<script>
+  // ✅ P0-2: html5-qrcode読み込み失敗時のエラー表示用（debug=1時）
+  window.html5QrcodeLoadError = false;
+  window.showScriptError = function(scriptName, errorMsg) {
+    if (typeof isDebug === 'function' && isDebug()) {
+      const errorDiv = document.getElementById('debug-script-errors');
+      const errorList = document.getElementById('script-error-list');
+      if (errorDiv && errorList) {
+        errorList.innerHTML += `❌ ${scriptName}: ${errorMsg}<br>`;
+        errorDiv.style.display = 'block';
+      }
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js" 
+        onerror="window.html5QrcodeLoadError = true; window.showScriptError('html5-qrcode (CDN)', '読み込み失敗'); console.error('[P0-2] html5-qrcode CDN読み込み失敗');">
+</script>
+<script>
+  // ✅ P0-2: html5-qrcode読み込み確認（debug=1時に画面に表示）
+  if (typeof Html5Qrcode === 'undefined') {
+    window.html5QrcodeLoadError = true;
+    if (typeof isDebug === 'function' && isDebug()) {
+      window.showScriptError('html5-qrcode', 'Html5Qrcodeクラス未定義（読み込み失敗）');
+    }
+  } else {
+    // 読み込み成功時の確認（debug=1時のみ）
+    if (typeof isDebug === 'function' && isDebug()) {
+      console.log('[P0-2] html5-qrcode読み込み成功');
+    }
+  }
+</script>
 <script>
   // ✅ P0: FULL_VERSIONを唯一の真実に統一（VERSION食い違い根絶）
   // ユイの指摘：「dev/index.html内の唯一の真実をFULL_VERSION 1つに統一」
@@ -473,6 +523,153 @@ POLICY: UI変更禁止（内部ロジックのみ）
         console.error('[unhandledrejection]', e);
       }
     });
+  }
+
+  // ✅ P0: 原因究明診断パネル更新関数（debug=1時のみ・画面上で直接確認可能）
+  async function updateDiagnosticPanel() {
+    if (!isDebug()) return;
+    
+    const content = document.getElementById('diagnostic-content');
+    if (!content) return;
+    
+    try {
+      // バージョン情報
+      const versionBadge = document.getElementById('version-badge');
+      const versionBadgeText = versionBadge ? versionBadge.textContent : 'not found';
+      
+      // Service Workerの状態
+      let swStatus = '未確認';
+      let swRegistrations = [];
+      if ('serviceWorker' in navigator) {
+        try {
+          swRegistrations = await navigator.serviceWorker.getRegistrations();
+          swStatus = swRegistrations.length > 0 ? `登録済み(${swRegistrations.length}件)` : '未登録';
+          if (swRegistrations.length > 0) {
+            swStatus += '\n  ' + swRegistrations.map(r => r.scope).join('\n  ');
+          }
+        } catch(e) {
+          swStatus = `エラー: ${e.message}`;
+        }
+      }
+      
+      // キャッシュの状態
+      let cacheStatus = '未確認';
+      let cacheNames = [];
+      if ('caches' in window) {
+        try {
+          cacheNames = await caches.keys();
+          cacheStatus = cacheNames.length > 0 ? `存在(${cacheNames.length}件)` : 'なし';
+          if (cacheNames.length > 0) {
+            cacheStatus += '\n  ' + cacheNames.join('\n  ');
+          }
+        } catch(e) {
+          cacheStatus = `エラー: ${e.message}`;
+        }
+      }
+      
+      // Firebaseの状態
+      let firebaseStatus = `接続: ${isFirebaseReady ? 'ON' : 'OFF'}`;
+      if (currentAuthUid) {
+        firebaseStatus += `\nUID: ${currentAuthUid.substring(0, 8)}...`;
+      }
+      if (fbUrl) {
+        firebaseStatus += `\nURL: ${fbUrl.substring(0, 30)}...`;
+      }
+      
+      // IndexedDBの状態（簡易チェック）
+      let idbStatus = '未確認';
+      if ('indexedDB' in window) {
+        idbStatus = '利用可能';
+        try {
+          // 非同期で確認（表示は簡易版で更新）
+          const req = indexedDB.open(IMG_DB_NAME);
+          req.onsuccess = () => {
+            const idbDb = req.result;
+            if (idbDb && idbDb.objectStoreNames && idbDb.objectStoreNames.length > 0) {
+              // 診断パネルを再更新（非同期結果を反映）
+              setTimeout(updateDiagnosticPanel, 100);
+            }
+            idbDb.close();
+          };
+          req.onerror = () => { idbStatus = 'エラー'; };
+        } catch(e) {
+          idbStatus = `エラー: ${e.message}`;
+        }
+      } else {
+        idbStatus = '未対応';
+      }
+      
+      // localStorageの状態
+      let localStorageStatus = '未確認';
+      try {
+        const dbKey = localStorage.getItem('smart_price_db');
+        const fbUrlKey = localStorage.getItem('smartPriceFirebaseUrl');
+        const deviceIdKey = localStorage.getItem('smartPriceDeviceId');
+        localStorageStatus = `smart_price_db: ${dbKey ? 'あり' : 'なし'}\n`;
+        localStorageStatus += `FirebaseUrl: ${fbUrlKey ? 'あり' : 'なし'}\n`;
+        localStorageStatus += `DeviceId: ${deviceIdKey ? 'あり' : 'なし'}`;
+      } catch(e) {
+        localStorageStatus = `エラー: ${e.message}`;
+      }
+      
+      // 購入履歴の状態
+      let historyStatus = '未確認';
+      try {
+        const productCount = db && db.products ? Object.keys(db.products).length : 0;
+        historyStatus = `商品数: ${productCount}件`;
+        
+        // 購入履歴コンテナの存在確認（historyListを確認）
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+          const historyCards = historyList.querySelectorAll('.price-card');
+          historyStatus += `\n表示カード数: ${historyCards.length}件`;
+          if (productCount > 0 && historyCards.length === 0) {
+            historyStatus += '\n⚠️ データはあるが表示されていない';
+          }
+        } else {
+          historyStatus += '\nコンテナ(historyList): not found';
+        }
+      } catch(e) {
+        historyStatus = `エラー: ${e.message}`;
+      }
+      
+      // HTMLを組み立て
+      const html = `
+<div style="line-height:1.8;">
+<strong style="color:#ff9800;">📌 バージョン情報</strong><br>
+FULL_VERSION: ${FULL_VERSION}<br>
+BUILD_ID: ${BUILD_ID}<br>
+画面バッジ: ${versionBadgeText}<br>
+document.title: ${document.title}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🔧 Service Worker</strong><br>
+${swStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">💾 キャッシュ</strong><br>
+${cacheStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🔥 Firebase</strong><br>
+${firebaseStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🗄️ IndexedDB</strong><br>
+${idbStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">💿 localStorage</strong><br>
+${localStorageStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">📋 購入履歴</strong><br>
+${historyStatus.replace(/\n/g, '<br>')}<br>
+<hr style="border-color:#666; margin:8px 0;">
+<strong style="color:#ff9800;">🌐 現在のURL</strong><br>
+${location.href}<br>
+</div>
+      `.trim();
+      
+      content.innerHTML = html;
+    } catch(e) {
+      content.innerHTML = `<div style="color:#ff5252;">診断パネル更新エラー: ${e.message}</div>`;
+      if (isDebug()) console.error('[updateDiagnosticPanel]', e);
+    }
   }
 
   // ========= Category Tree（Amazon/Rakutenを実用レベルに整理＋追記可） =========
@@ -1053,18 +1250,28 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
 
   window.onload = async () => {
-    // ✅ P0: ヘッダーバージョン表示とdocument.titleをFULL_VERSIONから統一
+    // ✅ P0: バージョン表示の一元化（UIのバージョンバッジ、FULL_VERSION、デバッグ表示が全部同じ値になるように統一）
+    // ユイの指摘：「UIのバージョンバッジ、FULL_VERSION、デバッグ表示が全部同じ値になるように統一」
     try {
       const versionBadge = document.getElementById('version-badge');
       if (versionBadge) {
-        versionBadge.textContent = FULL_VERSION;
+        versionBadge.textContent = FULL_VERSION; // ✅ FULL_VERSIONから動的に設定
       }
       
-      // document.titleを更新（debug=1の時だけBUILD_IDも併記）
+      // ✅ document.titleもFULL_VERSIONから統一（debug=1の時だけBUILD_IDも併記）
       if (isDebug()) {
         document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
       } else {
         document.title = `Smart Price ${FULL_VERSION}`;
+      }
+      
+      if (isDebug()) {
+        console.log('[onload] バージョン表示の一元化:', {
+          FULL_VERSION: FULL_VERSION,
+          BUILD_ID: BUILD_ID,
+          versionBadge: versionBadge ? versionBadge.textContent : 'not found',
+          documentTitle: document.title
+        });
       }
     } catch(e) {
       if (isDebug()) console.warn('[onload] version update error:', e);
@@ -1133,11 +1340,36 @@ POLICY: UI変更禁止（内部ロジックのみ）
       if (isDebug()) {
         // ✅ P0: debug=1のときだけスキャンガイド枠を表示
         document.body.setAttribute('data-debug', '1');
+        
+        // ✅ P0: 原因究明診断パネルを表示（debug=1時のみ・画面上で直接確認可能）
+        // ユイの指摘：「Smart Priceの中に原因を究明するアプリを作りこめる。時間がかかりすぎるデバックとコンソールではなく」
+        const diagnosticPanel = document.getElementById('debug-diagnostic-panel');
+        if (diagnosticPanel) {
+          diagnosticPanel.style.display = 'block';
+          // 初期表示は少し遅延させて、データが読み込まれてから更新
+          setTimeout(() => {
+            updateDiagnosticPanel();
+            // 5秒ごとに自動更新（状態変化を確認）
+            setInterval(updateDiagnosticPanel, 5000);
+          }, 1000);
+        }
+        
+        // ✅ P0-3: FULL_VERSION / BUILD_ID / BUILD_PARAM(?b=...) を画面上に表示
+        const versionDisplay = document.getElementById('debug-version-display');
+        if (versionDisplay) {
+          const urlParams = new URLSearchParams(location.search);
+          const buildParam = urlParams.get('b') || BUILD_ID;
+          versionDisplay.style.display = 'block';
+          versionDisplay.textContent = `${FULL_VERSION} / ${BUILD_ID} / ?b=${buildParam}`;
+        }
+        
         setTimeout(() => {
           showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
       } else {
         document.body.removeAttribute('data-debug');
+        const diagnosticPanel = document.getElementById('debug-diagnostic-panel');
+        if (diagnosticPanel) diagnosticPanel.style.display = 'none';
       }
     } catch(e) {
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
@@ -3456,13 +3688,17 @@ POLICY: UI変更禁止（内部ロジックのみ）
       return;
     }
     
-    // ✅ P0: Html5Qrcodeライブラリの読み込み確認
-    if (typeof Html5Qrcode === 'undefined') {
+    // ✅ P0-2: Html5Qrcodeライブラリの読み込み確認（debug=1時に画面に表示）
+    if (typeof Html5Qrcode === 'undefined' || window.html5QrcodeLoadError) {
       const errorMsg = "バーコードスキャンライブラリが読み込まれていません。ページを再読み込みしてください。";
       showToast(errorMsg, 10000);
       if (isDebug()) {
         console.error("[Scanner] Html5Qrcode library not loaded");
         setLastError(`[Scanner] ${errorMsg}`);
+        // ✅ P0-2: debug=1時に画面にエラーを表示
+        if (typeof window.showScriptError === 'function') {
+          window.showScriptError('html5-qrcode', 'スキャン起動時にHtml5Qrcode未定義');
+        }
       }
       return;
     }
@@ -4402,9 +4638,10 @@ POLICY: UI変更禁止（内部ロジックのみ）
     
     const base = location.origin + basePath;
     
-    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
+    // ✅ P0: BUILD_PARAM（?b=...）は BUILD_ID から自動生成（手書き禁止）
+    // ユイの指摘：「BUILD_ID と BUILD_PARAM（?b=...）も一致（BUILD_PARAMは BUILD_ID から自動生成にして手書きを無くす）」
     const currentParams = new URLSearchParams(location.search);
-    const buildParam = currentParams.get('b') || BUILD_ID;
+    const buildParam = currentParams.get('b') || BUILD_ID; // ✅ BUILD_IDから自動生成（手書き禁止）
     
     // URLを組み立て
     let url = base;
@@ -4649,20 +4886,92 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
 </script>
 <script>
-// ✅ P1: patch側でSW登録を完全に無効化（PWAキャッシュ混入を避ける）
-// ユイの指摘：「patch側ではPWAキャッシュ混入を避けるため、patchはSW登録しない、またはSWのscopeを/patch/に限定、cache名にBUILD_IDを入れて干渉を防止」
-// → patch側では完全にSW登録を無効化（dev/mainとの干渉を完全に防止）
+// ✅ P0: キャッシュ（Service Worker）対策（端末で古い版が出る問題(b)対策）
+// ユイの指摘：「dev は debug=1 のとき自動で SW を解除（登録解除）し、古いindexが出ないようにする」
+// ユイの指摘：「これで「GitHubは新しいのに実機だけ古い」を再発させない」
 if ("serviceWorker" in navigator) {
-  // 既存のService Workerを解除（PC真っ黒対策・キャッシュ汚染対策）
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for(let registration of registrations) {
-      registration.unregister();
-      console.log('[patch/index.html] Service Workerを解除しました:', registration.scope);
-    }
-  });
-  
-  // patch側では新規SW登録を完全に無効化
-  console.log('[patch/index.html] patch側ではService Worker登録を無効化しています（PWAキャッシュ混入防止）');
+  // ✅ P0: debug=1の時だけService Workerを解除＋キャッシュ破棄→リロード（確実に動作させる）
+  if (isDebug()) {
+    let swUnregistered = false;
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      if (registrations.length === 0) {
+        console.log('[debug=1] Service Workerは登録されていません');
+        // キャッシュのみ破棄
+        if ('caches' in window) {
+          caches.keys().then(function(cacheNames) {
+            if (cacheNames.length > 0) {
+              return Promise.all(
+                cacheNames.map(function(cacheName) {
+                  return caches.delete(cacheName);
+                })
+              );
+            }
+          }).then(function() {
+            console.log('[debug=1] すべてのキャッシュを破棄しました');
+            // リロード（UIは変えない）
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          });
+        }
+        return;
+      }
+      
+      let unregisterPromises = [];
+      for(let registration of registrations) {
+        unregisterPromises.push(
+          registration.unregister().then(function(success) {
+            if (success) {
+              console.log('[debug=1] Service Workerを解除しました:', registration.scope);
+              swUnregistered = true;
+            }
+            return success;
+          }).catch(function(error) {
+            console.warn('[debug=1] Service Worker解除エラー:', error);
+            return false;
+          })
+        );
+      }
+      
+      // 全ての解除処理が完了してからキャッシュを破棄
+      Promise.all(unregisterPromises).then(function() {
+        // キャッシュを破棄（CacheStorage API）
+        if ('caches' in window) {
+          caches.keys().then(function(cacheNames) {
+            if (cacheNames.length > 0) {
+              return Promise.all(
+                cacheNames.map(function(cacheName) {
+                  return caches.delete(cacheName);
+                })
+              );
+            }
+          }).then(function() {
+            console.log('[debug=1] すべてのキャッシュを破棄しました');
+            // リロード（UIは変えない）
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          }).catch(function(error) {
+            console.warn('[debug=1] キャッシュ破棄エラー:', error);
+            // エラーでもリロード
+            setTimeout(function() {
+              location.reload();
+            }, 500);
+          });
+        } else {
+          // キャッシュAPIがない場合はリロードのみ
+          setTimeout(function() {
+            location.reload();
+          }, 500);
+        }
+      });
+    }).catch(function(error) {
+      console.warn('[debug=1] Service Worker取得エラー:', error);
+    });
+  } else {
+    // debug=1以外の場合は通常通りService Workerを使用（PWA機能を維持）
+    // Service Workerの登録は行わない（既存のSWをそのまま使用）
+  }
 }
 </script>
 </body>
