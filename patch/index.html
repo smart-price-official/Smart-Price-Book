@@ -255,7 +255,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
     <div class="hint mb-3" id="current-path-display" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;">
-      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">/dev/</code>
+      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">（自動判定）</code>
     </div>
     <div class="hint mb-3">
       ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br>
@@ -290,13 +290,18 @@ POLICY: UI変更禁止（内部ロジックのみ）
       📱 今すぐインストール
     </button>
 
+    <!-- ✅ P0-3: 原因調査診断ページへのリンク（設定ページ内・UI変更なし） -->
+    <a href="./diagnostics.html?debug=1" target="_blank" class="btn btn-outline-warning w-100 py-2 fw-bold mb-2">
+      🔍 原因調査アプリ（診断ツール）
+    </a>
+
     <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
   </div>
 </div>
 
 <div id="toast" class="toast-msg"></div>
-<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
-<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示（⚙が隠れないように右下に配置・pointer-events: noneでタップを邪魔しない） -->
+<div id="debug-error-display" style="display:none; position:fixed; bottom:60px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000; pointer-events:none;"></div>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -4381,12 +4386,16 @@ POLICY: UI変更禁止（内部ロジックのみ）
   }
   
   function buildUrl(withDebug=false) {
-    // ✅ 検証URLは必ず/dev/を明示（/dev/ or /）
-    let basePath = '/dev/';
-    if (location.pathname.includes('/dev/')) {
+    // ✅ P0-1: location.pathnameから自動判定（ハードコード禁止）
+    // ユイの指摘：「patch の "現在のパス" を location.pathname から自動判定し、/patch/ 表示＆生成URLも /patch/ を向くよう修正（ハードコード禁止）」
+    let basePath = '/';
+    const pathname = location.pathname;
+    
+    if (pathname.includes('/dev/')) {
       basePath = '/dev/';
-    } else if (location.pathname.includes('/patch/')) {
-      basePath = location.pathname; // patch/YYYY-MM-DD/をそのまま使用
+    } else if (pathname.includes('/patch/')) {
+      // patch/index.html の場合は /patch/ を返す
+      basePath = '/patch/';
     } else {
       basePath = '/'; // ルートの場合
     }
@@ -4419,17 +4428,21 @@ POLICY: UI変更禁止（内部ロジックのみ）
     if(n) n.value = buildUrl(false);
     if(d) d.value = buildUrl(true);
     
-    // ✅ 現在のパスを表示（/dev/ or /）
+    // ✅ P0-1: 現在のパスをlocation.pathnameから自動判定して表示（ハードコード禁止）
     const pathDisplay = document.getElementById('current-path-text');
     if (pathDisplay) {
       let currentPath = '/';
-      if (location.pathname.includes('/dev/')) {
+      const pathname = location.pathname;
+      
+      if (pathname.includes('/dev/')) {
         currentPath = '/dev/';
-      } else if (location.pathname.includes('/patch/')) {
-        currentPath = location.pathname.replace(/\/[^\/]*$/, '') + '/'; // patch/YYYY-MM-DD/まで
+      } else if (pathname.includes('/patch/')) {
+        // patch/index.html の場合は /patch/ を返す
+        currentPath = '/patch/';
       } else {
         currentPath = '/';
       }
+      
       pathDisplay.textContent = currentPath;
     }
     

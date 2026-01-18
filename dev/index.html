@@ -255,7 +255,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
     <div class="hint mb-3" id="current-path-display" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;">
-      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">/dev/</code>
+      <strong>現在のパス:</strong> <code id="current-path-text" style="color: #4caf50; font-weight: bold;">（自動判定）</code>
     </div>
     <div class="hint mb-3">
       ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br>
@@ -300,11 +300,17 @@ POLICY: UI変更禁止（内部ロジックのみ）
 </div>
 
 <div id="toast" class="toast-msg"></div>
-<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
-<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示（⚙が隠れないように右下に配置・pointer-events: noneでタップを邪魔しない） -->
+<div id="debug-error-display" style="display:none; position:fixed; bottom:60px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000; pointer-events:none;"></div>
 
 <!-- ✅ P0: Service Worker対策：debug=1時に読み込んだHTMLのFULL_VERSION/BUILD_IDを画面上に確実表示（表示と実体のズレを即発見） -->
 <div id="debug-version-display" style="display:none; position:fixed; top:10px; left:10px; background:rgba(0,150,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.8rem; z-index:5000; font-family:monospace; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #00ff00; font-weight:bold;"></div>
+
+<!-- ✅ P0-2: debug=1時に失敗したscriptを画面に文字で表示（コンソール不要） -->
+<div id="debug-script-errors" style="display:none; position:fixed; top:60px; left:10px; background:rgba(255,0,0,0.95); color:#fff; padding:12px; border-radius:8px; font-size:0.85rem; z-index:5003; max-width:400px; max-height:300px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.8); border:3px solid #ff0000; font-family:monospace; font-weight:bold;">
+  <div style="font-weight:bold; font-size:0.95rem; margin-bottom:8px; color:#fff; border-bottom:2px solid #fff; padding-bottom:5px;">⚠️ Script読み込み失敗 (debug=1)</div>
+  <div id="script-error-list" style="line-height:1.8;"></div>
+</div>
 
 <!-- ✅ P0: 原因究明診断パネル（debug=1時のみ表示・画面上で直接確認可能） -->
 <div id="debug-diagnostic-panel" style="display:none; position:fixed; bottom:100px; right:10px; background:rgba(30,30,30,0.95); color:#fff; padding:15px; border-radius:8px; font-size:0.75rem; z-index:5002; max-width:350px; max-height:70vh; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.8); border:2px solid #ff9800; font-family:monospace;">
@@ -321,9 +327,40 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-<!-- ✅ P0: html5-qrcodeを固定バージョンにピン留め（Script error対策・再現性向上） -->
+<!-- ✅ P0-2: html5-qrcodeを固定バージョンにピン留め（Script error対策・再現性向上） -->
 <!-- ユイの指摘：「依存スクリプトが原因の可能性が高い。固定バージョンのmin.jsにピン留めして再現性を上げてほしい」 -->
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<!-- P0-2: CDN読み込み＋debug=1時のエラー表示強化 -->
+<script>
+  // ✅ P0-2: html5-qrcode読み込み失敗時のエラー表示用（debug=1時）
+  window.html5QrcodeLoadError = false;
+  window.showScriptError = function(scriptName, errorMsg) {
+    if (typeof isDebug === 'function' && isDebug()) {
+      const errorDiv = document.getElementById('debug-script-errors');
+      const errorList = document.getElementById('script-error-list');
+      if (errorDiv && errorList) {
+        errorList.innerHTML += `❌ ${scriptName}: ${errorMsg}<br>`;
+        errorDiv.style.display = 'block';
+      }
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js" 
+        onerror="window.html5QrcodeLoadError = true; window.showScriptError('html5-qrcode (CDN)', '読み込み失敗'); console.error('[P0-2] html5-qrcode CDN読み込み失敗');">
+</script>
+<script>
+  // ✅ P0-2: html5-qrcode読み込み確認（debug=1時に画面に表示）
+  if (typeof Html5Qrcode === 'undefined') {
+    window.html5QrcodeLoadError = true;
+    if (typeof isDebug === 'function' && isDebug()) {
+      window.showScriptError('html5-qrcode', 'Html5Qrcodeクラス未定義（読み込み失敗）');
+    }
+  } else {
+    // 読み込み成功時の確認（debug=1時のみ）
+    if (typeof isDebug === 'function' && isDebug()) {
+      console.log('[P0-2] html5-qrcode読み込み成功');
+    }
+  }
+</script>
 <script>
   // ✅ P0: FULL_VERSIONを唯一の真実に統一（VERSION食い違い根絶）
   // ユイの指摘：「dev/index.html内の唯一の真実をFULL_VERSION 1つに統一」
@@ -1317,11 +1354,13 @@ ${location.href}<br>
           }, 1000);
         }
         
-        // ✅ P0: FULL_VERSION/BUILD_IDを画面上に表示
+        // ✅ P0-3: FULL_VERSION / BUILD_ID / BUILD_PARAM(?b=...) を画面上に表示
         const versionDisplay = document.getElementById('debug-version-display');
         if (versionDisplay) {
+          const urlParams = new URLSearchParams(location.search);
+          const buildParam = urlParams.get('b') || BUILD_ID;
           versionDisplay.style.display = 'block';
-          versionDisplay.textContent = `${FULL_VERSION} / ${BUILD_ID}`;
+          versionDisplay.textContent = `${FULL_VERSION} / ${BUILD_ID} / ?b=${buildParam}`;
         }
         
         setTimeout(() => {
@@ -3649,13 +3688,17 @@ ${location.href}<br>
       return;
     }
     
-    // ✅ P0: Html5Qrcodeライブラリの読み込み確認
-    if (typeof Html5Qrcode === 'undefined') {
+    // ✅ P0-2: Html5Qrcodeライブラリの読み込み確認（debug=1時に画面に表示）
+    if (typeof Html5Qrcode === 'undefined' || window.html5QrcodeLoadError) {
       const errorMsg = "バーコードスキャンライブラリが読み込まれていません。ページを再読み込みしてください。";
       showToast(errorMsg, 10000);
       if (isDebug()) {
         console.error("[Scanner] Html5Qrcode library not loaded");
         setLastError(`[Scanner] ${errorMsg}`);
+        // ✅ P0-2: debug=1時に画面にエラーを表示
+        if (typeof window.showScriptError === 'function') {
+          window.showScriptError('html5-qrcode', 'スキャン起動時にHtml5Qrcode未定義');
+        }
       }
       return;
     }
@@ -4579,12 +4622,16 @@ ${location.href}<br>
   }
   
   function buildUrl(withDebug=false) {
-    // ✅ 検証URLは必ず/dev/を明示（/dev/ or /）
-    let basePath = '/dev/';
-    if (location.pathname.includes('/dev/')) {
+    // ✅ P0-1: location.pathnameから自動判定（ハードコード禁止）
+    // ユイの指摘：「patch の "現在のパス" を location.pathname から自動判定し、/patch/ 表示＆生成URLも /patch/ を向くよう修正（ハードコード禁止）」
+    let basePath = '/';
+    const pathname = location.pathname;
+    
+    if (pathname.includes('/dev/')) {
       basePath = '/dev/';
-    } else if (location.pathname.includes('/patch/')) {
-      basePath = location.pathname; // patch/YYYY-MM-DD/をそのまま使用
+    } else if (pathname.includes('/patch/')) {
+      // patch/index.html の場合は /patch/ を返す
+      basePath = '/patch/';
     } else {
       basePath = '/'; // ルートの場合
     }
@@ -4618,17 +4665,21 @@ ${location.href}<br>
     if(n) n.value = buildUrl(false);
     if(d) d.value = buildUrl(true);
     
-    // ✅ 現在のパスを表示（/dev/ or /）
+    // ✅ P0-1: 現在のパスをlocation.pathnameから自動判定して表示（ハードコード禁止）
     const pathDisplay = document.getElementById('current-path-text');
     if (pathDisplay) {
       let currentPath = '/';
-      if (location.pathname.includes('/dev/')) {
+      const pathname = location.pathname;
+      
+      if (pathname.includes('/dev/')) {
         currentPath = '/dev/';
-      } else if (location.pathname.includes('/patch/')) {
-        currentPath = location.pathname.replace(/\/[^\/]*$/, '') + '/'; // patch/YYYY-MM-DD/まで
+      } else if (pathname.includes('/patch/')) {
+        // patch/index.html の場合は /patch/ を返す
+        currentPath = '/patch/';
       } else {
         currentPath = '/';
       }
+      
       pathDisplay.textContent = currentPath;
     }
     
