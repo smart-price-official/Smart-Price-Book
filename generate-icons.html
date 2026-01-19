@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Price アイコン生成</title>
+</head>
+<body>
+  <h1>Smart Price アイコン生成</h1>
+  <p>このページを開いて、生成されたアイコンを右クリック→「名前を付けて画像を保存」で保存してください。</p>
+  
+  <h2>icon-192.png (192x192)</h2>
+  <canvas id="canvas192" width="192" height="192"></canvas>
+  <br>
+  <a id="download192" download="icon-192.png">ダウンロード</a>
+  
+  <h2>icon-512.png (512x512)</h2>
+  <canvas id="canvas512" width="512" height="512"></canvas>
+  <br>
+  <a id="download512" download="icon-512.png">ダウンロード</a>
+
+  <script>
+    function generateIcon(canvasId, size) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // 背景：真っ赤 (#D50000)
+      ctx.fillStyle = '#D50000';
+      ctx.fillRect(0, 0, size, size);
+      
+      // 白いカートアイコン（シンプルな線画）
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.lineWidth = size / 20;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      const centerX = size / 2;
+      const centerY = size / 2;
+      const scale = size / 200;
+      
+      // カートの本体（四角形）
+      const cartWidth = 80 * scale;
+      const cartHeight = 60 * scale;
+      const cartX = centerX - cartWidth / 2;
+      const cartY = centerY - cartHeight / 2 + 10 * scale;
+      
+      // カートの底
+      ctx.beginPath();
+      ctx.moveTo(cartX, cartY + cartHeight);
+      ctx.lineTo(cartX + cartWidth, cartY + cartHeight);
+      ctx.stroke();
+      
+      // カートの左側
+      ctx.beginPath();
+      ctx.moveTo(cartX, cartY + cartHeight);
+      ctx.lineTo(cartX, cartY + 20 * scale);
+      ctx.stroke();
+      
+      // カートの右側
+      ctx.beginPath();
+      ctx.moveTo(cartX + cartWidth, cartY + cartHeight);
+      ctx.lineTo(cartX + cartWidth, cartY + 20 * scale);
+      ctx.stroke();
+      
+      // カートの上部（ハンドル部分）
+      ctx.beginPath();
+      ctx.moveTo(cartX, cartY + 20 * scale);
+      ctx.lineTo(cartX - 15 * scale, cartY + 10 * scale);
+      ctx.lineTo(cartX - 15 * scale, cartY);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(cartX + cartWidth, cartY + 20 * scale);
+      ctx.lineTo(cartX + cartWidth + 15 * scale, cartY + 10 * scale);
+      ctx.lineTo(cartX + cartWidth + 15 * scale, cartY);
+      ctx.stroke();
+      
+      // カートの上部の横線
+      ctx.beginPath();
+      ctx.moveTo(cartX - 15 * scale, cartY);
+      ctx.lineTo(cartX + cartWidth + 15 * scale, cartY);
+      ctx.stroke();
+      
+      // 車輪（左）
+      ctx.beginPath();
+      ctx.arc(cartX + 20 * scale, cartY + cartHeight + 15 * scale, 12 * scale, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // 車輪（右）
+      ctx.beginPath();
+      ctx.arc(cartX + cartWidth - 20 * scale, cartY + cartHeight + 15 * scale, 12 * scale, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
+    // アイコン生成
+    generateIcon('canvas192', 192);
+    generateIcon('canvas512', 512);
+    
+    // ダウンロードリンク設定
+    document.getElementById('canvas192').toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      document.getElementById('download192').href = url;
+    });
+    
+    document.getElementById('canvas512').toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      document.getElementById('download512').href = url;
+    });
+  </script>
+</body>
+</html>
+
+
+

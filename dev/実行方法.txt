@@ -1,0 +1,26 @@
+【GitHub自動pushの実行方法】
+
+方法1: コマンドプロンプトから実行（推奨）
+
+1. Windowsキー + R を押す
+2. 「cmd」と入力してEnter
+3. 以下のコマンドを1行ずつ実行：
+
+cd /d "g:\マイドライブ\Cursor\Smart Price\Smart-Price-Book\dev"
+test.bat
+
+方法2: エクスプローラーから実行
+
+1. エクスプローラーで以下のフォルダを開く：
+   g:\マイドライブ\Cursor\Smart Price\Smart-Price-Book\dev
+
+2. アドレスバーに「cmd」と入力してEnter
+   → そのフォルダでコマンドプロンプトが開きます
+
+3. 以下のコマンドを実行：
+   test.bat
+
+方法3: ファイルを右クリック
+
+1. test.bat を右クリック
+2. 「管理者として実行」を選択

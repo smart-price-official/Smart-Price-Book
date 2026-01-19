@@ -1,0 +1,3 @@
+エラー: フォルダに移動できませんでした 
+パス: g:\マイドライブ\Cursor\Smart Price 
+現在のフォルダ: g:\�}�C�h���C�u\Cursor\Smart Price\Smart-Price-Book\dev 

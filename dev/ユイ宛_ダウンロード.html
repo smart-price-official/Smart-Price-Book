@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユイ宛ファイル - ダウンロード</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+        }
+        .download-btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+        .download-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .preview {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border-left: 4px solid #667eea;
+        }
+        .preview h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .button-group {
+            margin: 20px 0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 ユイ宛ファイル - ダウンロード</h1>
+        <div class="meta">
+            <strong>作成日:</strong> 2026-01-14 17:40 JST<br>
+            <strong>ファイル名:</strong> ユイ宛_ファイル同期と差分指示方法_2026-01-14.md<br>
+            <strong>サイズ:</strong> 約8KB
+        </div>
+
+        <div class="info">
+            <strong>📄 内容:</strong><br>
+            ・現在のファイル配置<br>
+            ・ファイル同期フロー（3ステップ）<br>
+            ・差分ベースの修正指示方法<br>
+            ・確認用URL<br>
+            ・推奨ワークフロー
+        </div>
+
+        <div class="button-group">
+            <a href="#" class="download-btn" onclick="downloadFile(); return false;">
+                💾 ダウンロード（.md）
+            </a>
+            <a href="ユイ宛_ファイル同期と差分指示方法_2026-01-14.md" class="download-btn" download>
+                📥 直接保存
+            </a>
+        </div>
+
+        <div class="preview">
+            <h3>📖 プレビュー</h3>
+            <pre id="preview-content" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></pre>
+        </div>
+    </div>
+
+    <script>
+        // ファイル内容を読み込んで表示
+        fetch('ユイ宛_ファイル同期と差分指示方法_2026-01-14.md')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('preview-content').textContent = data.substring(0, 1000) + '\n\n... (続きはダウンロードして確認)';
+            })
+            .catch(err => {
+                document.getElementById('preview-content').textContent = 'プレビューを読み込めませんでした。';
+            });
+
+        function downloadFile() {
+            fetch('ユイ宛_ファイル同期と差分指示方法_2026-01-14.md')
+                .then(response => response.text())
+                .then(data => {
+                    const blob = new Blob([data], { type: 'text/markdown;charset=utf-8' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'ユイ宛_ファイル同期と差分指示方法_2026-01-14.md';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    alert('ダウンロードが開始されました！');
+                })
+                .catch(err => {
+                    alert('ダウンロードに失敗しました: ' + err.message);
+                });
+        }
+    </script>
+</body>
+</html>
