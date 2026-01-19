@@ -3,17 +3,18 @@ APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
 VERSION: v19.9.25
 FULL_VERSION: v19.9.25
-DATE(JST): 2026-01-19 15:36 JST（正確な時刻）
-TITLE: P0修正（スキャン枠ズレ＋JAN精度＋手入力空白対策）
+DATE(JST): 2026-01-19 15:52 JST（正確な時刻）
+TITLE: P0修正（スキャンバー表示修正）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-19_153600_scan-frame-jan-accuracy
+BUILD_ID: 2026-01-19_155200_scan-bar-fix
 CHANGES:
+- ✅ P0修正: スキャンバー表示修正（.laserの初期位置を明示・z-index調整）
 - ✅ P0修正: スキャン枠ズレ対策（100dvh/visualViewport基準・video内オーバーレイ・object-fit統一）
 - ✅ P0修正: JAN精度向上（数字のみ正規化・13桁チェック・チェックデジット検証）
 - ✅ P0修正: 手入力空白対策（setProduct確実反映・debug=1時の詳細表示）
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-19_153600_scan-frame-jan-accuracy
+BUILD_PARAM: ?b=2026-01-19_155200_scan-bar-fix
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -98,13 +99,14 @@ POLICY: UI変更禁止（内部ロジックのみ）
     /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
     .laser { 
       position: absolute; 
+      top: 15%; /* 初期位置を明示 */
       left: 5%; 
       width: 90%; 
       height: 2px; 
       background: #ff0000; 
       box-shadow: 0 0 10px 2px #ff0000; 
       animation: scanning 2s infinite ease-in-out; 
-      z-index: 2002; /* videoより前面に固定 */
+      z-index: 1; /* scan-frame内での相対的な前面配置 */
       border-radius: 1px; /* 角丸 */
     }
     /* CSSアニメで確実に出る方式 */
