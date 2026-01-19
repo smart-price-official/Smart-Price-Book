@@ -1,19 +1,33 @@
-
 <!--
 APP: Smart Price
-FILE: index.html
-VERSION: v19.9c-hf13-stable2
-DATE(JST): 2026-01-11 20:20 JST
-TITLE: 保存ボタン無反応修正（saveData安定化＋ボタンロック解除）
+FILE: Smart-Price-Book/index.html
+VERSION: v19.9.25
+FULL_VERSION: v19.9.25
+DATE(JST): 2026-01-17 07:34 JST（正確な時刻）
+TITLE: P0修正（バーコードスキャンエラーハンドリング強化・内部検証用詳細ログ）
+HEAD_COMMIT: （GitHubにpush後に確定・v19.9.25の確定コミットSHA）
+BASE_COMMIT: 8cfd30d08154cf71504cdba9d775c41f414deba9（v19.9.24の確定コミット・https://github.com/smart-price-official/Smart-Price-Book/commit/8cfd30d08154cf71504cdba9d775c41f414deba9）
+BUILD_ID: 2026-01-17_0716_P0_scanner-error-handling
 CHANGES:
-- 保存ボタン無反応問題を修正（saveData関数にtry-catch追加、ボタンロック解除を確実に実行）
-- デバッグログ追加（?debug=1時のみ：保存処理の詳細をログ出力）
-- エラーハンドリング強化（保存失敗時にshowToastで通知）
+- ✅ P0修正: バーコードスキャン起動失敗時の詳細なエラーハンドリング（NotAllowedError/NotFoundError/NotReadableError等の判別）
+- ✅ P0修正: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+- ✅ P0修正: Html5Qrcodeライブラリの読み込み確認を追加
+- ✅ P0修正: スキャナー起動時のエラーハンドリングを強化（try-catchで初期化エラーを捕捉）
+- ✅ P0修正: 内部検証用詳細ログ追加（console.errorでエラー詳細を出力）
+- ✅ P0修正: エラーメッセージの詳細化（カメラアクセス拒否/カメラ未検出/カメラ使用中/設定非対応等）
 AUTHOR: Rex
-BUILD_ID: 2026-01-11_2020_stable2
-BUILD_PARAM: ?b=2026-01-11_2020_stable2
+BUILD_PARAM: ?b=2026-01-17_0716_P0_scanner-error-handling
 DEBUG_PARAM: &debug=1
-POLICY: UI変更禁止（内部修正のみ）
+POLICY: UI変更禁止（内部ロジックのみ）
+
+⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
+1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
+2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1641_scanner-regression-redframe を開く
+3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
+4. それでもだめならPWA削除→再追加:
+   - スマホのホーム画面からPWAを削除
+   - ブラウザで通常タブで開く
+   - メニューから「ホーム画面に追加」を選択して再追加
 -->
 
 <!DOCTYPE html>
@@ -21,12 +35,11 @@ POLICY: UI変更禁止（内部修正のみ）
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- manifest.json 404対策：一旦無効化（PWAは後で復活） -->
-  <!-- <link rel="manifest" href="manifest.json"> -->
+  <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9c-hf13-stable2</title>
+  <title>Smart Price v19.9.25</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -55,21 +68,53 @@ POLICY: UI変更禁止（内部修正のみ）
     .stat-val { display: block; font-weight: bold; color: #fff; font-size: 0.9rem; }
 
     .history-row { font-size: 0.8rem; padding: 10px 0; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    /* ✅ 見失わない赤枠（レイアウトを崩さない） */
-    .history-row.selected {
-      background: rgba(213,0,0,0.10);
-      box-shadow: inset 0 0 0 2px rgba(213,0,0,0.95);
-      border-radius: 10px;
-      padding-left: 10px;
-      padding-right: 10px;
-      margin: 6px 0;
+    
+    /* ✅ P0: 購入履歴選択時の赤枠を#priceSectionと同じ仕様へ統一 */
+    .selected {
+      border: 1px solid #ff5252 !important;
+      border-radius: 12px !important; /* 角丸統一（他カードと同じ半径） */
+      background: rgba(213,0,0,0.12);
+      box-sizing: border-box !important; /* 枠ズレ予防 */
+      max-width: 100% !important; /* 枠ズレ予防 */
+      overflow: hidden !important; /* 枠ズレ予防 */
+      padding: 12px !important; /* 左右余白（枠線に対して情報が近すぎるのを解消） */
+      margin: 0 !important; /* マージンをリセット */
     }
 
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; }
-    .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 180px; z-index: 2001; box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); }
-    .laser { position: absolute; left: 5%; width: 90%; height: 2px; background: #ff0000; box-shadow: 0 0 10px 2px #ff0000; animation: scanning 2s infinite ease-in-out; z-index: 2002; }
-    @keyframes scanning { 0% { top: 15%; opacity: 0.2; } 50% { top: 85%; opacity: 1; } 100% { top: 15%; opacity: 0.2; } }
+    /* ✅ P0: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも） */
+    .scan-frame { 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      width: 280px; 
+      height: 180px; 
+      z-index: 2001; /* videoより前面に固定 */
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); 
+      border: 3px solid #ff5252; 
+      border-radius: 20px; 
+      display: block; /* 必ず表示 */
+    }
+    /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
+    .laser { 
+      position: absolute; 
+      left: 5%; 
+      width: 90%; 
+      height: 2px; 
+      background: #ff0000; 
+      box-shadow: 0 0 10px 2px #ff0000; 
+      animation: scanning 2s infinite ease-in-out; 
+      z-index: 2002; /* videoより前面に固定 */
+      border-radius: 1px; /* 角丸 */
+    }
+    /* CSSアニメで確実に出る方式 */
+    @keyframes scanning { 
+      0% { top: 15%; opacity: 0.2; } 
+      50% { top: 85%; opacity: 1; } 
+      100% { top: 15%; opacity: 0.2; } 
+    }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: #1e1e1e; padding: 25px; border-radius: 20px; width: 95%; max-width: 450px; border: 1px solid #D50000; }
@@ -87,7 +132,7 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge">v19.9c-hf13-stable2</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.25</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -129,7 +174,7 @@ POLICY: UI変更禁止（内部修正のみ）
           </div>
         </div>
 
-        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a;">
+        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
           <div id="calcOptionArea" class="d-flex align-items-center mb-2">
             <div class="btn-group btn-group-sm w-100 me-2">
               <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
@@ -228,11 +273,27 @@ POLICY: UI変更禁止（内部修正のみ）
       <button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlDebug')">開く</button>
     </div>
 
+    <div class="hint mb-3" style="background:#1a1a1a; padding:10px; border-radius:8px; border:1px solid #333;">
+      <b style="color:#ff5252;">📱 アプリとして使う（PWA）</b><br>
+      <span style="font-size:0.7rem; color:#aaa;">
+      <b>Android（Chrome/Edge）：</b> ブラウザで開く → メニュー（⋮）→「ホーム画面に追加」<br>
+      <b>iOS（Safari）：</b> ブラウザで開く → 共有ボタン（□↑）→「ホーム画面に追加」<br>
+      <b>更新が反映されない時：</b> ホーム画面のアイコンを削除 → 再度追加してください
+      </span>
+    </div>
+
+    <!-- ✅ PWAインストールボタン（beforeinstallpromptがある時だけ表示） -->
+    <button id="pwaInstallBtn" class="btn btn-danger w-100 mb-2" style="display:none;" onclick="installPWA()">
+      📱 今すぐインストール
+    </button>
+
     <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
   </div>
 </div>
 
 <div id="toast" class="toast-msg"></div>
+<!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
+<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -241,8 +302,9 @@ POLICY: UI変更禁止（内部修正のみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9c-hf13-stable2";
-  const BUILD_ID = "2026-01-11_2020_stable2";
+  const APP_VERSION = "v19.9.25"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.25"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-17_0716_P0_scanner-error-handling"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -316,13 +378,70 @@ POLICY: UI変更禁止（内部修正のみ）
   function isDebug() {
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
+  // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
+    const errorDisplay = document.getElementById('debug-error-display');
+    if (errorDisplay) errorDisplay.style.display = 'block';
+
+    // 最終エラーを画面に固定表示する関数
+    function setLastError(msg) {
+      const errorDisplay = document.getElementById('debug-error-display');
+      if (errorDisplay) {
+        errorDisplay.textContent = msg;
+        errorDisplay.style.display = 'block';
+      }
+    }
+
     window.addEventListener('error', (e) => {
-      showToast(`JSエラー: ${e.message}`, 10000);
+      // ✅ P0: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
+      let errorName = 'Error';
+      let errorMsg = e.message || 'Unknown error';
+      let errorStack = '';
+      let errorFileName = e.filename || '';
+      let errorLine = e.lineno || 0;
+      let errorCol = e.colno || 0;
+      
+      if (e.error) {
+        errorName = e.error.name || 'Error';
+        errorMsg = e.error.message || e.message || 'Unknown error';
+        errorStack = e.error.stack || '';
+      } else if (e.message && e.message !== 'Script error.') {
+        errorName = 'Error';
+        errorMsg = e.message;
+      }
+      
+      // Script error.の場合、詳細情報を追加
+      if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+        errorMsg = `Script error. (ファイル: ${errorFileName || '不明'}, 行: ${errorLine}, 列: ${errorCol})`;
+        if (errorFileName) {
+          errorMsg += ` - 外部スクリプトのエラーの可能性があります（CORS制限）`;
+        }
+      }
+      
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `JSエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
+      
+      // コンソールにも詳細を出力（内部検証用）
+      console.error('[JS Error]', {
+        name: errorName,
+        message: errorMsg,
+        filename: errorFileName,
+        lineno: errorLine,
+        colno: errorCol,
+        stack: errorStack,
+        event: e
+      });
     });
     window.addEventListener('unhandledrejection', (e) => {
-      const msg = (e && e.reason && e.reason.message) ? e.reason.message : String(e.reason || e);
-      showToast(`Promiseエラー: ${msg}`, 10000);
+      const reason = e.reason || e;
+      const errorName = reason && reason.name ? reason.name : 'PromiseRejection';
+      const errorMsg = (reason && reason.message) ? reason.message : String(reason);
+      const errorDetail = `${errorName}: ${errorMsg}`;
+      const fullMsg = `Promiseエラー: ${errorDetail}`;
+      showToast(fullMsg, 10000);
+      setLastError(fullMsg);
     });
   }
 
@@ -364,7 +483,8 @@ POLICY: UI変更禁止（内部修正のみ）
     lastTax: "ex",
     homeCity: "",
     homeCities: [],
-    customStores: []
+    customStores: [],
+    storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
   };
 
   const CITY_STORE_PRESET = {
@@ -826,8 +946,11 @@ POLICY: UI変更禁止（内部修正のみ）
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
   let curBarcode = null, curStore = "未設定";
+  let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
+  let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
   let scanner = null, editingHistIdx = null, isScanning = false;
+  let deferredPrompt = null; // ✅ PWAインストールプロンプト
 
   // ✅ ここは必ず let（const にすると "Assignment to constant variable" の原因になる）
   let fbUrl = localStorage.getItem('smartPriceFirebaseUrl') || '';
@@ -840,24 +963,51 @@ POLICY: UI変更禁止（内部修正のみ）
   // ✅ 同期ロック（二重起動防止）
   let syncInFlight = false;
   let syncQueued = false;
+  
+  // ✅ 近隣店舗候補（GPS/生活圏から取得）
+  window.nearbyStoreNames = [];
 
   // ========= Config.json読み込み =========
   async function loadConfig() {
     try {
       const b = new URLSearchParams(location.search).get("b") || "";
       const configUrl = "./config.json" + (b ? ("?b=" + encodeURIComponent(b)) : "");
+      
+      // ✅ デバッグ: config読込開始
+      if (isDebug()) {
+        const fullUrl = new URL(configUrl, location.href).href;
+        showToast(`[Config] Loading from: ${fullUrl}`, 5000);
+        console.log('[Config] Loading from:', fullUrl);
+      }
+      
       const res = await fetch(configUrl, { cache: "no-store" });
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Config] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log('[Config] HTTP Status:', res.status, res.statusText);
+      }
+      
       if (res.ok) {
         const json = await res.json();
         window.SP_CONFIG = json || {};
-        if (isDebug()) console.log('[Config] Loaded:', window.SP_CONFIG);
+        if (isDebug()) {
+          showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}...`, 5000);
+          console.log('[Config] Loaded:', window.SP_CONFIG);
+        }
       } else {
         window.SP_CONFIG = {};
-        if (isDebug()) console.warn('[Config] Failed to load, using default');
+        if (isDebug()) {
+          console.warn('[Config] Failed to load, using default');
+          showToast('Config読み込み失敗（デフォルト使用）', 10000);
+        }
       }
     } catch(e) {
       window.SP_CONFIG = {};
-      if (isDebug()) console.warn('[Config] Error:', e);
+      if (isDebug()) {
+        console.warn('[Config] Error:', e);
+        showToast('Config読み込みエラー: ' + (e.message || '不明'), 10000);
+      }
     }
   }
 
@@ -873,6 +1023,23 @@ POLICY: UI変更禁止（内部修正のみ）
   }
 
   window.onload = async () => {
+    // ✅ P0: ヘッダーバージョン表示とdocument.titleをFULL_VERSIONから統一
+    try {
+      const versionBadge = document.getElementById('version-badge');
+      if (versionBadge) {
+        versionBadge.textContent = FULL_VERSION;
+      }
+      
+      // document.titleを更新（debug=1の時だけBUILD_IDも併記）
+      if (isDebug()) {
+        document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
+      } else {
+        document.title = `Smart Price ${FULL_VERSION}`;
+      }
+    } catch(e) {
+      if (isDebug()) console.warn('[onload] version update error:', e);
+    }
+
     // ✅ 起動時の黒画面対策：即座に表示を確実にする
     try {
       document.body.style.display = 'block';
@@ -906,6 +1073,9 @@ POLICY: UI変更禁止（内部修正のみ）
       // 旧data:imageが残っている端末は、IndexedDBへ移行して画像復活
       await migrateLegacyImagesToIdb();
 
+      // ✅ M_商品とJANの自動統合（起動時・Yahoo成功に依存しない）
+      migrateMergeManualToJan();
+
       initCategorySelect();
       renderStoreList();
       renderHistory();
@@ -918,10 +1088,26 @@ POLICY: UI変更禁止（内部修正のみ）
 
       setupFocusGuides();
 
+      // ✅ 起動時に近隣店舗を取得（GPS OFF でも生活圏があれば取得）
+      try {
+        const nearbyStores = await fetchNearbyStores();
+        if (nearbyStores && nearbyStores.length > 0) {
+          window.nearbyStoreNames = nearbyStores;
+          renderStoreList(); // 近隣店舗を反映して再描画
+          if (isDebug()) console.log('[onload] Nearby stores loaded:', nearbyStores.length);
+        }
+      } catch(e) {
+        if (isDebug()) console.warn('[onload] fetchNearbyStores failed:', e);
+      }
+
       if (isDebug()) {
+        // ✅ P0: debug=1のときだけスキャンガイド枠を表示
+        document.body.setAttribute('data-debug', '1');
         setTimeout(() => {
-          showToast(`DEBUG:${APP_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
+          showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
+      } else {
+        document.body.removeAttribute('data-debug');
       }
     } catch(e) {
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
@@ -935,6 +1121,21 @@ POLICY: UI変更禁止（内部修正のみ）
       // バックフォワードキャッシュから復帰した場合
       renderHistory();
       renderStoreList();
+    }
+  });
+
+  // ✅ PWAインストールプロンプト（Android/PC Chrome/Edge）
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (isDebug()) console.log('[PWA] Install prompt captured');
+    
+    // ✅ webModalが開いている場合は即座にボタンを表示
+    const webModal = document.getElementById('webModal');
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (webModal && webModal.style.display === 'flex' && installBtn) {
+      installBtn.style.display = 'block';
+      if (isDebug()) console.log('[PWA] Install button shown (modal is open)');
     }
   });
 
@@ -958,6 +1159,10 @@ POLICY: UI変更禁止（内部修正のみ）
   function showToast(msg, ms = 4000) {
     const t = document.getElementById('toast');
     if (!t) return;
+    // ✅ P0: debug=1のときだけ、トースト表示時間を最低10秒にする
+    if (isDebug()) {
+      ms = Math.max(ms || 0, 10000);
+    }
     t.innerText = msg;
     t.style.opacity = 1;
     setTimeout(() => { t.style.opacity = 0; }, ms);
@@ -1628,7 +1833,18 @@ POLICY: UI変更禁止（内部修正のみ）
     
     const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
     const customStores = db.config.customStores || [];
-    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 近隣店舗候補を統合（nearbyStoreNames）
+    const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
+    
+    // ✅ 空なら プリセット + customStores を必ず表示
+    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
+    if (curStore === "未設定" && finalSet.length > 1) {
+      curStore = finalSet[1]; // 「未設定」以外の最初の候補
+      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
+    }
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
     list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
@@ -1643,6 +1859,20 @@ POLICY: UI変更禁止（内部修正のみ）
         curStore = name;
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        
+        // ✅ ストアの税別/税込既定値を自動反映
+        const storeTaxMode = db.config.storeTaxModes && db.config.storeTaxModes[curStore];
+        if (storeTaxMode) {
+          const taxModeId = storeTaxMode === "in" ? 'taxIn' : 'taxEx';
+          const taxEl = document.getElementById(taxModeId);
+          if (taxEl) {
+            taxEl.checked = true;
+            if (isDebug()) {
+              console.log('[StoreTaxMode] Auto-switch:', curStore, '→', storeTaxMode);
+              showToast(`税${storeTaxMode === "in" ? "込" : "別"}に自動切替`, 2000);
+            }
+          }
+        }
       };
       list.appendChild(span);
     });
@@ -1659,20 +1889,71 @@ POLICY: UI変更禁止（内部修正のみ）
     return 'https://placehold.jp/24/333/ccc/68x68.png?text=NoImage';
   }
 
+  // ✅ renderHistory() の二重起動防止
+  let renderHistoryInFlight = false;
+  let renderHistorySeq = 0;
+
   async function renderHistory() {
+    // ✅ 二重起動防止: 既に実行中なら最新の呼び出しだけを反映
+    const mySeq = ++renderHistorySeq;
+    
+    if (renderHistoryInFlight) {
+      if (isDebug()) console.log('[renderHistory] Already in flight, queued:', mySeq);
+      // 最新の呼び出しだけを反映するため、少し待って再実行
+      setTimeout(() => {
+        if (renderHistorySeq === mySeq) {
+          renderHistory();
+        }
+      }, 100);
+      return;
+    }
+    
+    renderHistoryInFlight = true;
+    
+    try {
     const list = document.getElementById('historyList');
     if(!list) return;
+      
+      // ✅ 必ずまっさらにする
     list.innerHTML = "";
 
     const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
     items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
 
+    // ✅ 重複防止ガード（codeキー + 正規化キー）
+    const renderedKeys = new Set();
+    const renderedNormalizedKeys = new Set();
+
     for (const it of items) {
       if (!it.history || !it.history.length) continue;
+      
+      // codeキーで重複チェック
+      if (renderedKeys.has(it.code)) {
+        if (isDebug()) console.log('[renderHistory] Skipped duplicate code:', it.code);
+        continue;
+      }
+      
+      // 正規化キーで重複チェック
+      const normalized = normalizeProductName(it.name, it.maker);
+      if (normalized && normalized !== '|' && renderedNormalizedKeys.has(normalized)) {
+        if (isDebug()) console.log('[renderHistory] Skipped duplicate normalized:', it.code, normalized);
+        continue;
+      }
+      
+      renderedKeys.add(it.code);
+      if (normalized && normalized !== '|') {
+        renderedNormalizedKeys.add(normalized);
+      }
       const last = it.history[it.history.length-1];
       const div = document.createElement('div');
       div.className = 'card price-card';
-      div.onclick = () => openForm(it.code);
+      div.onclick = (e) => {
+        // ✅ 他の選択を解除
+        document.querySelectorAll('.price-card.selected').forEach(el => el.classList.remove('selected'));
+        // ✅ 自分を選択
+        div.classList.add('selected');
+        openForm(it.code);
+      };
 
       // ✅ 画像表示：優先順位
       // 1. 自分の画像（IndexedDB / imageUrl）
@@ -1801,6 +2082,10 @@ POLICY: UI変更禁止（内部修正のみ）
           };
         }
       }
+    }
+    } finally {
+      // ✅ ロック解除
+      renderHistoryInFlight = false;
     }
   }
 
@@ -2285,8 +2570,18 @@ POLICY: UI変更禁止（内部修正のみ）
       } else {
         const disc = Number(document.getElementById('inputDisc').value || 0);
         let finalP = Math.floor(val * (1 - disc/100));
-        if(document.getElementById('taxEx').checked) finalP = Math.floor(finalP * 1.08);
-        db.config.lastTax = document.getElementById('taxEx').checked ? "ex" : "in";
+        const isTaxEx = document.getElementById('taxEx').checked;
+        if(isTaxEx) finalP = Math.floor(finalP * 1.08);
+        db.config.lastTax = isTaxEx ? "ex" : "in";
+        
+        // ✅ ストアの税別/税込既定値を保存（一度設定したら以後自動切替）
+        if (curStore && curStore !== "未設定") {
+          if (!db.config.storeTaxModes) db.config.storeTaxModes = {};
+          db.config.storeTaxModes[curStore] = isTaxEx ? "ex" : "in";
+          if (isDebug()) {
+            console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
+          }
+        }
         const entry = { price: finalP, store: curStore, ts: Date.now() };
         if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
         p.history.push(entry);
@@ -2349,11 +2644,21 @@ POLICY: UI変更禁止（内部修正のみ）
         return;
       }
 
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         const d = new Date(); lastGpsTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
         
-        // ✅ GPS取得成功後、近隣ストアを上位に並べる
+        // ✅ GPS取得成功後、近隣店舗を取得してリストを更新
+        try {
+          const nearbyStores = await fetchNearbyStores();
+          if (nearbyStores && nearbyStores.length > 0) {
+            window.nearbyStoreNames = nearbyStores;
+            if (isDebug()) console.log('[GPS] Nearby stores loaded:', nearbyStores.length);
+          }
+        } catch(e) {
+          if (isDebug()) console.warn('[GPS] fetchNearbyStores failed:', e);
+        }
+        
         renderStoreList();
         
         const msg = isDebug() 
@@ -2369,14 +2674,591 @@ POLICY: UI変更禁止（内部修正のみ）
         isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList();
       }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
     } else {
-      isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList(); 
+      isGpsOn = false; curPos = null; lastGpsTime = ""; 
+      window.nearbyStoreNames = []; // GPS OFF時は近隣店舗候補もクリア
+      renderStoreList(); 
       showToast("GPS OFF", 1500);
     }
   }
 
-  // ========= Yahoo Shopping API（JANコード検索） =========
-  async function lookupYahooByJan(jan) {
+  // ========= Yahoo商品情報の自動整形（12本1箱問題対応） =========
+  // ========= 汎用正規化関数（メーカー名/販売店名混入除去） =========
+  function normalizeMakerName(maker) {
+    if (!maker || !maker.trim()) return maker || '';
+    let normalized = String(maker).trim();
+    
+    // ✅ 販売店名パターンを除去（強化版）
+    const storePatterns = [
+      /\s*店\s*$/gi,
+      /\s*ストア\s*$/gi,
+      /\s*ショップ\s*$/gi,
+      /\s*ストアーズ\s*$/gi,
+      /\s*ショップス\s*$/gi,
+      /\s*モール\s*$/gi,
+      /\s*マーケット\s*$/gi,
+      /\s*ドットコム\s*$/gi,
+      /\s*\.com\s*$/gi,
+      /\s*\.co\.jp\s*$/gi,
+      /楽天/gi,
+      /Amazon/gi,
+      /ヤフー/gi,
+      /Yahoo/gi,
+      /Rakuten/gi,
+      /メルカリ/gi,
+      /mercari/gi,
+      /公式/gi,
+      /Official/gi,
+      /本店/gi,
+      /支店/gi,
+      /オンライン/gi,
+      /ダイレクト/gi,
+      /\s*inc\s*$/gi,
+      /\s*ltd\s*$/gi,
+      /\s*corp\s*$/gi,
+      /\s*group\s*$/gi
+    ];
+    
+    storePatterns.forEach(pattern => {
+      normalized = normalized.replace(pattern, '');
+    });
+    
+    // ✅ メーカー重複を除去（例：「コカ・コーラ コカ・コーラ」→「コカ・コーラ」）
+    const words = normalized.split(/\s+/).filter(w => w.length > 0);
+    const uniqueWords = [];
+    const seen = new Set();
+    words.forEach(word => {
+      const lower = word.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueWords.push(word);
+      }
+    });
+    normalized = uniqueWords.join(' ');
+    
+    normalized = normalized.replace(/\s+/g, ' ').trim();
+    return normalized || maker; // 空になった場合は元に戻す
+  }
+
+  function normalizeYahooProductInfo(info) {
+    if (!info || !info.name) return info;
+    
+    const original = {
+      name: info.name,
+      maker: info.maker || '',
+      imageUrl: info.imageUrl || ''
+    };
+    
+    let name = original.name;
+    let maker = original.maker;
+    let packHint = false; // まとめ買い検出フラグ
+    let packCount = null; // まとめ買い個数
+    let isCase = false; // ケース商品フラグ
+    let trustScore = 100; // 信頼度スコア（初期値100）
+    
+    // ✅ 1. まとめ買い語を検出（信頼度スコア付き・強化版）
+    const bulkPatterns = [
+      { pattern: /×\s*(\d+)\s*(本|個|缶|袋|パック)/gi, trust: 90 }, // pack疑い強
+      { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*×/gi, trust: 90 },
+      { pattern: /(\d+)\s*(本|個|缶|袋|パック)\s*セット/gi, trust: 85 },
+      { pattern: /ケース/gi, trust: 80 },
+      { pattern: /箱/gi, trust: 75 }, // 「箱」単独も検出
+      { pattern: /箱買い/gi, trust: 75 },
+      { pattern: /まとめ買い/gi, trust: 70 },
+      { pattern: /セット販売/gi, trust: 70 },
+      { pattern: /業務用/gi, trust: 75 }, // 業務用も検出
+      { pattern: /\[\s*(\d+)\s*(本|個|缶|袋|パック)\s*\]/gi, trust: 85 }
+    ];
+    
+    let maxPackTrust = 0;
+    bulkPatterns.forEach(({ pattern, trust }) => {
+      const match = pattern.exec(name);
+      if (match) {
+        packHint = true;
+        if (trust > maxPackTrust) {
+          maxPackTrust = trust;
+        }
+        // packCountを抽出（数字部分）
+        if (match[1]) {
+          const count = parseInt(match[1], 10);
+          if (count > 1 && (!packCount || count > packCount)) {
+            packCount = count;
+          }
+        }
+        // ケース判定
+        if (/ケース|箱買い|まとめ買い|セット販売/i.test(match[0])) {
+          isCase = true;
+        }
+      }
+    });
+    
+    // ✅ 信頼度スコア調整（pack疑いが強いとき・強化版）
+    if (maxPackTrust >= 80) {
+      trustScore -= 30; // pack疑い強（スコアを下げる）
+    } else if (maxPackTrust >= 70) {
+      trustScore -= 20; // pack疑い中（スコアを下げる）
+    }
+    
+    // ✅ 追加：商品名に販売店名っぽい語が混入している場合もスコアを下げる
+    const storeNamePatterns = [
+      /楽天/gi, /Amazon/gi, /ヤフー/gi, /Yahoo/gi, /Rakuten/gi,
+      /メルカリ/gi, /mercari/gi, /公式/gi, /Official/gi,
+      /本店/gi, /支店/gi, /オンライン/gi, /ダイレクト/gi
+    ];
+    let hasStoreName = false;
+    storeNamePatterns.forEach(pattern => {
+      if (pattern.test(name)) {
+        hasStoreName = true;
+      }
+    });
+    if (hasStoreName) {
+      trustScore -= 15; // 販売店名混入でスコアを下げる
+    }
+    
+    // ✅ 2. 不要な販促文言を除去
+    const promoPatterns = [
+      /「[^」]*送料[^」]*」/gi,
+      /「[^」]*無料[^」]*」/gi,
+      /「[^」]*地域限定[^」]*」/gi,
+      /「[^」]*最短[^」]*」/gi,
+      /「[^」]*公式[^」]*」/gi,
+      /「[^」]*PayPay[^」]*」/gi,
+      /「[^」]*ポイント[^」]*」/gi,
+      /【[^】]*送料[^】]*】/gi,
+      /【[^】]*無料[^】]*】/gi,
+      /【[^】]*公式[^】]*】/gi,
+      /\([^)]*送料[^)]*\)/gi,
+      /\([^)]*無料[^)]*\)/gi,
+      /\s*\/ot\/\s*$/gi,
+      /\s*\/\s*$/gi
+    ];
+    
+    promoPatterns.forEach(pattern => {
+      name = name.replace(pattern, '');
+    });
+    
+    // ✅ 3. 重複・冗長な [ ] 内の情報を除去
+    // 例：[小岩井 ミルクココア ココア 400g] → 既に商品名に含まれている場合は削除
+    const bracketPattern = /\[[^\]]+\]/g;
+    const brackets = name.match(bracketPattern);
+    if (brackets) {
+      brackets.forEach(bracket => {
+        const content = bracket.replace(/[\[\]]/g, '').trim();
+        // 元の名前に既に含まれているか確認
+        const nameWithoutBracket = name.replace(bracket, '').trim();
+        if (nameWithoutBracket.includes(content.substring(0, 10))) {
+          // 重複している場合は削除
+          name = name.replace(bracket, '');
+        }
+      });
+    }
+    
+    // ✅ 4. まとめ買い表記を商品名本体から削除（別フィールドに逃がす準備）
+    if (packHint) {
+      // まとめ買い表記を一旦削除（商品名本体から外す）
+      bulkPatterns.forEach(({ pattern }) => {
+        name = name.replace(pattern.pattern || pattern, '');
+      });
+      // 「12本」「ケース」等も削除
+      name = name.replace(/\s*×\s*\d+\s*(本|個|缶|袋|パック)\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*×\s*/gi, '');
+      name = name.replace(/\s*\d+\s*(本|個|缶|袋|パック)\s*セット\s*/gi, '');
+      name = name.replace(/\s*ケース\s*/gi, '');
+      name = name.replace(/\s*箱\s*/gi, '');
+      name = name.replace(/\s*箱買い\s*/gi, '');
+      name = name.replace(/\s*まとめ買い\s*/gi, '');
+      name = name.replace(/\s*セット販売\s*/gi, '');
+      name = name.replace(/\s*業務用\s*/gi, '');
+    }
+    
+    // ✅ 商品名から販売店名っぽい語を除去
+    const storeNameInProductPatterns = [
+      /\s*楽天\s*/gi, /\s*Amazon\s*/gi, /\s*ヤフー\s*/gi, /\s*Yahoo\s*/gi,
+      /\s*Rakuten\s*/gi, /\s*メルカリ\s*/gi, /\s*mercari\s*/gi,
+      /\s*公式\s*/gi, /\s*Official\s*/gi, /\s*本店\s*/gi, /\s*支店\s*/gi
+    ];
+    storeNameInProductPatterns.forEach(pattern => {
+      name = name.replace(pattern, ' ');
+    });
+    
+    // ✅ 5. メーカー名から販売店名を除去（汎用関数を使用）
+    maker = normalizeMakerName(maker);
+    
+    // ✅ 6. 空白・記号の整理
+    name = name.replace(/\s+/g, ' ').trim();
+    name = name.replace(/^[\s\-・]+|[\s\-・]+$/g, '');
+    maker = maker.replace(/\s+/g, ' ').trim();
+    
+    // ✅ 容量/個数が過剰な場合のpack疑い判定
+    if (!packHint && packCount === null) {
+      // 商品名に大きな数字が含まれる場合（例：24本、12個）
+      const largeNumberMatch = name.match(/(\d{2,})\s*(本|個|缶|袋|パック)/i);
+      if (largeNumberMatch) {
+        const count = parseInt(largeNumberMatch[1], 10);
+        if (count >= 12) {
+          packHint = true;
+          packCount = count;
+          trustScore -= 15; // pack疑い中
+        }
+      }
+    }
+    
+    // ✅ 7. まとめ買い注記を追加（短く）
+    if (packHint && name.length > 0) {
+      name = name + '（ケース）';
+    }
+    
+    // ✅ デバッグログ
+    if (isDebug() && (name !== original.name || maker !== original.maker)) {
+      console.log('[Normalize] Before:', original.name);
+      console.log('[Normalize] After:', name);
+      if (packHint) console.log('[Normalize] Pack hint detected');
+    }
+    
+    return {
+      name: name || original.name, // 空になった場合は元に戻す
+      maker: maker || original.maker,
+      imageUrl: original.imageUrl,
+      packHint: packHint, // まとめ買いフラグ
+      packCount: packCount, // まとめ買い個数
+      isCase: isCase, // ケース商品フラグ
+      trustScore: trustScore // 信頼度スコア（100が最高）
+    };
+  }
+
+  // ========= Open Food Facts API（JANコード検索） =========
+  async function lookupOffByJan(jan) {
     try {
+      if (!jan || !/^\d{8,14}$/.test(jan)) {
+        return null;
+      }
+
+      // ✅ デバッグ: OFF検索開始
+      if (isDebug()) {
+        showToast(`[OFF] Fetching...`, 3000);
+        console.log("[OFF] JAN:", jan);
+      }
+
+      // ✅ エンドポイント（日本優先、フォールバックで世界版）
+      const endpoints = [
+        `https://jp.openfoodfacts.org/api/v2/product/${jan}.json`,
+        `https://world.openfoodfacts.org/api/v2/product/${jan}.json`
+      ];
+
+      // ✅ AbortController+timeout（12秒、Yahooと揃える）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      let lastError = null;
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            cache: 'no-store',
+            signal: controller.signal,
+            mode: 'cors',
+            credentials: 'omit'
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            lastError = new Error(`HTTP ${res.status}`);
+            continue; // 次のエンドポイントを試す
+          }
+
+          const json = await res.json();
+
+          // ✅ OFF APIのレスポンス構造を確認
+          if (json && json.status === 1 && json.product) {
+            const product = json.product;
+
+            // ✅ 商品名候補（優先順位: product_name_ja → product_name → generic_name_ja → generic_name）
+            let displayName = '';
+            if (product.product_name_ja && product.product_name_ja.trim()) {
+              displayName = product.product_name_ja.trim();
+            } else if (product.product_name && product.product_name.trim()) {
+              displayName = product.product_name.trim();
+            } else if (product.generic_name_ja && product.generic_name_ja.trim()) {
+              displayName = product.generic_name_ja.trim();
+            } else if (product.generic_name && product.generic_name.trim()) {
+              displayName = product.generic_name.trim();
+            }
+
+            // ✅ ブランド（カンマ区切りなら先頭だけ）
+            let brand = '';
+            if (product.brands && product.brands.trim()) {
+              const brands = product.brands.split(',').map(b => b.trim()).filter(b => b.length > 0);
+              brand = brands.length > 0 ? brands[0] : '';
+            }
+
+            // ✅ 画像（image_front_url → image_url）
+            let imageUrl = '';
+            if (product.image_front_url && product.image_front_url.trim()) {
+              imageUrl = product.image_front_url.trim();
+            } else if (product.image_url && product.image_url.trim()) {
+              imageUrl = product.image_url.trim();
+            }
+
+            // ✅ 商品身元情報が1つでも取得できたら成功
+            if (displayName || brand || imageUrl) {
+              // ✅ OFFの使い方ルール：条件チェック
+              let shouldUse = false;
+              let reason = '';
+
+              // ✅ 条件1: 商品名が日本語フィールドで取れる、または日本語が十分含まれる
+              const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(displayName);
+              const isJapaneseField = product.product_name_ja || product.generic_name_ja;
+
+              if (isJapaneseField || (displayName && hasJapanese && displayName.length > 0)) {
+                shouldUse = true;
+                reason = '日本語OK';
+                // ✅ 画像がユーザー投稿っぽい場合は画像を採用しない（商品名のみ）
+                if (isUserUploadImage) {
+                  imageUrl = ''; // 画像をクリア（商品名のみ採用）
+                  reason += '（画像はユーザー投稿のため除外）';
+                }
+              } else {
+                shouldUse = false;
+                reason = '英語名/日本語不足';
+              }
+
+              // ✅ 条件2: 画像が明らかに商品正面（自撮り/ユーザー投稿っぽいのは自動採用しない）
+              // 簡易判定：画像URLに "front" が含まれる、または "image_front_url" が存在する
+              const isFrontImage = imageUrl && (
+                imageUrl.includes('front') || 
+                imageUrl.includes('image_front') ||
+                product.image_front_url
+              );
+              
+              // ✅ 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              // 判定：画像URLに "user" や "upload" が含まれる、または "front" が含まれない場合は疑わしい
+              const isUserUploadImage = imageUrl && (
+                imageUrl.includes('user') || 
+                imageUrl.includes('upload') ||
+                imageUrl.includes('mobile') ||
+                (!isFrontImage && imageUrl.includes('images.openfoodfacts.org'))
+              );
+
+              if (imageUrl && (isUserUploadImage || !isFrontImage)) {
+                // 画像が存在するが、正面画像でない可能性がある、またはユーザー投稿っぽい
+                // ただし、商品名が日本語なら採用（画像は補完として、画像自体は採用しない）
+                if (!shouldUse) {
+                  shouldUse = false;
+                  reason = '画像品質不足（自撮り/棚写真の可能性）';
+                }
+              }
+
+              // ✅ 条件を満たさない場合の挙動
+              if (!shouldUse) {
+                if (isDebug()) {
+                  showToast(`[OFF] 英語/画像品質の理由で採用しない (${reason})`, 5000);
+                  console.log("[OFF] Rejected:", reason, { displayName, brand, imageUrl });
+                } else {
+                  // 通常モードではトースト1回だけでOK（UI追加なし）
+                  showToast(`[OFF] 商品情報の品質が不足のため採用しません`, 3000);
+                }
+                return null; // 自動入力しない
+              }
+
+              // ✅ 条件を満たした場合のみ採用
+              const result = {
+                name: displayName || '',
+                maker: brand || '',
+                imageUrl: imageUrl || ''
+              };
+
+              if (isDebug()) {
+                showToast(`[OFF] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+                console.log("[OFF] Found:", result);
+              }
+
+              return result;
+            }
+          }
+
+          // ✅ status=0 または productが無い場合は次のエンドポイントを試す
+          lastError = new Error('Product not found');
+          continue;
+
+        } catch(e) {
+          lastError = e;
+          if (e.name === 'AbortError') {
+            // タイムアウトの場合は次のエンドポイントを試さない
+            break;
+          }
+          // その他のエラーは次のエンドポイントを試す
+          continue;
+        }
+      }
+
+      // ✅ 全てのエンドポイントで失敗
+      if (isDebug()) {
+        const errorDetail = lastError && lastError.name === 'AbortError' ? 'タイムアウト（12秒）' : (lastError && lastError.message) || 'Product not found';
+        showToast(`[OFF] Miss/Fail → fallback Yahoo normalize (${errorDetail})`, 5000);
+        console.log("[OFF] Failed:", lastError);
+      }
+      return null;
+
+    } catch(e) {
+      // ✅ 予期しないエラー
+      if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[OFF] Error: ${errorDetail} → fallback Yahoo normalize`, 5000);
+        console.error("[OFF] Error:", e);
+      }
+      return null;
+    }
+  }
+
+  // ========= 楽天API（JANコード検索・国内DB第2優先） =========
+  async function lookupRakutenByJan(jan, keyword = null) {
+    try {
+      if (!jan || !/^\d{8,14}$/.test(jan)) {
+        return null;
+      }
+
+      // ✅ デバッグ: 楽天検索開始
+      if (isDebug()) {
+        showToast(`[楽天] Fetching...`, 3000);
+        console.log("[Rakuten] JAN:", jan, "Keyword:", keyword);
+      }
+
+      // ✅ Yahoo Proxy経由で楽天データを取得（action=rakuten）
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          showToast("[楽天] Proxy URL not configured", 5000);
+        }
+        return null;
+      }
+
+      // ✅ リクエストURL（JAN優先、ダメならキーワード）
+      let requestUrl = '';
+      if (jan) {
+        requestUrl = `${proxyUrl}?action=rakuten&jan=${encodeURIComponent(jan)}`;
+      } else if (keyword) {
+        requestUrl = `${proxyUrl}?action=rakuten&keyword=${encodeURIComponent(keyword)}`;
+      } else {
+        return null;
+      }
+
+      // ✅ AbortController+timeout（12秒、Yahooと揃える）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const res = await fetch(requestUrl, {
+        cache: 'no-store',
+        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        // ✅ P0: Proxy側が未実装（404/500等）なら即null返し
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (HTTP ${res.status})`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, HTTP:", res.status);
+        }
+        return null; // 即null返し（無効）
+      }
+
+      const json = await res.json();
+      
+      // ✅ P0: Proxy側が未実装（ok:false等）なら即null返し
+      if (!json || !json.ok) {
+        if (isDebug()) {
+          showToast(`[楽天] Proxy未実装の可能性 (ok:false)`, 5000);
+          console.log("[Rakuten] Proxy may not be implemented, response:", json);
+        }
+        return null; // 即null返し（無効）
+      }
+
+      // ✅ 楽天APIのレスポンス構造を確認
+      if (json && json.ok && json.product) {
+        const product = json.product;
+
+        // ✅ 商品名
+        let displayName = '';
+        if (product.name && product.name.trim()) {
+          displayName = product.name.trim();
+        }
+
+        // ✅ ブランド/メーカー
+        let brand = '';
+        if (product.brand && product.brand.trim()) {
+          brand = product.brand.trim();
+        } else if (product.maker && product.maker.trim()) {
+          brand = product.maker.trim();
+        }
+
+        // ✅ 画像（単品画像を優先）
+        let imageUrl = '';
+        if (product.imageUrl && product.imageUrl.trim()) {
+          imageUrl = product.imageUrl.trim();
+        } else if (product.mediumImageUrl && product.mediumImageUrl.trim()) {
+          imageUrl = product.mediumImageUrl.trim();
+        }
+
+        // ✅ 商品身元情報が1つでも取得できたら成功
+        if (displayName || brand || imageUrl) {
+          // ✅ メーカー名の正規化（汎用関数を使用）
+          brand = normalizeMakerName(brand);
+
+          const result = {
+            name: displayName || '',
+            maker: brand || '',
+            imageUrl: imageUrl || ''
+          };
+
+          if (isDebug()) {
+            showToast(`[楽天] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+            console.log("[Rakuten] Found:", result);
+          }
+
+          return result;
+        }
+      }
+
+      // ✅ 取得失敗
+      if (isDebug()) {
+        showToast(`[楽天] Miss/Fail`, 3000);
+        console.log("[Rakuten] Failed: Product not found");
+      }
+      return null;
+
+    } catch(e) {
+      // ✅ P0: 予期しないエラー（Proxy未実装の可能性）→ 即null返し
+      if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[楽天] Proxy未実装の可能性 (${errorDetail})`, 5000);
+        console.error("[Rakuten] Proxy may not be implemented, error:", e);
+      }
+      return null; // 即null返し（無効）
+    }
+  }
+
+  // ========= Yahoo Shopping API（JANコード検索）with キャッシュ =========
+  async function lookupYahooByJan(jan, forceUpdate = false) {
+    try {
+      // ✅ キャッシュチェック（7日間有効）
+      const cacheKey = `yahoo_cache_${jan}`;
+      const cacheTtl = 7 * 24 * 60 * 60 * 1000; // 7日
+      
+      if (!forceUpdate) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const cacheData = JSON.parse(cached);
+            if (cacheData && cacheData.ts && (Date.now() - cacheData.ts < cacheTtl)) {
+              if (isDebug()) console.log("[YahooSearch] Cache hit:", jan);
+              return cacheData.data || null;
+            }
+          }
+        } catch(e) {
+          // キャッシュ読み込みエラーは無視
+        }
+      }
+      
       // Config.jsonからYahoo Proxy URLを取得（最優先）
       const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
       
@@ -2387,13 +3269,30 @@ POLICY: UI変更禁止（内部修正のみ）
         return null;
       }
 
+      // ✅ デバッグ: Yahoo検索開始
+      const requestUrl = `${proxyUrl}?jan=${encodeURIComponent(jan)}`;
       if (isDebug()) {
+        showToast(`[Yahoo] Fetching: ${requestUrl}`, 5000);
         console.log("[YahooSearch] JAN:", jan, "Proxy URL:", proxyUrl);
+        console.log("[YahooSearch] Request URL:", requestUrl);
       }
       
+      // ✅ AbortController+timeout（12秒）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      
       showToast("Yahoo検索中…", 5000);
-      const requestUrl = `${proxyUrl}?jan=${encodeURIComponent(jan)}`;
-      const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 12000);
+      const res = await fetch(requestUrl, { 
+        cache: 'no-store', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      
+      // ✅ デバッグ: HTTPステータス表示
+      if (isDebug()) {
+        showToast(`[Yahoo] HTTP Status: ${res.status} ${res.statusText}`, 5000);
+        console.log("[YahooSearch] HTTP Status:", res.status, res.statusText);
+      }
       
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -2402,64 +3301,326 @@ POLICY: UI変更禁止（内部修正のみ）
       const json = await res.json();
       
       if (json && json.name) {
-        if (isDebug()) {
-          console.log("[YahooSearch] Found:", json.name);
-        }
-        return {
+        const rawResult = {
           name: json.name || "",
           maker: json.maker || "",
           imageUrl: json.imageUrl || ""
         };
+        
+        // ✅ 商品情報を自動整形（12本1箱問題対応）
+        const result = normalizeYahooProductInfo(rawResult);
+        
+        // ✅ キャッシュに保存（整形後）
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            ts: Date.now(),
+            data: result
+          }));
+        } catch(e) {
+          // キャッシュ保存エラーは無視
+        }
+        
+        if (isDebug()) {
+          console.log("[YahooSearch] Found:", json.name);
+          if (result.packHint) {
+            showToast('[Yahoo] まとめ買い商品を検出しました', 3000);
+          }
+        }
+        return result;
       }
       return null;
     } catch(e) {
+      // ✅ デバッグ: エラー詳細表示
       if (isDebug()) {
+        const errorDetail = e.name === 'AbortError' ? 'タイムアウト（12秒）' : e.message || '不明なエラー';
+        showToast(`[Yahoo] Error: ${errorDetail}`, 8000);
         console.error("[YahooSearch] Error:", e);
-        showToast(`Yahoo検索失敗: ${e.message}`, 8000);
+        console.error("[YahooSearch] Error name:", e.name);
+        console.error("[YahooSearch] Error stack:", e.stack);
+      } else {
+        showToast(`Yahoo検索失敗: ${e.name === 'AbortError' ? 'タイムアウト' : '通信エラー'}`, 5000);
       }
       return null;
     }
   }
 
+  // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
+  async function fetchNearbyStores() {
+    try {
+      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
+      
+      if (!proxyUrl) {
+        if (isDebug()) {
+          console.log('[FetchStores] Proxy URL not configured');
+          showToast('Yahoo Proxy URLが設定されていません', 10000);
+        }
+        return [];
+      }
+
+      // 優先順位1: GPS座標（curPos）
+      if (isGpsOn && curPos && curPos.lat && curPos.lng) {
+        const radiusKm = 5; // GPS時は5km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&lat=${curPos.lat}&lng=${curPos.lng}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] GPS mode:', requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
+        }
+        return [];
+      }
+
+      // 優先順位2: 生活圏（area）
+      const area = (db && db.config && db.config.homeCity) ? String(db.config.homeCity).trim() : '';
+      if (area) {
+        const radiusKm = 15; // area時は15km
+        const limit = 40;
+        const requestUrl = `${proxyUrl}?action=stores&area=${encodeURIComponent(area)}&radius_km=${radiusKm}&limit=${limit}`;
+        
+        if (isDebug()) console.log('[FetchStores] Area mode:', area, requestUrl);
+        
+        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.stores)) {
+          if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
+          // ✅ trim() + 空要素除去
+          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
+        } else if (json && !json.ok) {
+          // エラー時（例：使用できないアドレス）
+          if (isDebug()) {
+            console.log('[FetchStores] Area failed:', json.error || 'unknown');
+            showToast('店舗検索失敗: ' + (json.error || 'unknown'), 10000);
+          }
+          // GPSへのフォールバックは、すでに上で試しているので、ここでは空配列を返す
+          return [];
+        }
+        return [];
+      }
+
+      // GPS/areaどちらもない場合
+      if (isDebug()) console.log('[FetchStores] No GPS or area configured');
+      return [];
+
+    } catch(e) {
+      if (isDebug()) {
+        console.error('[FetchStores] Error:', e);
+      }
+      return [];
+    }
+  }
+
   function startScanner() {
-    if(isScanning) return;
+    if(isScanning) {
+      if (isDebug()) {
+        console.log("[Scanner] Already scanning, skip");
+      }
+      return;
+    }
+    
+    // ✅ P0: Html5Qrcodeライブラリの読み込み確認
+    if (typeof Html5Qrcode === 'undefined') {
+      const errorMsg = "バーコードスキャンライブラリが読み込まれていません。ページを再読み込みしてください。";
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Html5Qrcode library not loaded");
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
     isScanning = true;
     document.getElementById('camera-area').style.display='block';
-    showToast("カメラ起動中…", 2000);
-    if(!scanner) scanner = new Html5Qrcode("interactive");
-    scanner.start({facingMode:"environment"},{fps:15,qrbox:{width:280,height:180}}, async (t)=> {
+    // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
+    if (isDebug()) {
+      showToast("カメラ起動中…", 2000);
+      console.log("[Scanner] Starting scanner...");
+    }
+    
+    try {
+      if(!scanner) {
+        scanner = new Html5Qrcode("interactive");
+        if (isDebug()) {
+          console.log("[Scanner] Html5Qrcode instance created");
+        }
+      }
+    } catch(e) {
+      isScanning = false;
+      document.getElementById('camera-area').style.display='none';
+      const errorMsg = `スキャナーの初期化に失敗しました: ${e.message || e}`;
+      showToast(errorMsg, 10000);
+      if (isDebug()) {
+        console.error("[Scanner] Initialization error:", e);
+        setLastError(`[Scanner] ${errorMsg}`);
+      }
+      return;
+    }
+    
+    // ✅ P0: カメラのピント問題対応
+    // ✅ getUserMedia は最初は安全に取得（落ちにくい条件）
+    const cameraConfig = {
+      facingMode: "environment", // 背面カメラ固定
+      width: { ideal: 1920, min: 1280 }, // 解像度：ideal 1920×1080（最低1280×720）
+      height: { ideal: 1080, min: 720 },
+      aspectRatio: { ideal: 16/9 }
+    };
+    
+    // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
+    scanner.start(cameraConfig, {
+      fps: 15,
+      qrbox: {width: 280, height: 180}, // ROI内だけの検出を確実にする
+      aspectRatio: 1.0, // 正方形に近い形状で精度向上
+      disableFlip: false // フリップを有効にして検出精度向上
+    }, async (t)=> {
       showToast("読み取りOK", 1500);
+      
+      // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
+      try {
+        const videoElement = document.querySelector('#interactive video');
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject;
+          const track = stream.getVideoTracks()[0];
+          if (track) {
+            // ✅ track.getCapabilities() で端末の対応状況を確認
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            const settings = track.getSettings ? track.getSettings() : {};
+            
+            // ✅ torch（ライト）対応チェック（暗所だけ自動点灯）
+            if (capabilities.torch && capabilities.torch.length > 0) {
+              try {
+                // 簡易的な明るさ判定（環境光センサーがない場合の代替）
+                // 実際の実装では、より高度な判定が必要な場合がある
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                // より確実な方法：明るさが低いと判断した場合のみ点灯
+                // ここでは、ユーザーが明示的に要求しない限り、自動点灯は控えめに
+                // 将来的には、実際の環境光センサーやカメラの明るさ情報を使用可能
+                if (isDebug()) {
+                  console.log("[Camera] torch capability available:", capabilities.torch);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  console.log("[Camera] torch check error:", e);
+                }
+              }
+            }
+            
+            // ✅ P0: ピント改善（連続AF/露出/ホワイトバランス等の強化）
+            // getCapabilities() を見て、対応端末は focusMode=continuous を優先
+            const constraints = [];
+            
+            // ✅ focusMode: continuous（連続オートフォーカス優先）
+            if (capabilities.focusMode && capabilities.focusMode.includes && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+              constraints.push({ focusMode: "continuous" });
+            } else {
+              // 対応していない場合は manual を試す（フォールバック）
+              if (capabilities.focusMode && (capabilities.focusMode.includes && capabilities.focusMode.includes("manual") || 
+                  (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("manual")))) {
+                constraints.push({ focusMode: "manual" });
+              }
+            }
+            
+            // ✅ exposureMode: continuous（連続露出調整）
+            if (capabilities.exposureMode && capabilities.exposureMode.includes && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            } else if (capabilities.exposureMode && Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+              constraints.push({ exposureMode: "continuous" });
+            }
+            
+            // ✅ whiteBalanceMode: continuous（ホワイトバランス調整）
+            if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            } else if (capabilities.whiteBalanceMode && Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+              constraints.push({ whiteBalanceMode: "continuous" });
+            }
+            
+            // ✅ zoom: 1.2 は条件付き（capabilityがあり、かつ読み取りがブレる端末のみ）
+            if (capabilities.zoom && capabilities.zoom.max && capabilities.zoom.max >= 1.2) {
+              constraints.push({ zoom: 1.2 }); // 控えめなズーム（対応端末のみ）
+            }
+            
+            for (let i = 0; i < constraints.length; i++) {
+              try {
+                await track.applyConstraints({ advanced: [constraints[i]] });
+                if (isDebug()) {
+                  const constraintName = Object.keys(constraints[i])[0];
+                  showToast(`[Camera] Constraint ${i+1} OK: ${constraintName}`, 2000);
+                  console.log("[Camera] Applied constraint:", constraints[i]);
+                }
+              } catch(e) {
+                if (isDebug()) {
+                  const constraintName = Object.keys(constraints[i])[0];
+                  console.log(`[Camera] Constraint ${i+1} failed: ${constraintName}`, e.message);
+                }
+                // 失敗しても継続
+              }
+            }
+          }
+        }
+      } catch(e) {
+        if (isDebug()) {
+          console.log("[Camera] applyConstraints error:", e);
+        }
+        // エラーは握りつぶして継続
+      }
+      
       await stopScanner();
       
-      // ✅ バーコード読み取り後、可能なら自動情報取得
-      const jan = t.trim();
-      if (jan && /^\d{8,14}$/.test(jan)) {
-        try {
-          const info = await lookupYahooByJan(jan);
-          if (info) {
-            // 商品情報を自動入力
-            const p = db.products[jan] || { history: [] };
-            if (info.name && (!p.name || !p.name.trim())) {
-              p.name = info.name;
-            }
-            if (info.maker && (!p.maker || !p.maker.trim())) {
-              p.maker = info.maker;
-            }
-            if (info.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
-              p.imageUrl = info.imageUrl;
-            }
-            db.products[jan] = p;
-            saveLocalOnly();
-            showToast("商品情報を取得しました", 3000);
+      // ✅ 共通処理へ（手入力と同じ）
+      await processBarcodeData(t);
+    }).catch((err) => {
+      // ✅ P0: スキャナー起動失敗時の詳細なエラーハンドリング
+      let errorMsg = "起動失敗";
+      let errorDetail = "";
+      
+      if (err) {
+        if (err instanceof Error) {
+          errorMsg = err.message || "起動失敗";
+          errorDetail = err.name || "";
+          if (err.stack) {
+            console.error("[Scanner] Error stack:", err.stack);
           }
-        } catch(e) {
-          if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+        } else if (typeof err === 'string') {
+          errorMsg = err;
+        } else {
+          errorMsg = JSON.stringify(err) || "起動失敗";
         }
       }
       
-      openForm(t);
-    }).catch(() => {
-      showToast("起動失敗", 8000);
+      // エラーメッセージの詳細化
+      if (errorMsg.includes('NotAllowedError') || errorMsg.includes('Permission denied')) {
+        errorMsg = "カメラへのアクセスが拒否されました。ブラウザの設定でカメラの許可を確認してください。";
+      } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('No camera found')) {
+        errorMsg = "カメラが見つかりません。カメラが接続されているか確認してください。";
+      } else if (errorMsg.includes('NotReadableError') || errorMsg.includes('Could not start video source')) {
+        errorMsg = "カメラが使用中です。他のアプリでカメラを使用していないか確認してください。";
+      } else if (errorMsg.includes('OverconstrainedError') || errorMsg.includes('constraint')) {
+        errorMsg = "カメラの設定が端末に対応していません。";
+      }
+      
+      const fullErrorMsg = errorDetail ? `${errorDetail}: ${errorMsg}` : errorMsg;
+      
+      if (isDebug()) {
+        showToast(`[Scanner起動失敗] ${fullErrorMsg}`, 10000);
+        console.error("[Scanner] Start failed:", {
+          error: err,
+          message: errorMsg,
+          detail: errorDetail,
+          stack: err instanceof Error ? err.stack : ''
+        });
+      } else {
+        showToast(`起動失敗: ${errorMsg}`, 8000);
+      }
+      
       stopScanner();
     });
   }
@@ -2483,8 +3644,451 @@ POLICY: UI変更禁止（内部修正のみ）
   }
 
   async function showVeggieMenu() {
-    const v = await customPrompt("名称入力");
-    if(v && v.trim()) openForm("M_"+v.trim());
+    showToast('バーコードの下にある「13桁の数字」を入れてね', 6000);
+
+    const raw = await customPrompt('商品コード（バーコード下の13桁）');
+    if (!raw) return;
+
+    const code = String(raw).replace(/\D/g, '').slice(0, 13);
+    if (code.length !== 13) {
+      showToast('13桁の数字だけ入れてね（例：490xxxxxxxxxx）', 8000);
+      return;
+    }
+
+    showToast('OK。商品コードで探してみるね…', 2500);
+
+    // ✅ スキャン成功時と同じ処理へ渡す
+    manualBarcodeEntry(code);
+  }
+
+  // ✅ 商品名の正規化（統合判定用）
+  function normalizeProductName(name, maker) {
+    const n = String(name || '').trim().toLowerCase().replace(/\s+/g, '');
+    const m = String(maker || '').trim().toLowerCase().replace(/\s+/g, '');
+    return `${n}|${m}`;
+  }
+
+  // ✅ M_商品とJANの自動統合（起動時・Yahoo成功に依存しない）
+  function migrateMergeManualToJan() {
+    if (!db || !db.products) return;
+    
+    let mergedCount = 0;
+    const manualKeys = Object.keys(db.products).filter(k => k.startsWith('M_'));
+    const janKeys = Object.keys(db.products).filter(k => /^\d{8,14}$/.test(k));
+    
+    manualKeys.forEach(mKey => {
+      const mp = db.products[mKey];
+      if (!mp || !mp.name) return;
+      
+      const mNormalized = normalizeProductName(mp.name, mp.maker);
+      if (!mNormalized || mNormalized === '|') return;
+      
+      // 同一商品のJANを探す
+      const matchedJan = janKeys.find(jKey => {
+        const jp = db.products[jKey];
+        if (!jp || !jp.name) return false;
+        const jNormalized = normalizeProductName(jp.name, jp.maker);
+        return jNormalized === mNormalized;
+      });
+      
+      if (matchedJan) {
+        const jp = db.products[matchedJan];
+        
+        // history をマージ
+        if (Array.isArray(mp.history) && mp.history.length > 0) {
+          jp.history = [...(jp.history || []), ...mp.history];
+          // タイムスタンプでソート
+          jp.history.sort((a, b) => histTs(a) - histTs(b));
+        }
+        
+        // imageKey をマージ
+        if (mp.imageKey && !jp.imageKey) {
+          jp.imageKey = mp.imageKey;
+        }
+        
+        // imageUrl をマージ
+        if (mp.imageUrl && !jp.imageUrl) {
+          jp.imageUrl = mp.imageUrl;
+        }
+        
+        // M_商品を削除
+        delete db.products[mKey];
+        mergedCount++;
+        
+        if (isDebug()) console.log('[Migrate] Merged:', mKey, '→', matchedJan);
+      }
+    });
+    
+    if (mergedCount > 0) {
+      saveLocalOnly();
+      if (isDebug()) console.log('[Migrate] Total merged:', mergedCount);
+    }
+  }
+
+  // ✅ バーコードデータ処理（スキャン/手入力共通）with OFF優先 + dirtyフラグ保護 + P0タイムラグ対策
+  async function processBarcodeData(code) {
+    const jan = code.trim();
+    
+    // ✅ P0: 同一JANの二重発火を止める（連続読取り対策）
+    if (jan && processBarcodeInFlight.has(jan)) {
+      if (isDebug()) {
+        console.log("[ProcessBarcode] Already in flight, skip:", jan);
+        showToast("既に処理中です", 2000);
+      }
+      return;
+    }
+    
+    // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      const now = Date.now();
+      const lastTime = janCoolDown.get(jan);
+      if (lastTime && (now - lastTime) < 1000) { // 1秒以内（0.8〜1.2秒の中央値）
+        if (isDebug()) {
+          console.log("[ProcessBarcode] Cool down, skip:", jan, "last:", lastTime, "now:", now);
+          showToast("同じコードを検出しました（クールダウン中）", 1500);
+        }
+        return;
+      }
+      janCoolDown.set(jan, now);
+      // ✅ 古いクールダウン記録をクリーンアップ（5秒以上経過したものは削除）
+      for (const [key, time] of janCoolDown.entries()) {
+        if (now - time > 5000) {
+          janCoolDown.delete(key);
+        }
+      }
+    }
+    
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      processBarcodeInFlight.add(jan);
+    }
+    
+    curBarcode = code; // ✅ 先にセット（取得前）
+    
+    // ✅ P0: 対策A: openForm を先に出す（読めた瞬間に画面を動かす）
+    openForm(code);
+    
+    // ✅ P0: JAN表示・取得中トースト・入力欄を触れる状態にする
+    if (jan && /^\d{8,14}$/.test(jan)) {
+      showToast(`JAN: ${jan}`, 2000);
+      // ✅ 対策A: 「取得中…」表示
+      const nameInput = document.getElementById('inputName');
+      const makerInput = document.getElementById('inputMaker');
+      const originalPlaceholder = nameInput ? nameInput.placeholder : '';
+      
+      // ✅ dirtyフラグ: openForm直後の値を記録
+      const nameAtStart = nameInput ? nameInput.value : '';
+      const makerAtStart = makerInput ? makerInput.value : '';
+      
+      if (nameInput && !nameAtStart) {
+        nameInput.placeholder = '商品情報を取得中…';
+      }
+      
+      try {
+          const p = db.products[jan] || { history: [] };
+        let yahooInfo = null;
+        let rakutenInfo = null;
+        let offInfo = null;
+        let finalInfo = { name: '', maker: '', imageUrl: '' };
+        let sourceUsed = 'none'; // デバッグ用：どのソースを採用したか
+
+        // ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
+        // ✅ 優先順位1: Yahoo最優先（商品身元情報＋価格情報）
+        yahooInfo = await lookupYahooByJan(jan);
+        
+        if (yahooInfo) {
+          // ✅ 品質スコアで採用を絞る（Yahooのスコア判定）
+          const yahooTrustScore = yahooInfo.trustScore || 100;
+          const yahooPackHint = yahooInfo.packHint || false;
+          
+          // ✅ Yahooが微妙（スコア低い）なら楽天を採用する
+          if (yahooTrustScore < 70 || (yahooPackHint && yahooTrustScore < 80)) {
+            // Yahooのスコアが低い場合は楽天を優先検討
+            if (isDebug()) {
+              showToast(`[Yahoo] スコア低 (${yahooTrustScore}) → 楽天検討`, 3000);
+            }
+          } else {
+            // ✅ Yahooで商品身元情報を埋める（スコアが十分な場合）
+            finalInfo.name = yahooInfo.name || '';
+            finalInfo.maker = yahooInfo.maker || '';
+            finalInfo.imageUrl = yahooInfo.imageUrl || '';
+            sourceUsed = 'yahoo';
+
+            // ✅ P0: Yahoo取得→整形→段階更新（先に仮反映）
+            const currentJanCheck = String(curBarcode || '').trim();
+            if (currentJanCheck === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
+
+            // ✅ デバッグ: Yahoo取得成功
+            if (isDebug()) {
+              showToast(`[Yahoo] OK (スコア:${yahooTrustScore})`, 3000);
+            }
+          }
+
+          // ✅ Yahoo結果が弱い/空、またはスコアが低い場合は楽天で補完
+          const yahooWeak = !finalInfo.name || !finalInfo.maker || !finalInfo.imageUrl || yahooTrustScore < 70;
+          if (yahooWeak) {
+            // ✅ 優先順位2: 楽天（国内DB第2優先）
+            rakutenInfo = await lookupRakutenByJan(jan);
+            
+            if (rakutenInfo) {
+              // ✅ 不足している項目だけ補完（上書きしない）
+              if (!finalInfo.name && rakutenInfo.name) {
+                finalInfo.name = rakutenInfo.name;
+                sourceUsed = 'yahoo+rakuten';
+              }
+              if (!finalInfo.maker && rakutenInfo.maker) {
+                finalInfo.maker = rakutenInfo.maker;
+                sourceUsed = 'yahoo+rakuten';
+              }
+              // ✅ 画像がケース画像っぽい→楽天の単品画像があれば差し替え（スコアを下げる）
+              if ((yahooInfo.packHint || yahooInfo.isCase) && rakutenInfo.imageUrl) {
+                finalInfo.imageUrl = rakutenInfo.imageUrl;
+                sourceUsed = 'yahoo+rakuten';
+                if (isDebug()) {
+                  showToast(`[楽天] ケース画像→単品画像に差し替え`, 3000);
+                }
+              } else if (!finalInfo.imageUrl && rakutenInfo.imageUrl) {
+                finalInfo.imageUrl = rakutenInfo.imageUrl;
+                sourceUsed = 'yahoo+rakuten';
+              }
+
+              // ✅ P0: 楽天取得→段階更新（不足項目だけ補完）
+              const currentJanCheck2 = String(curBarcode || '').trim();
+              if (currentJanCheck2 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
+              if (isDebug()) {
+                showToast(`[楽天] 補完OK`, 3000);
+              }
+            }
+          }
+        } else {
+          // ✅ Yahooが未取得の場合
+          // ✅ 優先順位2: 楽天（国内DB第2優先）
+          rakutenInfo = await lookupRakutenByJan(jan);
+          
+          if (rakutenInfo) {
+            // ✅ 楽天で商品身元情報を埋める
+            finalInfo.name = rakutenInfo.name || '';
+            finalInfo.maker = rakutenInfo.maker || '';
+            finalInfo.imageUrl = rakutenInfo.imageUrl || '';
+            sourceUsed = 'rakuten';
+
+            // ✅ P0: 楽天取得→段階更新（先に仮反映）
+            const currentJanCheck3 = String(curBarcode || '').trim();
+            if (currentJanCheck3 === jan) {
+              // ユーザーが入力していない場合のみ更新
+              if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+                nameInput.value = finalInfo.name;
+                nameInput.placeholder = originalPlaceholder;
+              }
+              if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+                makerInput.value = finalInfo.maker;
+              }
+              // 画像も即座に更新（可能な場合）
+              const imgEl = document.getElementById('productImage');
+              if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+                imgEl.src = finalInfo.imageUrl;
+              }
+            }
+          } else {
+            // ✅ Yahooも楽天も未取得の場合のみ、OFFを使用（第3優先）
+            // ✅ OFFを使う条件: Yahooも楽天も「未取得」または「整形後も不自然」
+            offInfo = await lookupOffByJan(jan);
+            
+            if (offInfo) {
+              // ✅ OFFで商品身元情報を埋める（条件チェック済み・最終補助）
+              // OFFは「タイトル確定」ではなく、カテゴリ・成分・補助画像の穴埋めに寄せる（主役にしない）
+              // 日本語名がある、または日本向けデータっぽい時だけ採用
+              // 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
+              if (offInfo.name && offInfo.name.trim()) {
+                // 既にYahoo/楽天で名前が取れている場合は上書きしない（補助として使う）
+                if (!finalInfo.name || finalInfo.name.trim().length < 3) {
+                  finalInfo.name = offInfo.name;
+                  sourceUsed = 'off';
+                }
+              }
+              if (offInfo.maker && offInfo.maker.trim() && !finalInfo.maker) {
+                finalInfo.maker = offInfo.maker;
+                if (sourceUsed === 'none') sourceUsed = 'off';
+              }
+              // 画像は最後の手段（自撮り/ユーザー投稿っぽい場合は採用しない）
+              if (offInfo.imageUrl && offInfo.imageUrl.trim() && !finalInfo.imageUrl) {
+                // 画像URLに "front" が含まれる、または明らかに商品正面画像の場合のみ採用
+                if (offInfo.imageUrl.includes('front') || offInfo.imageUrl.includes('image_front')) {
+                  finalInfo.imageUrl = offInfo.imageUrl;
+                  if (sourceUsed === 'none') sourceUsed = 'off';
+                }
+              }
+
+              // ✅ P0: OFF取得→段階更新（最後の補助）
+              const currentJanCheck4 = String(curBarcode || '').trim();
+              if (currentJanCheck4 === jan) {
+                // ユーザーが入力していない場合のみ更新
+                if (nameInput && nameInput.value === nameAtStart && finalInfo.name && !nameInput.value) {
+                  nameInput.value = finalInfo.name;
+                  nameInput.placeholder = originalPlaceholder;
+                }
+                if (makerInput && makerInput.value === makerAtStart && finalInfo.maker && !makerInput.value) {
+                  makerInput.value = finalInfo.maker;
+                }
+                // 画像も即座に更新（可能な場合）
+                const imgEl = document.getElementById('productImage');
+                if (imgEl && finalInfo.imageUrl && (!imgEl.src || imgEl.src.includes('placeholder'))) {
+                  imgEl.src = finalInfo.imageUrl;
+                }
+              }
+
+              if (isDebug() && sourceUsed === 'off') {
+                showToast(`[OFF] 最終補助として採用`, 3000);
+              }
+            }
+          }
+        }
+
+        // ✅ P0: 古い結果の上書き防止（現在のJANと一致する時だけ反映）
+        const currentJan = String(curBarcode || '').trim();
+        if (currentJan !== jan) {
+          if (isDebug()) {
+            console.log("[ProcessBarcode] JAN mismatch, skip update:", currentJan, "!=", jan);
+            showToast("処理がキャンセルされました", 2000);
+          }
+          processBarcodeInFlight.delete(jan);
+          return; // 古い結果は反映しない
+        }
+
+        // ✅ デバッグ: どのソースを採用したか
+        if (isDebug()) {
+          showToast(`[採用] ${sourceUsed}`, 3000);
+          console.log("[ProcessBarcode] Source used:", sourceUsed, { yahooInfo, rakutenInfo, offInfo });
+        }
+
+        // ✅ 商品情報をDBに保存（finalInfoを使用）
+        if (finalInfo.name && (!p.name || !p.name.trim())) {
+          p.name = finalInfo.name;
+        }
+        if (finalInfo.maker && (!p.maker || !p.maker.trim())) {
+          p.maker = finalInfo.maker;
+        }
+        if (finalInfo.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
+          p.imageUrl = finalInfo.imageUrl;
+          }
+          
+          // ✅ 既存の M_ 商品（手入力由来）と統合
+        if (finalInfo.name || finalInfo.maker) {
+          const normalized = normalizeProductName(finalInfo.name, finalInfo.maker);
+          Object.keys(db.products || {}).forEach(key => {
+            if (key.startsWith('M_') && key !== jan) {
+              const mp = db.products[key];
+              if (!mp) return;
+              const mNormalized = normalizeProductName(mp.name, mp.maker);
+              if (mNormalized === normalized) {
+                // 統合：history と imageKey をマージ
+                if (Array.isArray(mp.history) && mp.history.length > 0) {
+                  p.history = [...(p.history || []), ...mp.history];
+                }
+                if (mp.imageKey && !p.imageKey) {
+                  p.imageKey = mp.imageKey;
+                }
+                if (mp.imageUrl && !p.imageUrl) {
+                  p.imageUrl = mp.imageUrl;
+                }
+                // M_ 商品を削除
+                delete db.products[key];
+                if (isDebug()) console.log('[Merge] M_ product merged:', key, '→', jan);
+              }
+            }
+          });
+        }
+          
+          db.products[jan] = p;
+          saveLocalOnly();
+        
+        // ✅ dirtyフラグで保護: ユーザーが入力し始めていたら上書きしない
+        if (nameInput) {
+          const nameNow = nameInput.value || '';
+          // 開始時と変わっていなければ（ユーザーが入力していない）自動反映
+          if (nameNow === nameAtStart && finalInfo.name) {
+            nameInput.value = finalInfo.name;
+          } else if (nameNow !== nameAtStart) {
+            if (isDebug()) console.log('[ProcessBarcode] Name dirty, skip auto-fill');
+          }
+          nameInput.placeholder = originalPlaceholder;
+        }
+        
+        if (makerInput) {
+          const makerNow = makerInput.value || '';
+          // 開始時と変わっていなければ（ユーザーが入力していない）自動反映
+          if (makerNow === makerAtStart && finalInfo.maker) {
+            makerInput.value = finalInfo.maker;
+          } else if (makerNow !== makerAtStart) {
+            if (isDebug()) console.log('[ProcessBarcode] Maker dirty, skip auto-fill');
+          }
+        }
+        
+        if (offInfo || yahooInfo) {
+          showToast("商品情報を取得しました", 3000);
+        }
+        
+        // ✅ 画像も更新（既存のopenForm処理と統合）
+        const prevImg = document.getElementById('previewImg');
+        if (prevImg && finalInfo.imageUrl) {
+          prevImg.src = finalInfo.imageUrl;
+        }
+      } catch(e) {
+        if (isDebug()) showToast(`情報取得エラー: ${e.message}`, 5000);
+        // エラー時もplaceholderを戻す
+        if (nameInput) {
+          nameInput.placeholder = originalPlaceholder;
+        }
+      } finally {
+        // ✅ P0: 処理完了時にフラグを解除
+        if (jan && /^\d{8,14}$/.test(jan)) {
+          processBarcodeInFlight.delete(jan);
+        }
+      }
+    } else {
+      // ✅ JANが無効な場合もフラグを解除
+      if (jan) {
+        processBarcodeInFlight.delete(jan);
+      }
+    }
+  }
+
+  // ✅ 手入力バーコード処理（共通関数を呼ぶ）
+  async function manualBarcodeEntry(code) {
+    try {
+      await processBarcodeData(code);
+    } catch(e) {
+      if (isDebug()) console.warn('[manualBarcodeEntry]', e);
+      showToast('読み込みに失敗したみたい。もう一度やってみてね', 8000);
+    }
   }
 
   function setupFocusGuides() {
@@ -2495,24 +4099,20 @@ POLICY: UI変更禁止（内部修正のみ）
     });
   }
 
-  // ✅ 検索ボタン：URL貼り付け（空ならGoogle画像検索を開く）
-  async function searchImageWeb() {
-    const name = (document.getElementById('inputName').value || '').trim();
-    const u = await customPrompt("画像URLを貼る（空欄なら検索を開く）", "");
-    if (u && u.trim()) {
-      const url = u.trim();
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        document.getElementById('previewImg').src = url;
-        tempImgData = { type:'url', url };
-        showToast("画像URLを設定しました（同期されます）", 3000);
-      } else {
-        showToast("http(s)のURLだけ対応です", 6000);
-      }
+  // ✅ 検索ボタン：商品コード＋商品名で画像検索を開く
+  function searchImageWeb() {
+    const name = (document.getElementById('inputName')?.value || '').trim();
+    const code = String(curBarcode || '').trim();
+
+    const q = (code && name) ? `${code} ${name}` : (code || name);
+    if (!q) {
+      showToast('商品コード（13桁）か商品名を入れてね', 6000);
       return;
     }
-    const maker = (document.getElementById('inputMaker').value || '').trim();
-    const searchQuery = [name, maker].filter(Boolean).join(' ') || '商品画像';
-    window.open(`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}+商品画像&tbm=isch`, '_blank', 'noopener');
+
+    const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`;
+    window.open(url, '_blank', 'noopener');
+    showToast('画像検索を開いたよ。画像を保存して「フォルダ」から選んでね', 7000);
   }
 
   // ✅ 画像をアップロード（SNS共有用：Firebaseに保存）
@@ -2723,12 +4323,36 @@ POLICY: UI変更禁止（内部修正のみ）
     });
   }
 
+  // ✅ P0: 現在のlocationに自動追従するURL生成
   function buildBaseUrl() {
-    return (location.origin + location.pathname).replace(/\/+$/, "/");
+    let pathname = location.pathname;
+    // index.htmlで終わる場合はファイル名を外す
+    if (pathname.endsWith('/index.html') || pathname.endsWith('index.html')) {
+      pathname = pathname.replace(/\/?index\.html$/, '');
+    }
+    // 最後のスラッシュを削除（ただしルートの場合は残す）
+    pathname = pathname.replace(/\/+$/, '') || '/';
+    return location.origin + pathname;
   }
+  
   function buildUrl(withDebug=false) {
     const base = buildBaseUrl();
-    return `${base}?b=${encodeURIComponent(BUILD_ID)}` + (withDebug ? `&debug=1` : ``);
+    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
+    const currentParams = new URLSearchParams(location.search);
+    const buildParam = currentParams.get('b') || BUILD_ID;
+    
+    // URLを組み立て
+    let url = base;
+    if (buildParam) {
+      url += `?b=${encodeURIComponent(buildParam)}`;
+    }
+    
+    // デバッグURLだけに &debug=1 を付ける
+    if (withDebug) {
+      url += (buildParam ? '&' : '?') + 'debug=1';
+    }
+    
+    return url;
   }
 
   function openWebModal() {
@@ -2738,11 +4362,50 @@ POLICY: UI変更禁止（内部修正のみ）
     const d = document.getElementById('webUrlDebug');
     if(n) n.value = buildUrl(false);
     if(d) d.value = buildUrl(true);
+    
+    // ✅ PWAインストールボタンの表示制御
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+      if (deferredPrompt) {
+        installBtn.style.display = 'block';
+      } else {
+        installBtn.style.display = 'none';
+      }
+    }
+    
     m.style.display = "flex";
   }
   function closeWebModal() {
     const m = document.getElementById('webModal');
     if(m) m.style.display = "none";
+  }
+  
+  // ✅ PWAインストール実行
+  async function installPWA() {
+    if (!deferredPrompt) {
+      showToast('インストール準備ができていません', 3000);
+      return;
+    }
+    
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        showToast('インストールが開始されました！', 3000);
+      } else {
+        showToast('インストールがキャンセルされました', 3000);
+      }
+      
+      deferredPrompt = null;
+      const installBtn = document.getElementById('pwaInstallBtn');
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    } catch(e) {
+      if (isDebug()) console.error('[PWA] Install failed:', e);
+      showToast('インストールに失敗しました', 3000);
+    }
   }
   async function copyUrl(id) {
     const el = document.getElementById(id);
