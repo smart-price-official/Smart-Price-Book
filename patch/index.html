@@ -1,21 +1,24 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
-VERSION: v19.9.26
-FULL_VERSION: v19.9.26
-DATE(JST): 2026-01-20 01:18 JST（正確な時刻）
-TITLE: スキャンバー復活＋箱買い減点方式＋JANネット検索ルート追加
+VERSION: v19.9.27
+FULL_VERSION: v19.9.27
+DATE(JST): 2026-01-20 01:27 JST（正確な時刻）
+TITLE: スキャンバー復活＋箱買い減点方式＋JANネット検索ルート追加＋箱売りしか無いJAN対応
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_011800_jan-net-score-scanbar
+BUILD_ID: 2026-01-20_012700_case-only-jan-db-plan
 CHANGES:
 - ✅ (A) スキャンバー表示問題修正: CSS強制表示（z-index:99999/display:block/opacity:1）
 - ✅ (A) debug=1時のスキャンバー診断機能追加（laserExists/laserRect/laserComputed）
 - ✅ (B) 箱買い除外→減点方式へ変更（候補ゼロ化を防ぐスコアリング方式）
 - ✅ (C) JANネット検索ルート追加（Google検索経由で商品情報取得・パン類対応）
 - ✅ (C) 取得結果のJANキャッシュ保存（次回即表示）
+- ✅ (D) 箱売りしか無いJAN対応: packCount/isCaseOfferメタデータ追加
+- ✅ (D) 候補が箱売りのみでも採用（候補ゼロ化を完全に防ぐ）
+- ✅ (D) debug=1時にPACK_COUNT/IS_CASEを表示
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_011800_jan-net-score-scanbar
+BUILD_PARAM: ?b=2026-01-20_012700_case-only-jan-db-plan
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -38,7 +41,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.26</title>
+  <title>Smart Price v19.9.27</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -137,7 +140,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.26</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.27</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -308,9 +311,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.26"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.26 [011800]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_011800_jan-net-score-scanbar"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.27"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.27 [012700]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-20_012700_case-only-jan-db-plan"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -3983,12 +3986,47 @@ POLICY: UI変更禁止（内部ロジックのみ）
     return cleaned;
   }
 
-  // ✅ (B) 商品名スコアリング（箱買い/ケース情報を減点方式で評価）
+  // ✅ (B)(D) 商品名スコアリング（箱買い/ケース情報を減点方式で評価＋メタデータ抽出）
   function scoreProductCandidate(name) {
-    if (!name) return { score: 0, name: '', cleaned: '' };
+    if (!name) return { score: 0, name: '', cleaned: '', packCount: 0, isCaseOffer: false };
     
     const originalName = String(name).trim();
     let score = 100; // 初期スコア100点
+    let packCount = 0; // 箱売り個数（0=単品）
+    let isCaseOffer = false; // 箱売り/ケース販売かどうか
+    
+    // ✅ (D) packCount を検出（×20個、20個セット、20本入り など）
+    const packCountPatterns = [
+      /[×xX](\d+)[個本入枚缶袋]/i,  // ×20個、x12本 など
+      /(\d+)[個本入枚缶袋]セット/i,  // 20個セット など
+      /(\d+)[個本入枚缶袋]入り/i     // 20個入り など
+    ];
+    
+    for (const pattern of packCountPatterns) {
+      const match = originalName.match(pattern);
+      if (match && match[1]) {
+        const count = parseInt(match[1], 10);
+        if (count > 1) {
+          packCount = Math.max(packCount, count); // 最大値を採用
+          isCaseOffer = true;
+        }
+      }
+    }
+    
+    // ✅ (D) isCaseOffer を検出（ケース、箱、まとめ買い など）
+    const casePatterns = [
+      /ケース/i,
+      /箱買い/i,
+      /まとめ買い/i,
+      /業務用/i
+    ];
+    
+    for (const pattern of casePatterns) {
+      if (pattern.test(originalName)) {
+        isCaseOffer = true;
+        break;
+      }
+    }
     
     // 減点パターン（強い減点）
     const heavyPenaltyPatterns = [
@@ -4026,13 +4064,13 @@ POLICY: UI変更禁止（内部ロジックのみ）
     // クリーニング（表示用）
     const cleaned = cleanProductName(originalName);
     
-    return { score, name: originalName, cleaned };
+    return { score, name: originalName, cleaned, packCount, isCaseOffer };
   }
 
-  // ✅ (B) 複数の候補から最適な商品を選択（候補ゼロ化を防ぐ）
+  // ✅ (B)(D) 複数の候補から最適な商品を選択（候補ゼロ化を防ぐ＋箱売りしか無い場合も採用）
   function selectBestProduct(candidates) {
     if (!candidates || candidates.length === 0) {
-      return { name: '', maker: '', imageUrl: '' };
+      return { name: '', maker: '', imageUrl: '', packCount: 0, isCaseOffer: false };
     }
     
     // 各候補にスコアを付ける
@@ -4044,14 +4082,17 @@ POLICY: UI変更禁止（内部ロジックのみ）
     // スコアでソート（降順：高い方が良い）
     scored.sort((a, b) => b.scoreInfo.score - a.scoreInfo.score);
     
-    // 最上位（最も減点が少ない）を採用
+    // ✅ (D) 最上位（最も減点が少ない）を採用
+    // ※候補が箱売りしか無い場合でも採用する（候補ゼロ化を完全に防ぐ）
     const best = scored[0];
     
-    // 採用後にクリーニングして返す
+    // ✅ (D) 採用後にクリーニングして返す＋メタデータも保持
     return {
       name: best.scoreInfo.cleaned || best.name || '',
       maker: validateMakerName(best.maker || ''),
-      imageUrl: best.imageUrl || ''
+      imageUrl: best.imageUrl || '',
+      packCount: best.scoreInfo.packCount || 0,
+      isCaseOffer: best.scoreInfo.isCaseOffer || false
     };
   }
 
@@ -4241,17 +4282,20 @@ POLICY: UI変更禁止（内部ロジックのみ）
         let rakutenInfo = null;
         let offInfo = null;
         let janWebInfo = null;
-        let finalInfo = { name: '', maker: '', imageUrl: '' };
+        let finalInfo = { name: '', maker: '', imageUrl: '', packCount: 0, isCaseOffer: false };
         let sourceUsed = 'none'; // デバッグ用：どのソースを採用したか
 
         // ✅ (C) 優先順位1: JANネット検索（新ルート・最優先・パン類対応）
         janWebInfo = await lookupJanByWebSearch(jan);
         
         if (janWebInfo && (janWebInfo.name || janWebInfo.maker || janWebInfo.imageUrl)) {
-          // ✅ (C) JANネット検索で取得成功
+          // ✅ (C)(D) JANネット検索で取得成功＋メタデータ抽出
+          const scoreInfo = scoreProductCandidate(janWebInfo.name || '');
           finalInfo.name = cleanProductNameSafe(janWebInfo.name || '');
           finalInfo.maker = validateMakerName(janWebInfo.maker || '');
           finalInfo.imageUrl = janWebInfo.imageUrl || '';
+          finalInfo.packCount = scoreInfo.packCount || 0;
+          finalInfo.isCaseOffer = scoreInfo.isCaseOffer || false;
           sourceUsed = 'janweb';
           
           // ✅ 即座に画面に反映（先に仮反映）
@@ -4298,9 +4342,12 @@ POLICY: UI変更禁止（内部ロジックのみ）
             }
           } else {
             // ✅ Yahooで商品身元情報を埋める（スコアが十分な場合）
-            // ✅ (C) JANネット検索で既に取得済みの項目は上書きしない
+            // ✅ (C)(D) JANネット検索で既に取得済みの項目は上書きしない＋メタデータ抽出
             if (!finalInfo.name && yahooInfo.name) {
+              const scoreInfo = scoreProductCandidate(yahooInfo.name);
               finalInfo.name = cleanProductNameSafe(yahooInfo.name);
+              finalInfo.packCount = scoreInfo.packCount || 0;
+              finalInfo.isCaseOffer = scoreInfo.isCaseOffer || false;
             }
             if (!finalInfo.maker && yahooInfo.maker) {
               finalInfo.maker = validateMakerName(yahooInfo.maker);
@@ -4341,9 +4388,12 @@ POLICY: UI変更禁止（内部ロジックのみ）
             rakutenInfo = await lookupRakutenByJan(jan);
             
             if (rakutenInfo) {
-              // ✅ 不足している項目だけ補完（上書きしない）
+              // ✅ (D) 不足している項目だけ補完（上書きしない）＋メタデータ抽出
               if (!finalInfo.name && rakutenInfo.name) {
+                const scoreInfo = scoreProductCandidate(rakutenInfo.name);
                 finalInfo.name = cleanProductNameSafe(rakutenInfo.name);
+                finalInfo.packCount = scoreInfo.packCount || 0;
+                finalInfo.isCaseOffer = scoreInfo.isCaseOffer || false;
                 sourceUsed = 'yahoo+rakuten';
               }
               if (!finalInfo.maker && rakutenInfo.maker) {
@@ -4392,9 +4442,12 @@ POLICY: UI変更禁止（内部ロジックのみ）
           
           if (rakutenInfo) {
             // ✅ 楽天で商品身元情報を埋める
-            // ✅ (C) JANネット検索で既に取得済みの項目は上書きしない
+            // ✅ (C)(D) JANネット検索で既に取得済みの項目は上書きしない＋メタデータ抽出
             if (!finalInfo.name && rakutenInfo.name) {
+              const scoreInfo = scoreProductCandidate(rakutenInfo.name);
               finalInfo.name = cleanProductNameSafe(rakutenInfo.name);
+              finalInfo.packCount = scoreInfo.packCount || 0;
+              finalInfo.isCaseOffer = scoreInfo.isCaseOffer || false;
             }
             if (!finalInfo.maker && rakutenInfo.maker) {
               finalInfo.maker = validateMakerName(rakutenInfo.maker);
@@ -4432,9 +4485,12 @@ POLICY: UI変更禁止（内部ロジックのみ）
               // 日本語名がある、または日本向けデータっぽい時だけ採用
               // 画像が"自撮り/ユーザー投稿"っぽい（雑・暗い・斜め・背景あり等）場合は採用しない
               if (offInfo.name && offInfo.name.trim()) {
-                // 既にYahoo/楽天で名前が取れている場合は上書きしない（補助として使う）
+                // ✅ (D) 既にYahoo/楽天で名前が取れている場合は上書きしない（補助として使う）＋メタデータ抽出
                 if (!finalInfo.name || finalInfo.name.trim().length < 3) {
+                  const scoreInfo = scoreProductCandidate(offInfo.name);
                   finalInfo.name = cleanProductNameSafe(offInfo.name);
+                  finalInfo.packCount = scoreInfo.packCount || 0;
+                  finalInfo.isCaseOffer = scoreInfo.isCaseOffer || false;
                   sourceUsed = 'off';
                 }
               }
@@ -4565,6 +4621,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
         }
         
         // ✅ P0: debug=1 時の詳細表示（LAST_JAN / SOURCE / STATUS / 取得データ）
+        // ✅ (D) packCount / isCaseOffer を追加
         if (isDebug()) {
           const debugStatus = {
             LAST_JAN: jan,
@@ -4572,12 +4629,14 @@ POLICY: UI変更禁止（内部ロジックのみ）
             STATUS: hasData ? '取得成功' : '取得失敗',
             NAME: finalInfo.name || '(なし)',
             MAKER: finalInfo.maker || '(なし)',
-            IMAGE: finalInfo.imageUrl ? '✅ あり' : '❌ なし'
+            IMAGE: finalInfo.imageUrl ? '✅ あり' : '❌ なし',
+            PACK_COUNT: finalInfo.packCount > 0 ? `${finalInfo.packCount}個` : '単品',
+            IS_CASE: finalInfo.isCaseOffer ? '箱売り' : '通常'
           };
           console.log('[Debug] Product Data:', debugStatus);
           
-          // 画面に簡易表示（5秒間）
-          const debugMsg = `[DEBUG] JAN: ${jan}\nSOURCE: ${sourceUsed}\nSTATUS: ${debugStatus.STATUS}\nNAME: ${debugStatus.NAME}\nIMAGE: ${debugStatus.IMAGE}`;
+          // ✅ (D) 画面に簡易表示（5秒間）＋packCount/isCaseOffer追加
+          const debugMsg = `[DEBUG] JAN: ${jan}\nSOURCE: ${sourceUsed}\nSTATUS: ${debugStatus.STATUS}\nNAME: ${debugStatus.NAME}\nIMAGE: ${debugStatus.IMAGE}\nPACK: ${debugStatus.PACK_COUNT}\nCASE: ${debugStatus.IS_CASE}`;
           showToast(debugMsg, 5000);
         }
         
