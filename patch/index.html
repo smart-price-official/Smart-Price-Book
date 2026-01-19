@@ -3,21 +3,21 @@ APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
 VERSION: v19.9.25
 FULL_VERSION: v19.9.25
-DATE(JST): 2026-01-20 00:05 JST（正確な時刻）
-TITLE: P0修正（商品情報精度向上）
+DATE(JST): 2026-01-20 00:38 JST（正確な時刻）
+TITLE: P0修正（JAN精度完璧化・A完成）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_000500_product-data-accuracy
+BUILD_ID: 2026-01-20_003800_jan-A-merge1
 CHANGES:
+- ✅ P0修正: ルート（/index.html）に同一内容を反映（配布場所統一）
+- ✅ P0修正: スキャンバーz-index強化（z-index: 1→10で確実に前面表示）
 - ✅ P0修正: 商品名クリーニング（箱売り情報・送料情報を除去）
 - ✅ P0修正: メーカー名検証（販売店名などの不正確な情報を除外）
 - ✅ P0修正: 情報無し時のトースト表示改善（「商品情報が見つかりませんでした」）
 - ✅ P0修正: DEBUG表示のSTATUS判定ロジック改善（正確に取得成功/失敗を判定）
-- ✅ P0修正: スキャンバー表示修正（.laserの初期位置を明示・z-index調整）
-- ✅ P0修正: スキャン枠ズレ対策（100dvh/visualViewport基準・video内オーバーレイ・object-fit統一）
 - ✅ P0修正: JAN精度向上（数字のみ正規化・13桁チェック・チェックデジット検証）
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_000500_product-data-accuracy
+BUILD_PARAM: ?b=2026-01-20_003800_jan-A-merge1
 DEBUG_PARAM: &debug=1
 POLICY: UI変更禁止（内部ロジックのみ）
 
@@ -109,7 +109,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
       background: #ff0000; 
       box-shadow: 0 0 10px 2px #ff0000; 
       animation: scanning 2s infinite ease-in-out; 
-      z-index: 1; /* scan-frame内での相対的な前面配置 */
+      z-index: 10; /* 確実に前面表示（video/scan-frameより前） */
       border-radius: 1px; /* 角丸 */
     }
     /* CSSアニメで確実に出る方式 */
@@ -307,8 +307,8 @@ POLICY: UI変更禁止（内部ロジックのみ）
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   const APP_VERSION = "v19.9.25"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.25 [000500]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_000500_product-data-accuracy"; // ヘッダーと一致させる
+  const FULL_VERSION = "v19.9.25 [003800]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-20_003800_jan-A-merge1"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
