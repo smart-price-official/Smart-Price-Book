@@ -2,670 +2,86 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Smart Price 原因調査アプリ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="3;url=https://smart-price-official.github.io/Smart-Price-Book/diagnostics.html">
+  <title>Smart Price 診断 - 運用停止</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'BIZ UDゴシック', 'Meiryo', sans-serif;
-      background: #121212;
-      color: #e0e0e0;
+      background: linear-gradient(135deg, #D50000, #9b0000);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
       padding: 20px;
-      line-height: 1.6;
     }
     .container {
-      max-width: 800px;
-      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
     h1 {
-      color: #ff9800;
-      font-size: 1.5rem;
+      font-size: 2rem;
       margin-bottom: 20px;
-      border-bottom: 3px solid #ff9800;
-      padding-bottom: 10px;
+      color: #ff5252;
     }
-    .section {
-      background: #1e1e1e;
-      border: 2px solid #444;
+    .message {
+      font-size: 1.2rem;
+      line-height: 1.8;
+      margin-bottom: 30px;
+    }
+    .link {
+      display: inline-block;
+      background: #ff5252;
+      color: #fff;
+      padding: 15px 30px;
       border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    .section-title {
-      color: #ff9800;
+      text-decoration: none;
       font-size: 1.1rem;
       font-weight: bold;
-      margin-bottom: 10px;
-      border-bottom: 1px solid #666;
-      padding-bottom: 5px;
-    }
-    .info-item {
-      margin: 8px 0;
-      padding: 8px;
-      background: #2a2a2a;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.85rem;
-      word-break: break-all;
-    }
-    .info-label {
-      color: #aaa;
-      font-weight: bold;
-    }
-    .info-value {
-      color: #fff;
-      margin-left: 8px;
-    }
-    .status-ok { color: #4caf50; }
-    .status-warn { color: #ff9800; }
-    .status-error { color: #ff5252; }
-    button {
-      background: #ff9800;
-      color: #fff;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
+      margin-top: 20px;
       transition: background 0.3s;
     }
-    button:hover { background: #f57c00; }
-    button:active { background: #e65100; }
-    button.danger {
-      background: #ff5252;
-    }
-    button.danger:hover {
+    .link:hover {
       background: #d32f2f;
     }
-    .log-area {
-      background: #000;
-      color: #0f0;
-      padding: 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.8rem;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-top: 10px;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .countdown {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #aaa;
     }
-    .video-preview {
-      width: 100%;
-      max-width: 400px;
-      height: 300px;
-      background: #000;
-      border: 2px solid #666;
-      border-radius: 4px;
-      margin-top: 10px;
-    }
-    .loading { opacity: 0.5; pointer-events: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🔍 Smart Price 原因調査アプリ</h1>
-    
-    <!-- A) 実際に読み込んだ index.html の情報 -->
-    <div class="section">
-      <div class="section-title">📌 A) 読み込んだHTMLの情報</div>
-      <div class="info-item">
-        <span class="info-label">FULL_VERSION:</span>
-        <span class="info-value" id="full-version">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">BUILD_ID:</span>
-        <span class="info-value" id="build-id">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">BUILD_PARAM (?b=):</span>
-        <span class="info-value" id="build-param">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">読み込んだURL:</span>
-        <span class="info-value" id="current-url">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Date.now():</span>
-        <span class="info-value" id="current-time">確認中...</span>
-      </div>
-      <button onclick="updatePageInfo()">🔄 ページ情報を更新</button>
+    <h1>⚠️ 診断ページ - 運用停止</h1>
+    <div class="message">
+      <p>この診断ページ（/dev/diagnostics.html）は運用を停止しました。</p>
+      <p>診断機能は root の診断ページに一本化されました。</p>
     </div>
-
-    <!-- B) Service Worker / キャッシュの状態 -->
-    <div class="section">
-      <div class="section-title">🔧 B) Service Worker / キャッシュの状態</div>
-      <div class="info-item">
-        <span class="info-label">SW Controller:</span>
-        <span class="info-value" id="sw-controller">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">SW登録数:</span>
-        <span class="info-value" id="sw-registrations">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">キャッシュ数:</span>
-        <span class="info-value" id="cache-count">確認中...</span>
-      </div>
-      <button onclick="clearServiceWorkerAndCache()">🗑️ SW解除＋キャッシュ削除＋リロード</button>
-    </div>
-
-    <!-- C) ストレージ系の状態 -->
-    <div class="section">
-      <div class="section-title">💿 C) ストレージ系の状態</div>
-      <div class="info-item">
-        <span class="info-label">localStorage使用量:</span>
-        <span class="info-value" id="localstorage-size">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">localStorageキー:</span>
-        <span class="info-value" id="localstorage-keys">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">IndexedDB一覧:</span>
-        <span class="info-value" id="indexeddb-list">確認中...</span>
-      </div>
-      <button class="danger" onclick="clearAllStorage()">⚠️ このサイトのデータを初期化</button>
-    </div>
-
-    <!-- D) カメラ起動の切り分け -->
-    <div class="section">
-      <div class="section-title">📷 D) カメラ起動の切り分け</div>
-      <div class="info-item">
-        <span class="info-label">カメラ許可状況:</span>
-        <span class="info-value" id="camera-permission">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">カメラ起動テスト:</span>
-        <span class="info-value" id="camera-status">未実行</span>
-      </div>
-      <video id="camera-preview" class="video-preview" autoplay playsinline></video>
-      <button onclick="testCamera()">📷 カメラ起動テスト</button>
-      <button onclick="stopCamera()">⏹️ カメラ停止</button>
-      <div class="log-area" id="camera-log"></div>
-    </div>
-
-    <!-- E) ネットワーク／配信の切り分け -->
-    <div class="section">
-      <div class="section-title">🌐 E) ネットワーク／配信の切り分け</div>
-      <div class="info-item">
-        <span class="info-label">fetch結果 (cache: no-store):</span>
-        <span class="info-value" id="fetch-no-store">未実行</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">fetch結果 (reload):</span>
-        <span class="info-value" id="fetch-reload">未実行</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">抽出したVERSION:</span>
-        <span class="info-value" id="fetched-version">-</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">抽出したBUILD_ID:</span>
-        <span class="info-value" id="fetched-build-id">-</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">取得先URL:</span>
-        <span class="info-value" id="fetched-url">-</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">HTTP status:</span>
-        <span class="info-value" id="fetched-status">-</span>
-      </div>
-      <button onclick="testNetworkFetch()">🌐 同じフォルダのindex.htmlをfetch</button>
-      <button onclick="clearCacheAndRefetch()" style="margin-left:10px;">🗑️ キャッシュ削除＋再取得</button>
-      <div class="log-area" id="network-log"></div>
-    </div>
-
-    <!-- ログ表示エリア -->
-    <div class="section">
-      <div class="section-title">📋 診断ログ</div>
-      <div class="log-area" id="diagnostic-log"></div>
-      <button onclick="clearLog()">🗑️ ログをクリア</button>
+    <a href="https://smart-price-official.github.io/Smart-Price-Book/diagnostics.html" class="link">
+      診断ページへ移動
+    </a>
+    <div class="countdown">
+      3秒後に自動的に診断ページへ移動します...
     </div>
   </div>
-
   <script>
-    let cameraStream = null;
-    const logArea = document.getElementById('diagnostic-log');
-
-    function log(message, type = 'info') {
-      const timestamp = new Date().toLocaleTimeString('ja-JP');
-      const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
-      const logText = `[${timestamp}] ${prefix} ${message}\n`;
-      logArea.textContent += logText;
-      logArea.scrollTop = logArea.scrollHeight;
-      console.log(message);
-    }
-
-    function clearLog() {
-      logArea.textContent = '';
-    }
-
-    // ✅ P0-3: A) 実際に読み込んだ index.html の情報を確実に表示（同じフォルダのindex.htmlをfetch）
-    // ユイの指摘：「同じフォルダの index.html を fetch（cache: no-store）して、HTML内の VERSION / BUILD_ID を抽出して表示する方式に変更」
-    async function updatePageInfo() {
-      try {
-        // URLパラメータから BUILD_PARAM を取得
-        const urlParams = new URLSearchParams(location.search);
-        const bParam = urlParams.get('b') || 'なし';
-        document.getElementById('build-param').textContent = bParam;
-        document.getElementById('current-url').textContent = location.href;
-        document.getElementById('current-time').textContent = new Date().toISOString();
-        
-        // ✅ P0-3: 同じフォルダの index.html を fetch して FULL_VERSION / BUILD_ID を抽出
-        try {
-          const indexHtmlUrl = './index.html';
-          const res = await fetch(indexHtmlUrl, { cache: 'no-store' });
-          const text = await res.text();
-          
-          // FULL_VERSION を抽出（コメントヘッダー or const FULL_VERSION）
-          const versionMatch = text.match(/FULL_VERSION:\s*(v[\d.]+)/) || text.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
-          const buildIdMatch = text.match(/BUILD_ID:\s*([^\n]+)/) || text.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
-          
-          const fullVersion = versionMatch ? versionMatch[1] : '抽出失敗';
-          const buildId = buildIdMatch ? buildIdMatch[1].trim() : '抽出失敗';
-          
-          // ✅ P0: コンフリクト記号の検査（<<<<<<< / ======= / >>>>>>>）
-          const conflictMarkers = text.match(/<<<<<<<|=======|>>>>>>>/g);
-          if (conflictMarkers) {
-            const conflictCount = conflictMarkers.length;
-            log(`⚠️ コンフリクト記号を検出: ${conflictCount}箇所`, 'warn');
-            document.getElementById('full-version').textContent = `${fullVersion} ⚠️コンフリクト記号あり`;
-            document.getElementById('build-id').textContent = `${buildId} ⚠️コンフリクト記号あり`;
-          } else {
-            document.getElementById('full-version').textContent = fullVersion;
-            document.getElementById('build-id').textContent = buildId;
-          }
-          
-          log(`index.htmlから取得: FULL_VERSION=${fullVersion}, BUILD_ID=${buildId}`, 'info');
-        } catch(e) {
-          document.getElementById('full-version').textContent = `fetch失敗: ${e.message}`;
-          document.getElementById('build-id').textContent = `fetch失敗: ${e.message}`;
-          log(`index.html fetchエラー: ${e.message}`, 'error');
-        }
-        
-        log('ページ情報を更新しました', 'info');
-      } catch(e) {
-        log(`ページ情報更新エラー: ${e.message}`, 'error');
+    let countdown = 3;
+    const countdownEl = document.querySelector('.countdown');
+    const interval = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        countdownEl.textContent = `${countdown}秒後に自動的に診断ページへ移動します...`;
+      } else {
+        clearInterval(interval);
       }
-    }
-
-    // B) Service Worker / キャッシュの状態を表示＋解除ボタン
-    async function updateServiceWorkerStatus() {
-      try {
-        if ('serviceWorker' in navigator) {
-          const controller = navigator.serviceWorker.controller;
-          document.getElementById('sw-controller').textContent = controller ? `あり (${controller.scriptURL})` : 'なし';
-          
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          document.getElementById('sw-registrations').textContent = `${registrations.length}件`;
-          if (registrations.length > 0) {
-            const swList = registrations.map(r => r.scope).join('\n  ');
-            document.getElementById('sw-registrations').textContent += `\n  ${swList}`;
-          }
-        } else {
-          document.getElementById('sw-controller').textContent = '未対応';
-          document.getElementById('sw-registrations').textContent = '未対応';
-        }
-
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          document.getElementById('cache-count').textContent = `${cacheNames.length}件`;
-          if (cacheNames.length > 0) {
-            const cacheList = cacheNames.join('\n  ');
-            document.getElementById('cache-count').textContent += `\n  ${cacheList}`;
-          }
-        } else {
-          document.getElementById('cache-count').textContent = '未対応';
-        }
-        
-        log('Service Worker/キャッシュ状態を更新しました', 'info');
-      } catch(e) {
-        log(`Service Worker状態更新エラー: ${e.message}`, 'error');
-      }
-    }
-
-    async function clearServiceWorkerAndCache() {
-      if (!confirm('Service Workerを解除し、すべてのキャッシュを削除してリロードしますか？')) {
-        return;
-      }
-
-      try {
-        log('Service Worker解除＋キャッシュ削除を開始...', 'info');
-        
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (let registration of registrations) {
-            const success = await registration.unregister();
-            if (success) {
-              log(`Service Worker解除: ${registration.scope}`, 'info');
-            }
-          }
-        }
-
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          for (let cacheName of cacheNames) {
-            await caches.delete(cacheName);
-            log(`キャッシュ削除: ${cacheName}`, 'info');
-          }
-        }
-
-        log('完了。3秒後にリロードします...', 'info');
-        setTimeout(() => {
-          location.reload(true);
-        }, 3000);
-      } catch(e) {
-        log(`SW解除＋キャッシュ削除エラー: ${e.message}`, 'error');
-      }
-    }
-
-    // C) ストレージ系の状態表示
-    async function updateStorageStatus() {
-      try {
-        // localStorage使用量（概算）
-        let totalSize = 0;
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          const value = localStorage.getItem(key);
-          keys.push(key);
-          totalSize += (key ? key.length : 0) + (value ? value.length : 0);
-        }
-        document.getElementById('localstorage-size').textContent = `${keys.length}キー / 約${(totalSize / 1024).toFixed(2)}KB`;
-        document.getElementById('localstorage-keys').textContent = keys.length > 0 ? keys.join(', ') : 'なし';
-
-        // IndexedDB一覧
-        if ('indexedDB' in window && 'databases' in indexedDB) {
-          try {
-            const databases = await indexedDB.databases();
-            const dbNames = databases.map(db => db.name).join(', ');
-            document.getElementById('indexeddb-list').textContent = databases.length > 0 ? `${databases.length}件: ${dbNames}` : 'なし';
-          } catch(e) {
-            document.getElementById('indexeddb-list').textContent = `確認エラー: ${e.message}`;
-          }
-        } else {
-          document.getElementById('indexeddb-list').textContent = 'databases()未対応（手動確認が必要）';
-        }
-
-        log('ストレージ状態を更新しました', 'info');
-      } catch(e) {
-        log(`ストレージ状態更新エラー: ${e.message}`, 'error');
-      }
-    }
-
-    function clearAllStorage() {
-      if (!confirm('⚠️ 警告: このサイトのすべてのデータ（localStorage、IndexedDB）を削除します。購入履歴なども消えます。よろしいですか？')) {
-        return;
-      }
-
-      try {
-        log('ストレージ削除を開始...', 'warn');
-        
-        // localStorage削除
-        localStorage.clear();
-        log('localStorageを削除しました', 'info');
-        
-        // IndexedDB削除
-        if ('indexedDB' in window && 'databases' in indexedDB) {
-          indexedDB.databases().then(databases => {
-            databases.forEach(db => {
-              indexedDB.deleteDatabase(db.name);
-              log(`IndexedDB削除: ${db.name}`, 'info');
-            });
-          });
-        }
-
-        log('完了。3秒後にリロードします...', 'info');
-        setTimeout(() => {
-          location.reload(true);
-        }, 3000);
-      } catch(e) {
-        log(`ストレージ削除エラー: ${e.message}`, 'error');
-      }
-    }
-
-    // D) カメラ起動の切り分け
-    async function updateCameraPermission() {
-      try {
-        if ('permissions' in navigator) {
-          try {
-            const permission = await navigator.permissions.query({ name: 'camera' });
-            const status = permission.state;
-            document.getElementById('camera-permission').textContent = status;
-            log(`カメラ許可状況: ${status}`, 'info');
-          } catch(e) {
-            document.getElementById('camera-permission').textContent = `確認エラー: ${e.message}`;
-          }
-        } else {
-          document.getElementById('camera-permission').textContent = 'Permissions API未対応';
-        }
-      } catch(e) {
-        log(`カメラ許可状況確認エラー: ${e.message}`, 'error');
-      }
-    }
-
-    async function testCamera() {
-      const logArea = document.getElementById('camera-log');
-      const video = document.getElementById('camera-preview');
-      const statusEl = document.getElementById('camera-status');
-      
-      logArea.textContent = '';
-      statusEl.textContent = '起動中...';
-      
-      try {
-        // 既存のストリームを停止
-        if (cameraStream) {
-          cameraStream.getTracks().forEach(track => track.stop());
-        }
-
-        logArea.textContent += 'カメラ起動テストを開始...\n';
-        
-        // 段階的フォールバック
-        const configs = [
-          { facingMode: { exact: "environment" } },
-          { facingMode: { ideal: "environment" } },
-          { facingMode: "environment" },
-          true
-        ];
-
-        let success = false;
-        for (let i = 0; i < configs.length; i++) {
-          try {
-            logArea.textContent += `試行${i + 1}: ${JSON.stringify(configs[i])}\n`;
-            const stream = await navigator.mediaDevices.getUserMedia({ video: configs[i] });
-            
-            cameraStream = stream;
-            video.srcObject = stream;
-            statusEl.textContent = '✅ 成功';
-            statusEl.className = 'status-ok';
-            logArea.textContent += `✅ 成功: 試行${i + 1}\n`;
-            log(`カメラ起動成功: 試行${i + 1}`, 'info');
-            success = true;
-            break;
-          } catch(err) {
-            logArea.textContent += `❌ 失敗: ${err.name}: ${err.message}\n`;
-            log(`カメラ起動失敗(試行${i + 1}): ${err.name}: ${err.message}`, 'error');
-          }
-        }
-
-        if (!success) {
-          statusEl.textContent = '❌ 失敗';
-          statusEl.className = 'status-error';
-          logArea.textContent += '\n❌ すべての試行が失敗しました\n';
-        }
-      } catch(e) {
-        statusEl.textContent = `❌ エラー: ${e.message}`;
-        statusEl.className = 'status-error';
-        logArea.textContent += `❌ エラー: ${e.name}: ${e.message}\n`;
-        log(`カメラテストエラー: ${e.message}`, 'error');
-      }
-    }
-
-    function stopCamera() {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-        document.getElementById('camera-preview').srcObject = null;
-        document.getElementById('camera-status').textContent = '停止';
-        document.getElementById('camera-status').className = '';
-        log('カメラを停止しました', 'info');
-      }
-    }
-
-    // E) ネットワーク／配信の切り分け
-    async function testNetworkFetch() {
-      const logArea = document.getElementById('network-log');
-      logArea.textContent = '';
-
-      try {
-        // ✅ P0-3: 同じフォルダのindex.htmlのURLを生成（location.pathnameから自動判定）
-        let indexHtmlUrl = './index.html';
-        const absoluteUrl = new URL(indexHtmlUrl, location.href).href;
-        document.getElementById('fetched-url').textContent = absoluteUrl;
-        
-        // cache: no-store で取得
-        logArea.textContent += `【テスト1】cache: no-store で取得: ${absoluteUrl}\n`;
-        const start1 = Date.now();
-        try {
-          const res1 = await fetch(indexHtmlUrl, { cache: 'no-store' });
-          const elapsed1 = Date.now() - start1;
-          const text1 = await res1.text();
-          
-          const versionMatch1 = text1.match(/FULL_VERSION:\s*(v[\d.]+)/) || text1.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
-          const buildIdMatch1 = text1.match(/BUILD_ID:\s*([^\n]+)/) || text1.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
-          
-          const version1 = versionMatch1 ? versionMatch1[1] : '抽出失敗';
-          const buildId1 = buildIdMatch1 ? buildIdMatch1[1].trim() : '抽出失敗';
-          
-          // ✅ P0: コンフリクト記号の検査（<<<<<<< / ======= / >>>>>>>）
-          const conflictMarkers1 = text1.match(/<<<<<<<|=======|>>>>>>>/g);
-          let conflictNote1 = '';
-          if (conflictMarkers1) {
-            conflictNote1 = ` ⚠️コンフリクト記号${conflictMarkers1.length}箇所`;
-            logArea.textContent += `⚠️ コンフリクト記号を検出: ${conflictMarkers1.length}箇所\n`;
-          }
-          
-          // ✅ P0-3: HTTP status / 取得先URL / VERSION/BUILD_ID を一覧表示
-          document.getElementById('fetch-no-store').textContent = `✅ ${res1.status} (${elapsed1}ms) / VERSION: ${version1}${conflictNote1}`;
-          document.getElementById('fetched-status').textContent = `${res1.status} (${elapsed1}ms)`;
-          document.getElementById('fetched-version').textContent = version1 + conflictNote1;
-          document.getElementById('fetched-build-id').textContent = buildId1 + conflictNote1;
-          
-          logArea.textContent += `✅ HTTP ${res1.status} (${elapsed1}ms)\n`;
-          logArea.textContent += `  FULL_VERSION: ${version1}\n`;
-          logArea.textContent += `  BUILD_ID: ${buildId1}\n`;
-        } catch(e) {
-          document.getElementById('fetch-no-store').textContent = `❌ エラー: ${e.message}`;
-          logArea.textContent += `❌ エラー: ${e.message}\n`;
-        }
-
-        // ✅ P0-3: reload で取得（キャッシュ再検証）
-        logArea.textContent += '\n【テスト2】reload で取得（キャッシュ再検証）...\n';
-        const start2 = Date.now();
-        try {
-          const res2 = await fetch(indexHtmlUrl, { cache: 'reload' });
-          const elapsed2 = Date.now() - start2;
-          const text2 = await res2.text();
-          
-          const versionMatch2 = text2.match(/FULL_VERSION:\s*(v[\d.]+)/) || text2.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
-          const buildIdMatch2 = text2.match(/BUILD_ID:\s*([^\n]+)/) || text2.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
-          
-          const version2 = versionMatch2 ? versionMatch2[1] : '抽出失敗';
-          const buildId2 = buildIdMatch2 ? buildIdMatch2[1].trim() : '抽出失敗';
-          
-          // ✅ P0: コンフリクト記号の検査（<<<<<<< / ======= / >>>>>>>）
-          const conflictMarkers2 = text2.match(/<<<<<<<|=======|>>>>>>>/g);
-          let conflictNote2 = '';
-          if (conflictMarkers2) {
-            conflictNote2 = ` ⚠️コンフリクト記号${conflictMarkers2.length}箇所`;
-            logArea.textContent += `⚠️ コンフリクト記号を検出: ${conflictMarkers2.length}箇所\n`;
-          }
-          
-          document.getElementById('fetch-reload').textContent = `✅ ${res2.status} (${elapsed2}ms) / VERSION: ${version2}${conflictNote2}`;
-          
-          logArea.textContent += `✅ HTTP ${res2.status} (${elapsed2}ms)\n`;
-          logArea.textContent += `  FULL_VERSION: ${version2}\n`;
-          logArea.textContent += `  BUILD_ID: ${buildId2}\n`;
-          
-          // 比較
-          if (version1 !== version2 || buildId1 !== buildId2) {
-            logArea.textContent += `\n⚠️ 警告: 取得方法によってVERSION/BUILD_IDが異なります\n`;
-          }
-        } catch(e) {
-          document.getElementById('fetch-reload').textContent = `❌ エラー: ${e.message}`;
-          logArea.textContent += `❌ エラー: ${e.message}\n`;
-        }
-
-        log('ネットワーク取得テスト完了', 'info');
-      } catch(e) {
-        log(`ネットワーク取得テストエラー: ${e.message}`, 'error');
-        document.getElementById('fetched-status').textContent = `エラー: ${e.message}`;
-      }
-    }
-
-    // ✅ P0-3: キャッシュ/SW削除＋再取得を1ボタンで可能に
-    // ユイの指摘：「HTTP status / 取得先URL / キャッシュ・SW状態 を一覧化し、削除と再取得を1ボタンで可能に」
-    async function clearCacheAndRefetch() {
-      if (!confirm('キャッシュとService Workerを削除して、index.htmlを再取得しますか？')) {
-        return;
-      }
-      
-      try {
-        log('キャッシュ/SW削除＋再取得を開始...', 'warn');
-        
-        // 1. Service Worker解除
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (const registration of registrations) {
-            await registration.unregister();
-            log(`Service Worker解除: ${registration.scope}`, 'info');
-          }
-        }
-        
-        // 2. キャッシュ削除
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          for (const cacheName of cacheNames) {
-            await caches.delete(cacheName);
-            log(`キャッシュ削除: ${cacheName}`, 'info');
-          }
-        }
-        
-        // 3. Service Worker状態を更新
-        await updateServiceWorkerStatus();
-        
-        // 4. 再取得
-        log('キャッシュ/SW削除完了。index.htmlを再取得します...', 'info');
-        await testNetworkFetch();
-        
-        log('キャッシュ/SW削除＋再取得完了', 'info');
-      } catch(e) {
-        log(`キャッシュ/SW削除＋再取得エラー: ${e.message}`, 'error');
-      }
-    }
-
-    // 初期化
-    window.addEventListener('load', async () => {
-      log('診断アプリを起動しました', 'info');
-      updatePageInfo();
-      await updateServiceWorkerStatus();
-      await updateStorageStatus();
-      await updateCameraPermission();
-      
-      // debug=1 の場合は自動でSW解除＋キャッシュ削除＋リロード
-      const urlParams = new URLSearchParams(location.search);
-      if (urlParams.get('debug') === '1') {
-        log('debug=1が検出されました。SW解除＋キャッシュ削除を実行します...', 'warn');
-        setTimeout(() => {
-          clearServiceWorkerAndCache();
-        }, 2000);
-      }
-    });
+    }, 1000);
   </script>
 </body>
 </html>
