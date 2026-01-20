@@ -1,25 +1,25 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
-VERSION: v19.9.28
-FULL_VERSION: v19.9.28
-DATE(JST): 2026-01-20 01:40 JST（正確な時刻）
-TITLE: スキャンバー描画問題修正（B案：canvas上描き）
+VERSION: v19.9.29
+FULL_VERSION: v19.9.29
+DATE(JST): 2026-01-20 09:36 JST（正確な時刻）
+TITLE: スキャンバー描画最終修正（DPR対応＋サイズ同期＋前面固定）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_014000_scan-bar-canvas-draw
+BUILD_ID: 2026-01-20_093600_scanbar-canvas-not-visible
 CHANGES:
-- ✅ B案採用: canvas上描きでスキャンバーを描画（端末差に強い）
-- ✅ HTML構造変更: .laser div → canvas要素に置き換え
-- ✅ CSSアニメーション削除 → requestAnimationFrameで描画ループ
-- ✅ スキャンバー描画関数追加: startLaserAnimation() / stopLaserAnimation()
-- ✅ debug=1時のcanvas診断機能追加: diagnoseLaserCanvas()
-- ✅ 描画設定: Y座標0.15〜0.85で往復、速度0.005、グロー効果付き
-- ✅ 読み取り挙動は変更なし（見た目のみ修正）
+- ✅ (1) 生成と配置を固定: pointer-events無効化＋最前面配置
+- ✅ (2) サイズ同期強化: 開いた直後＋レイアウト確定後の2回実行
+- ✅ (3) DPR対応必須化（最重要）: devicePixelRatio対応＋setTransform
+- ✅ (4) 見えること最優先の描画: 線の太さ3px・不透明・グロー効果
+- ✅ (5) アニメ開始導線固定: スキャン窓表示直後に確実に開始
+- ✅ (4) debug診断充実: canvasExists/Rect/Size/DPR/laserY/AnimID/zIndex/Order
+- ✅ 二重起動防止: animIdガード追加
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_014000_scan-bar-canvas-draw
+BUILD_PARAM: ?b=2026-01-20_093600_scanbar-canvas-not-visible
 DEBUG_PARAM: &debug=1
-POLICY: UI変更禁止（描画方式のみ変更）
+POLICY: UI変更禁止（描画ロジックのみ修正）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
@@ -40,7 +40,7 @@ POLICY: UI変更禁止（描画方式のみ変更）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.28</title>
+  <title>Smart Price v19.9.29</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -126,7 +126,7 @@ POLICY: UI変更禁止（描画方式のみ変更）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.28</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.29</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -299,9 +299,9 @@ POLICY: UI変更禁止（描画方式のみ変更）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.28"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.28 [014000]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_014000_scan-bar-canvas-draw"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.29"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.29 [093600]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-20_093600_scanbar-canvas-not-visible"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -376,8 +376,14 @@ POLICY: UI変更禁止（描画方式のみ変更）
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
   
-  // ✅ B案: canvas描画ループ（スキャンバーを描画）
+  // ✅ B案: canvas描画ループ（スキャンバーを描画）- DPR対応＋サイズ同期強化版
   function startLaserAnimation() {
+    // ✅ (1) 二重起動防止
+    if (laserAnimationId) {
+      if (isDebug()) console.log('[Laser] Already running, skip');
+      return;
+    }
+    
     const canvas = document.getElementById('laserCanvas');
     if (!canvas) {
       console.error('[Laser] Canvas element not found');
@@ -390,15 +396,63 @@ POLICY: UI変更禁止（描画方式のみ変更）
       return;
     }
     
-    // canvasのサイズを親要素（scan-frame）に合わせる
-    const scanFrame = canvas.parentElement;
-    if (scanFrame) {
-      canvas.width = scanFrame.offsetWidth;
-      canvas.height = scanFrame.offsetHeight;
+    // ✅ (1) 配置を固定：pointer-events無効化
+    canvas.style.pointerEvents = 'none';
+    
+    // ✅ (2)(3) サイズ同期＋DPR対応の関数
+    function syncCanvasSize() {
+      const scanFrame = canvas.parentElement;
+      if (!scanFrame) {
+        console.error('[Laser] Parent element not found');
+        return { width: 0, height: 0, dpr: 1 };
+      }
+      
+      // rectを取得
+      const rect = scanFrame.getBoundingClientRect();
+      
+      // ✅ (3) DPR対応（最重要）
+      const dpr = window.devicePixelRatio || 1;
+      
+      // ✅ canvasの実サイズを設定（DPR考慮）
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      
+      // ✅ canvasの表示サイズを設定（CSS）
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      
+      // ✅ contextのスケールを設定（DPR考慮）
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      
+      if (isDebug()) {
+        console.log('[Laser] Canvas size synced', {
+          rectWidth: rect.width,
+          rectHeight: rect.height,
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          dpr: dpr
+        });
+      }
+      
+      return { width: rect.width, height: rect.height, dpr: dpr };
     }
     
-    // 描画ループ
+    // ✅ (2) 初回サイズ同期
+    let sizeInfo = syncCanvasSize();
+    
+    // ✅ (2) レイアウト確定後にもう一度サイズ同期（初回0を潰す）
+    requestAnimationFrame(() => {
+      sizeInfo = syncCanvasSize();
+      
+      // サイズが0の場合は警告
+      if (sizeInfo.width === 0 || sizeInfo.height === 0) {
+        console.warn('[Laser] Canvas size is 0, layout not ready?', sizeInfo);
+      }
+    });
+    
+    // ✅ (4) 描画ループ（見えること最優先）
     function drawLaser() {
+      // ✅ (5) スキャン中でなければ停止
       if (!isScanning) {
         if (laserAnimationId) {
           cancelAnimationFrame(laserAnimationId);
@@ -408,12 +462,12 @@ POLICY: UI変更禁止（描画方式のみ変更）
       }
       
       // canvasをクリア
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, sizeInfo.width, sizeInfo.height);
       
       // スキャンバーの位置を計算（0.15〜0.85の範囲で往復）
       const minY = 0.15;
       const maxY = 0.85;
-      const speed = 0.005; // 移動速度
+      const speed = 0.008; // 移動速度（少し速めに）
       
       laserY += laserDirection * speed;
       
@@ -426,18 +480,19 @@ POLICY: UI変更禁止（描画方式のみ変更）
         laserDirection = 1;
       }
       
-      // スキャンバーを描画
-      const y = laserY * canvas.height;
-      const lineWidth = 3; // 線の太さ
-      const lineX1 = canvas.width * 0.05; // 左端（5%）
-      const lineX2 = canvas.width * 0.95; // 右端（95%）
+      // ✅ (4) スキャンバーを描画（見えること最優先）
+      const y = laserY * sizeInfo.height;
+      const lineWidth = 3; // 線の太さ（太めに設定）
+      const lineX1 = sizeInfo.width * 0.05; // 左端（5%）
+      const lineX2 = sizeInfo.width * 0.95; // 右端（95%）
       
       // 影（グロー効果）
       ctx.shadowColor = '#ff0000';
       ctx.shadowBlur = 10;
       
-      // 線を描画
+      // 線を描画（不透明・太め）
       ctx.strokeStyle = '#ff0000';
+      ctx.globalAlpha = 1.0; // 完全不透明
       ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.moveTo(lineX1, y);
@@ -448,14 +503,28 @@ POLICY: UI変更禁止（描画方式のみ変更）
       laserAnimationId = requestAnimationFrame(drawLaser);
     }
     
-    // アニメーション開始
+    // ✅ (5) アニメーション開始
     laserY = 0.15; // 初期位置
     laserDirection = 1; // 下向きに開始
-    drawLaser();
     
-    if (isDebug()) {
-      console.log('[Laser] Animation started', { canvasWidth: canvas.width, canvasHeight: canvas.height });
-    }
+    // レイアウト確定を待ってから描画開始
+    requestAnimationFrame(() => {
+      // サイズが確定したら描画開始
+      if (sizeInfo.width > 0 && sizeInfo.height > 0) {
+        drawLaser();
+        if (isDebug()) {
+          console.log('[Laser] Animation started', {
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+            styleWidth: canvas.style.width,
+            styleHeight: canvas.style.height,
+            dpr: sizeInfo.dpr
+          });
+        }
+      } else {
+        console.error('[Laser] Cannot start animation, size is 0');
+      }
+    });
   }
   
   // ✅ B案: canvas描画停止
@@ -479,47 +548,80 @@ POLICY: UI変更禁止（描画方式のみ変更）
     }
   }
   
-  // ✅ B案: debug=1時のcanvas診断機能
+  // ✅ B案: debug=1時のcanvas診断機能（充実版）
   function diagnoseLaserCanvas() {
     if (!isDebug()) return;
     
-    setTimeout(() => {
+    // 定期的に診断情報を更新（1秒ごと）
+    const diagInterval = setInterval(() => {
+      if (!isScanning) {
+        clearInterval(diagInterval);
+        return;
+      }
+      
       const canvas = document.getElementById('laserCanvas');
       const scanFrameEl = document.querySelector('.scan-frame');
       
-      // canvas情報
+      // ✅ (4) canvas情報
       const canvasExists = canvas !== null;
       let canvasRect = 'N/A';
       let canvasSize = 'N/A';
       let canvasVisible = 'N/A';
+      let canvasStyleSize = 'N/A';
+      let dpr = 'N/A';
+      let zIndex = 'N/A';
+      let canvasOrder = 'N/A';
       
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
-        canvasRect = `top:${rect.top.toFixed(1)}, left:${rect.left.toFixed(1)}, width:${rect.width.toFixed(1)}, height:${rect.height.toFixed(1)}`;
+        canvasRect = `w:${rect.width.toFixed(1)}, h:${rect.height.toFixed(1)}`;
         canvasSize = `${canvas.width}x${canvas.height}`;
+        canvasStyleSize = `${canvas.style.width} x ${canvas.style.height}`;
+        dpr = (window.devicePixelRatio || 1).toFixed(2);
+        
         const computed = window.getComputedStyle(canvas);
-        canvasVisible = `display:${computed.display}, opacity:${computed.opacity}, z-index:${computed.zIndex}`;
+        canvasVisible = `display:${computed.display}, opacity:${computed.opacity}`;
+        zIndex = computed.zIndex;
+        
+        // 兄弟要素の中での順序を確認
+        const parent = canvas.parentElement;
+        if (parent) {
+          const children = Array.from(parent.children);
+          canvasOrder = `${children.indexOf(canvas) + 1}/${children.length}`;
+        }
       }
       
       // scan-frame情報
       let scanFrameRect = 'N/A';
       if (scanFrameEl) {
         const rect = scanFrameEl.getBoundingClientRect();
-        scanFrameRect = `top:${rect.top.toFixed(1)}, width:${rect.width.toFixed(1)}, height:${rect.height.toFixed(1)}`;
+        scanFrameRect = `w:${rect.width.toFixed(1)}, h:${rect.height.toFixed(1)}`;
       }
       
-      // debug表示エリアに出力
-      const debugInfo = `[LaserCanvas] Exists:${canvasExists}, Rect:${canvasRect}, Size:${canvasSize}, Visible:${canvasVisible}, laserY:${laserY.toFixed(3)}, AnimID:${laserAnimationId ? 'active' : 'null'}`;
-      console.log(debugInfo);
-      console.log('[LaserCanvas] Frame:', scanFrameRect);
+      // ✅ (4) 充実した診断情報
+      const debugInfo = {
+        canvasExists,
+        canvasRect,
+        canvasSize,
+        canvasStyleSize,
+        dpr,
+        laserY: laserY.toFixed(3),
+        animId: laserAnimationId ? 'active' : 'null',
+        zIndex,
+        order: canvasOrder,
+        scanFrameRect
+      };
       
-      // 画面の右上ログエリアに表示（既存のdebug-error-displayを利用）
+      console.log('[LaserCanvas Debug]', debugInfo);
+      
+      // 画面の右上ログエリアに表示
       const errorDisplay = document.getElementById('debug-error-display');
       if (errorDisplay) {
-        errorDisplay.textContent = debugInfo;
+        const debugText = `[LaserCanvas] Exists:${canvasExists} | Rect:${canvasRect} | Size:${canvasSize} | DPR:${dpr} | Y:${debugInfo.laserY} | AnimID:${debugInfo.animId} | Z:${zIndex} | Order:${canvasOrder}`;
+        errorDisplay.textContent = debugText;
         errorDisplay.style.display = 'block';
       }
-    }, 500); // カメラ起動後0.5秒待ってから診断
+    }, 1000); // 1秒ごとに更新
   }
   
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
@@ -3970,12 +4072,11 @@ POLICY: UI変更禁止（描画方式のみ変更）
       stopScanner();
     });
     
-    // ✅ B案: canvas描画ループを開始（カメラ起動後）
-    setTimeout(() => {
-      startLaserAnimation();
-    }, 500); // カメラ起動後0.5秒待ってからアニメーション開始
+    // ✅ (5) canvas描画ループを開始（スキャン窓表示直後）
+    // カメラ起動を待たずに、スキャン窓が表示された時点で開始
+    startLaserAnimation();
     
-    // ✅ B案: debug=1時のcanvas診断を実行
+    // ✅ (4) debug=1時のcanvas診断を実行
     diagnoseLaserCanvas();
   }
 
