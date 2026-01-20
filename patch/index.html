@@ -1,26 +1,25 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
-VERSION: v19.9.27
-FULL_VERSION: v19.9.27
-DATE(JST): 2026-01-20 01:27 JST（正確な時刻）
-TITLE: スキャンバー復活＋箱買い減点方式＋JANネット検索ルート追加＋箱売りしか無いJAN対応
+VERSION: v19.9.28
+FULL_VERSION: v19.9.28
+DATE(JST): 2026-01-20 01:40 JST（正確な時刻）
+TITLE: スキャンバー描画問題修正（B案：canvas上描き）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_012700_case-only-jan-db-plan
+BUILD_ID: 2026-01-20_014000_scan-bar-canvas-draw
 CHANGES:
-- ✅ (A) スキャンバー表示問題修正: CSS強制表示（z-index:99999/display:block/opacity:1）
-- ✅ (A) debug=1時のスキャンバー診断機能追加（laserExists/laserRect/laserComputed）
-- ✅ (B) 箱買い除外→減点方式へ変更（候補ゼロ化を防ぐスコアリング方式）
-- ✅ (C) JANネット検索ルート追加（Google検索経由で商品情報取得・パン類対応）
-- ✅ (C) 取得結果のJANキャッシュ保存（次回即表示）
-- ✅ (D) 箱売りしか無いJAN対応: packCount/isCaseOfferメタデータ追加
-- ✅ (D) 候補が箱売りのみでも採用（候補ゼロ化を完全に防ぐ）
-- ✅ (D) debug=1時にPACK_COUNT/IS_CASEを表示
+- ✅ B案採用: canvas上描きでスキャンバーを描画（端末差に強い）
+- ✅ HTML構造変更: .laser div → canvas要素に置き換え
+- ✅ CSSアニメーション削除 → requestAnimationFrameで描画ループ
+- ✅ スキャンバー描画関数追加: startLaserAnimation() / stopLaserAnimation()
+- ✅ debug=1時のcanvas診断機能追加: diagnoseLaserCanvas()
+- ✅ 描画設定: Y座標0.15〜0.85で往復、速度0.005、グロー効果付き
+- ✅ 読み取り挙動は変更なし（見た目のみ修正）
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_012700_case-only-jan-db-plan
+BUILD_PARAM: ?b=2026-01-20_014000_scan-bar-canvas-draw
 DEBUG_PARAM: &debug=1
-POLICY: UI変更禁止（内部ロジックのみ）
+POLICY: UI変更禁止（描画方式のみ変更）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
@@ -41,7 +40,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.27</title>
+  <title>Smart Price v19.9.28</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -100,28 +99,15 @@ POLICY: UI変更禁止（内部ロジックのみ）
       border-radius: 20px; 
       display: block; /* 必ず表示 */
     }
-    /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
-    /* ✅ (A) 強制表示の保険：display/opacity/z-indexを最強値に設定 */
-    .laser { 
-      position: absolute; 
-      top: 15%; /* 初期位置を明示 */
-      left: 5%; 
-      width: 90%; 
-      height: 2px !important; /* 強制 */
-      background: #ff0000; 
-      box-shadow: 0 0 10px 2px #ff0000; 
-      animation: scanning 2s infinite ease-in-out; 
-      z-index: 99999 !important; /* 確実に最前面表示 */
-      border-radius: 1px; /* 角丸 */
-      display: block !important; /* 強制表示 */
-      opacity: 1 !important; /* 強制不透明 */
+    /* ✅ B案: canvas上描きでスキャンバーを描画（端末差に強い） */
+    #laserCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none; /* タッチイベント無視 */
-    }
-    /* CSSアニメで確実に出る方式 */
-    @keyframes scanning { 
-      0% { top: 15%; opacity: 0.2; } 
-      50% { top: 85%; opacity: 1; } 
-      100% { top: 15%; opacity: 0.2; } 
+      z-index: 10; /* scan-frameより前面 */
     }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
@@ -140,7 +126,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.27</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.28</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -218,7 +204,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <div id="camera-area">
   <div id="interactive">
-    <div class="scan-frame"><div class="laser"></div></div>
+    <div class="scan-frame">
+      <canvas id="laserCanvas"></canvas>
+    </div>
   </div>
   <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
 </div>
@@ -311,9 +299,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.27"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.27 [012700]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_012700_case-only-jan-db-plan"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.28"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.28 [014000]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-20_014000_scan-bar-canvas-draw"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -388,41 +376,142 @@ POLICY: UI変更禁止（内部ロジックのみ）
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
   
-  // ✅ (A) スキャンバー診断機能（debug=1時のみ）
-  function diagnoseLaser() {
+  // ✅ B案: canvas描画ループ（スキャンバーを描画）
+  function startLaserAnimation() {
+    const canvas = document.getElementById('laserCanvas');
+    if (!canvas) {
+      console.error('[Laser] Canvas element not found');
+      return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('[Laser] Canvas context not available');
+      return;
+    }
+    
+    // canvasのサイズを親要素（scan-frame）に合わせる
+    const scanFrame = canvas.parentElement;
+    if (scanFrame) {
+      canvas.width = scanFrame.offsetWidth;
+      canvas.height = scanFrame.offsetHeight;
+    }
+    
+    // 描画ループ
+    function drawLaser() {
+      if (!isScanning) {
+        if (laserAnimationId) {
+          cancelAnimationFrame(laserAnimationId);
+          laserAnimationId = null;
+        }
+        return;
+      }
+      
+      // canvasをクリア
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // スキャンバーの位置を計算（0.15〜0.85の範囲で往復）
+      const minY = 0.15;
+      const maxY = 0.85;
+      const speed = 0.005; // 移動速度
+      
+      laserY += laserDirection * speed;
+      
+      // 端に到達したら方向を反転
+      if (laserY >= maxY) {
+        laserY = maxY;
+        laserDirection = -1;
+      } else if (laserY <= minY) {
+        laserY = minY;
+        laserDirection = 1;
+      }
+      
+      // スキャンバーを描画
+      const y = laserY * canvas.height;
+      const lineWidth = 3; // 線の太さ
+      const lineX1 = canvas.width * 0.05; // 左端（5%）
+      const lineX2 = canvas.width * 0.95; // 右端（95%）
+      
+      // 影（グロー効果）
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 10;
+      
+      // 線を描画
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(lineX1, y);
+      ctx.lineTo(lineX2, y);
+      ctx.stroke();
+      
+      // 次のフレームを予約
+      laserAnimationId = requestAnimationFrame(drawLaser);
+    }
+    
+    // アニメーション開始
+    laserY = 0.15; // 初期位置
+    laserDirection = 1; // 下向きに開始
+    drawLaser();
+    
+    if (isDebug()) {
+      console.log('[Laser] Animation started', { canvasWidth: canvas.width, canvasHeight: canvas.height });
+    }
+  }
+  
+  // ✅ B案: canvas描画停止
+  function stopLaserAnimation() {
+    if (laserAnimationId) {
+      cancelAnimationFrame(laserAnimationId);
+      laserAnimationId = null;
+      
+      // canvasをクリア
+      const canvas = document.getElementById('laserCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      
+      if (isDebug()) {
+        console.log('[Laser] Animation stopped');
+      }
+    }
+  }
+  
+  // ✅ B案: debug=1時のcanvas診断機能
+  function diagnoseLaserCanvas() {
     if (!isDebug()) return;
     
     setTimeout(() => {
-      const laserEl = document.querySelector('.laser');
+      const canvas = document.getElementById('laserCanvas');
       const scanFrameEl = document.querySelector('.scan-frame');
       
-      // laserExists
-      const laserExists = laserEl !== null;
+      // canvas情報
+      const canvasExists = canvas !== null;
+      let canvasRect = 'N/A';
+      let canvasSize = 'N/A';
+      let canvasVisible = 'N/A';
       
-      // laserRect
-      let laserRect = 'N/A';
-      if (laserEl) {
-        const rect = laserEl.getBoundingClientRect();
-        laserRect = `top:${rect.top.toFixed(1)}, height:${rect.height.toFixed(1)}`;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        canvasRect = `top:${rect.top.toFixed(1)}, left:${rect.left.toFixed(1)}, width:${rect.width.toFixed(1)}, height:${rect.height.toFixed(1)}`;
+        canvasSize = `${canvas.width}x${canvas.height}`;
+        const computed = window.getComputedStyle(canvas);
+        canvasVisible = `display:${computed.display}, opacity:${computed.opacity}, z-index:${computed.zIndex}`;
       }
       
-      // laserComputed
-      let laserComputed = 'N/A';
-      if (laserEl) {
-        const computed = window.getComputedStyle(laserEl);
-        laserComputed = `display:${computed.display}, opacity:${computed.opacity}, z-index:${computed.zIndex}`;
-      }
-      
-      // scan-frame情報も追加
+      // scan-frame情報
       let scanFrameRect = 'N/A';
       if (scanFrameEl) {
         const rect = scanFrameEl.getBoundingClientRect();
-        scanFrameRect = `top:${rect.top.toFixed(1)}, height:${rect.height.toFixed(1)}`;
+        scanFrameRect = `top:${rect.top.toFixed(1)}, width:${rect.width.toFixed(1)}, height:${rect.height.toFixed(1)}`;
       }
       
       // debug表示エリアに出力
-      const debugInfo = `[Laser診断] Exists:${laserExists}, Rect:${laserRect}, Computed:${laserComputed}, Frame:${scanFrameRect}`;
+      const debugInfo = `[LaserCanvas] Exists:${canvasExists}, Rect:${canvasRect}, Size:${canvasSize}, Visible:${canvasVisible}, laserY:${laserY.toFixed(3)}, AnimID:${laserAnimationId ? 'active' : 'null'}`;
       console.log(debugInfo);
+      console.log('[LaserCanvas] Frame:', scanFrameRect);
       
       // 画面の右上ログエリアに表示（既存のdebug-error-displayを利用）
       const errorDisplay = document.getElementById('debug-error-display');
@@ -1049,6 +1138,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
   let scanner = null, editingHistIdx = null, isScanning = false;
+  let laserAnimationId = null; // ✅ B案: canvas描画ループのID
+  let laserY = 0; // ✅ B案: スキャンバーのY座標（0〜1の範囲）
+  let laserDirection = 1; // ✅ B案: スキャンバーの移動方向（1=下、-1=上）
   let deferredPrompt = null; // ✅ PWAインストールプロンプト
 
   // ✅ ここは必ず let（const にすると "Assignment to constant variable" の原因になる）
@@ -3878,11 +3970,19 @@ POLICY: UI変更禁止（内部ロジックのみ）
       stopScanner();
     });
     
-    // ✅ (A) カメラ起動後にスキャンバー診断を実行（debug=1時のみ）
-    diagnoseLaser();
+    // ✅ B案: canvas描画ループを開始（カメラ起動後）
+    setTimeout(() => {
+      startLaserAnimation();
+    }, 500); // カメラ起動後0.5秒待ってからアニメーション開始
+    
+    // ✅ B案: debug=1時のcanvas診断を実行
+    diagnoseLaserCanvas();
   }
 
   async function stopScanner() {
+    // ✅ B案: canvas描画ループを停止
+    stopLaserAnimation();
+    
     if(scanner) {
       try { await scanner.stop(); } catch(e) {}
       finally { document.getElementById('camera-area').style.display='none'; isScanning = false; }
