@@ -1,25 +1,36 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/patch/index.html
-VERSION: v19.9.25
-FULL_VERSION: v19.9.25
-DATE(JST): 2026-01-20 00:38 JST（正確な時刻）
-TITLE: P0修正（JAN精度完璧化・A完成）
+VERSION: v19.9.31
+FULL_VERSION: v19.9.31
+DATE(JST): 2026-01-20 12:00 JST（正確な時刻）
+TITLE: スキャンバーDOM自己修復機能（main固定版）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_003800_jan-A-merge1
+BUILD_ID: 2026-01-20_120000_merge-scanbar-dom-ensure
 CHANGES:
-- ✅ P0修正: ルート（/index.html）に同一内容を反映（配布場所統一）
-- ✅ P0修正: スキャンバーz-index強化（z-index: 1→10で確実に前面表示）
-- ✅ P0修正: 商品名クリーニング（箱売り情報・送料情報を除去）
-- ✅ P0修正: メーカー名検証（販売店名などの不正確な情報を除外）
-- ✅ P0修正: 情報無し時のトースト表示改善（「商品情報が見つかりませんでした」）
-- ✅ P0修正: DEBUG表示のSTATUS判定ロジック改善（正確に取得成功/失敗を判定）
-- ✅ P0修正: JAN精度向上（数字のみ正規化・13桁チェック・チェックデジット検証）
+- ✅ 最優先: ensureScanbarDom() 関数追加（自己修復機能）
+  - スキャナー起動時に必ず実行
+  - DOM要素が存在しない場合は動的に生成
+  - scan-frame と scan-laser を確実に配置
+  - z-index: 9999 で最前面表示を保証
+  - pointer-events: none でタッチイベント無視
+- ✅ HTMLから静的要素を削除:
+  - <div class="scan-frame"><div class="scan-laser"></div></div> を削除
+  - 完全に動的生成に変更（html5-qrcodeライブラリとの競合回避）
+- ✅ debug診断情報を改善:
+  - elementFound: true/false（要素の存在確認）
+  - laserElId / parentElId（要素ID・親要素の確認）
+  - computedZIndex（計算済みz-index値）
+  - より詳細なトラブルシューティング情報
+- ✅ 呼び出しタイミングを最適化:
+  - scanner.start() 成功コールバック内で即座に実行
+  - エラー時も含めて300ms後に再実行
+  - debug表示前に必ず実行
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_003800_jan-A-merge1
+BUILD_PARAM: ?b=2026-01-20_120000_merge-scanbar-dom-ensure
 DEBUG_PARAM: &debug=1
-POLICY: UI変更禁止（内部ロジックのみ）
+POLICY: UI増やさない・既存要素の見た目調整のみ
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
@@ -40,7 +51,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.25</title>
+  <title>Smart Price v19.9.31</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -85,7 +96,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
     #camera-area { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: black; z-index: 2000; }
     #interactive { width: 100%; height: 100%; position: relative; }
     #interactive video { width: 100%; height: 100%; object-fit: cover; }
-    /* ✅ P0: スキャナ画面に「合わせ窓（角丸ガイド枠）」を必ず表示（通常モードでも） */
+    /* ✅ スキャナ画面：合わせ窓（角丸ガイド枠）- 既存UIと統一 */
     .scan-frame { 
       position: absolute; 
       top: 50%; 
@@ -94,29 +105,47 @@ POLICY: UI変更禁止（内部ロジックのみ）
       width: 280px; 
       height: 180px; 
       z-index: 2001; /* videoより前面に固定 */
-      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); 
-      border: 3px solid #ff5252; 
-      border-radius: 20px; 
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65); /* 周囲を暗くする */
+      border: 2px solid #ff5252; /* 線幅を統一（2px） */
+      border-radius: 12px; /* 角丸を統一（cardと同じ） */
       display: block; /* 必ず表示 */
+      pointer-events: none; /* タッチイベント無視 */
     }
-    /* ✅ P0: スキャンバー（走査ライン）を必ず表示し、合わせ窓の中を走るように戻す */
-    .laser { 
+    
+    /* ✅ スキャンバー（走査ライン）- DOM要素で確実表示 */
+    .scan-laser { 
       position: absolute; 
-      top: 15%; /* 初期位置を明示 */
+      top: 15%; /* 初期位置 */
       left: 5%; 
       width: 90%; 
-      height: 2px; 
-      background: #ff0000; 
-      box-shadow: 0 0 10px 2px #ff0000; 
-      animation: scanning 2s infinite ease-in-out; 
-      z-index: 10; /* 確実に前面表示（video/scan-frameより前） */
-      border-radius: 1px; /* 角丸 */
+      height: 3px; /* 少し太めに（視認性向上） */
+      background: linear-gradient(180deg, rgba(255,0,0,0.3), rgba(255,0,0,1), rgba(255,0,0,0.3)); /* グラデーションで立体感 */
+      box-shadow: 
+        0 0 8px 1px rgba(255,0,0,0.8), 
+        0 0 15px 3px rgba(255,0,0,0.5); /* グロー効果 */
+      animation: scan-move 2s infinite ease-in-out; 
+      z-index: 2002; /* scan-frameより前面 */
+      border-radius: 2px; 
+      will-change: transform; /* パフォーマンス最適化 */
+      pointer-events: none; /* タッチイベント無視 */
+      transform: translateZ(0); /* ハードウェアアクセラレーション有効化 */
+      backface-visibility: hidden; /* ちらつき防止 */
     }
-    /* CSSアニメで確実に出る方式 */
-    @keyframes scanning { 
-      0% { top: 15%; opacity: 0.2; } 
-      50% { top: 85%; opacity: 1; } 
-      100% { top: 15%; opacity: 0.2; } 
+    
+    /* ✅ スキャンバーアニメーション - シンプル・確実 */
+    @keyframes scan-move { 
+      0% { 
+        top: 15%; 
+        opacity: 0.6; 
+      } 
+      50% { 
+        top: 82%; /* 下端付近まで */
+        opacity: 1; 
+      } 
+      100% { 
+        top: 15%; 
+        opacity: 0.6; 
+      } 
     }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; }
@@ -135,7 +164,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.25</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.31</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -213,7 +242,7 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <div id="camera-area">
   <div id="interactive">
-    <div class="scan-frame"><div class="laser"></div></div>
+    <!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
   </div>
   <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
 </div>
@@ -306,9 +335,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.25"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.25 [003800]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_003800_jan-A-merge1"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.31"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.31 [120000]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-20_120000_merge-scanbar-dom-ensure"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -3554,6 +3583,9 @@ POLICY: UI変更禁止（内部ロジックのみ）
     
     // ✅ P0: 検出は枠（ROI）内だけにして精度/速度を上げる（細い側面バーコードで特に）
     scanner.start(cameraConfig, scannerConfig, async (t)=> {
+      // ✅ スキャンバーDOM要素を確実に生成・配置（カメラ起動成功後すぐ）
+      ensureScanbarDom();
+      
       showToast("読み取りOK", 1500);
       
       // ✅ P0: 取得できたら track.applyConstraints() を段階的にtry
@@ -3715,6 +3747,190 @@ POLICY: UI変更禁止（内部ロジックのみ）
       
       stopScanner();
     });
+    
+    // ✅ スキャンバーDOM要素を確実に生成・配置（エラー時も実行）
+    setTimeout(() => {
+      ensureScanbarDom();
+      
+      // ✅ debug=1時にスキャンバー情報を表示
+      if (isDebug()) {
+        displayScanbarDebugInfo();
+      }
+    }, 300); // カメラ起動後0.3秒待ってから実行
+  }
+  
+  // ✅ スキャンバーDOM要素を確実に生成・配置する関数（自己修復機能）
+  function ensureScanbarDom() {
+    const cameraArea = document.getElementById('camera-area');
+    if (!cameraArea) {
+      console.error('[EnsureScanbar] camera-area not found');
+      return false;
+    }
+    
+    // ✅ (1) scan-frame を確保（なければ作成）
+    let scanFrame = cameraArea.querySelector('.scan-frame');
+    if (!scanFrame) {
+      scanFrame = document.createElement('div');
+      scanFrame.className = 'scan-frame';
+      cameraArea.appendChild(scanFrame);
+      
+      if (isDebug()) {
+        console.log('[EnsureScanbar] Created scan-frame');
+      }
+    }
+    
+    // ✅ scan-frame のスタイルを確実に設定
+    scanFrame.style.position = 'absolute';
+    scanFrame.style.top = '50%';
+    scanFrame.style.left = '50%';
+    scanFrame.style.transform = 'translate(-50%, -50%)';
+    scanFrame.style.width = '280px';
+    scanFrame.style.height = '180px';
+    scanFrame.style.zIndex = '2001'; // videoより前面
+    scanFrame.style.pointerEvents = 'none';
+    
+    // ✅ (2) scan-laser を確保（なければ作成）
+    let scanLaser = scanFrame.querySelector('.scan-laser');
+    if (!scanLaser) {
+      scanLaser = document.createElement('div');
+      scanLaser.className = 'scan-laser';
+      scanFrame.appendChild(scanLaser);
+      
+      if (isDebug()) {
+        console.log('[EnsureScanbar] Created scan-laser');
+      }
+    }
+    
+    // ✅ scan-laser のスタイルを確実に設定
+    scanLaser.style.position = 'absolute';
+    scanLaser.style.left = '5%';
+    scanLaser.style.width = '90%';
+    scanLaser.style.height = '3px';
+    scanLaser.style.zIndex = '9999'; // 最前面（確実に表示）
+    scanLaser.style.pointerEvents = 'none';
+    scanLaser.style.top = '15%'; // 初期位置
+    
+    // CSSアニメーションはCSSクラスで適用されているので、ここでは設定不要
+    
+    if (isDebug()) {
+      console.log('[EnsureScanbar] DOM ensured', {
+        frameExists: !!scanFrame,
+        laserExists: !!scanLaser,
+        frameZIndex: scanFrame.style.zIndex,
+        laserZIndex: scanLaser.style.zIndex
+      });
+    }
+    
+    return true;
+  }
+  
+  // ✅ スキャンバーのデバッグ情報表示関数（改善版）
+  function displayScanbarDebugInfo() {
+    if (!isDebug()) return;
+    
+    const scanLaser = document.querySelector('.scan-laser');
+    const scanFrame = document.querySelector('.scan-frame');
+    
+    const scanbarMode = 'DOM'; // DOM要素で実装
+    let elementFound = false;
+    let scanbarVisible = 'unknown';
+    let laserZIndex = 'N/A';
+    let frameZIndex = 'N/A';
+    let laserRect = 'N/A';
+    let frameRect = 'N/A';
+    let laserElId = 'N/A';
+    let parentElId = 'N/A';
+    let computedZIndex = 'N/A';
+    
+    if (scanLaser) {
+      elementFound = true;
+      laserElId = scanLaser.id || '(no id)';
+      parentElId = scanLaser.parentElement ? (scanLaser.parentElement.className || scanLaser.parentElement.id || '(no id/class)') : 'no parent';
+      
+      const laserStyle = window.getComputedStyle(scanLaser);
+      laserZIndex = laserStyle.zIndex;
+      computedZIndex = laserStyle.zIndex;
+      
+      const rect = scanLaser.getBoundingClientRect();
+      laserRect = `w:${rect.width.toFixed(1)}, h:${rect.height.toFixed(1)}, top:${rect.top.toFixed(1)}`;
+      
+      // 表示されているかチェック
+      const isVisible = (
+        laserStyle.display !== 'none' &&
+        laserStyle.visibility !== 'hidden' &&
+        parseFloat(laserStyle.opacity) > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+      scanbarVisible = isVisible ? 'true' : 'false';
+    } else {
+      elementFound = false;
+      scanbarVisible = 'element not found';
+    }
+    
+    if (scanFrame) {
+      const frameStyle = window.getComputedStyle(scanFrame);
+      frameZIndex = frameStyle.zIndex;
+      
+      const rect = scanFrame.getBoundingClientRect();
+      frameRect = `w:${rect.width.toFixed(1)}, h:${rect.height.toFixed(1)}`;
+    }
+    
+    const debugInfo = {
+      scanbarMode,
+      elementFound,
+      scanbarVisible,
+      laserElId,
+      parentElId,
+      laserZIndex,
+      computedZIndex,
+      frameZIndex,
+      laserRect,
+      frameRect
+    };
+    
+    console.log('[ScanbarDebug]', debugInfo);
+    
+    // 画面の右上ログエリアに表示
+    const errorDisplay = document.getElementById('debug-error-display');
+    if (errorDisplay) {
+      const debugText = `[Scanbar] Mode:${scanbarMode} | Found:${elementFound} | Visible:${scanbarVisible} | LaserZ:${laserZIndex} | FrameZ:${frameZIndex} | Parent:${parentElId}`;
+      errorDisplay.textContent = debugText;
+      errorDisplay.style.display = 'block';
+    }
+    
+    // 定期的に更新（1秒ごと）
+    const updateInterval = setInterval(() => {
+      if (!isScanning) {
+        clearInterval(updateInterval);
+        return;
+      }
+      
+      if (scanLaser) {
+        const rect = scanLaser.getBoundingClientRect();
+        const laserStyle = window.getComputedStyle(scanLaser);
+        const isVisible = (
+          laserStyle.display !== 'none' &&
+          laserStyle.visibility !== 'hidden' &&
+          parseFloat(laserStyle.opacity) > 0 &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+        
+        const debugText = `[Scanbar] Mode:DOM | Visible:${isVisible} | LaserZ:${laserStyle.zIndex} | FrameZ:${frameZIndex} | Top:${rect.top.toFixed(1)}px`;
+        
+        if (errorDisplay) {
+          errorDisplay.textContent = debugText;
+        }
+        
+        console.log('[ScanbarDebug Update]', {
+          visible: isVisible,
+          top: rect.top.toFixed(1),
+          opacity: laserStyle.opacity,
+          animation: laserStyle.animation
+        });
+      }
+    }, 1000);
   }
 
   async function stopScanner() {
