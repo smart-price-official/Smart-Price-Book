@@ -1,41 +1,58 @@
 <!--
 APP: Smart Price
-FILE: Smart-Price-Book/patch/index.html
-VERSION: v19.9.31
-FULL_VERSION: v19.9.31
-DATE(JST): 2026-01-20 12:00 JST（正確な時刻）
-TITLE: スキャンバーDOM自己修復機能（main固定版）
+FILE: Smart-Price-Book/index.html
+VERSION: v19.9.32
+FULL_VERSION: v19.9.32 [210000]
+DATE(JST): 2026-01-21 21:00 JST（正確な時刻）
+TITLE: P0商品情報取得改善＋P1招待コードエリア機能
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-BUILD_ID: 2026-01-20_120000_merge-scanbar-dom-ensure
+BUILD_ID: 2026-01-21_210000_p0-p1-product-invite
 CHANGES:
-- ✅ 最優先: ensureScanbarDom() 関数追加（自己修復機能）
-  - スキャナー起動時に必ず実行
-  - DOM要素が存在しない場合は動的に生成
-  - scan-frame と scan-laser を確実に配置
-  - z-index: 9999 で最前面表示を保証
-  - pointer-events: none でタッチイベント無視
-- ✅ HTMLから静的要素を削除:
-  - <div class="scan-frame"><div class="scan-laser"></div></div> を削除
-  - 完全に動的生成に変更（html5-qrcodeライブラリとの競合回避）
-- ✅ debug診断情報を改善:
-  - elementFound: true/false（要素の存在確認）
-  - laserElId / parentElId（要素ID・親要素の確認）
-  - computedZIndex（計算済みz-index値）
-  - より詳細なトラブルシューティング情報
-- ✅ 呼び出しタイミングを最適化:
-  - scanner.start() 成功コールバック内で即座に実行
-  - エラー時も含めて300ms後に再実行
-  - debug表示前に必ず実行
+【P0: 商品情報・画像取得改善】
+- ✅ LocalStorageキャッシュ優先（共有DB暫定実装）:
+  - JAN検索時、最初にLocalStorageキャッシュをチェック
+  - キャッシュヒット時は即座にフォーム反映（Web検索スキップ）
+  - キャッシュ有効期限: 7日間
+- ✅ 取得順の最適化:
+  1. LocalStorageキャッシュ（共有DB暫定）
+  2. Yahoo Shopping API
+  3. 楽天API
+  4. Open Food Facts API
+  5. 「見つかりませんでした」表示
+- ✅ データ構造拡張:
+  - imageRefType 追加（ec / off / user）
+  - areaId 追加（エリアID、将来の共有DB用）
+  - キャッシュ保存時に自動付与
+- ✅ 画像取得ルール（厳守）:
+  - EC画像はURL参照のみ（コピー保存禁止）
+  - ユーザー撮影画像のみローカル保存可能
+- ✅ 箱買い対応:
+  - 除外しない（既存のスコア方式を継続）
+  - 候補ゼロ化を防止
+【P1: 招待コードでエリア作成】
+- ✅ URL招待コード読み取り:
+  - ?invite=XXXX を起動時に読み取り
+  - ユーザープロファイル（uid, areaId, invitedBy）を自動作成・更新
+- ✅ LocalStorage保存:
+  - smartPrice_userProfile（uid, areaId, invitedBy, createdAt）
+  - smartPrice_jan_[JAN]（商品情報キャッシュ）
+- ✅ UI変更なし（内部処理のみ）
+【その他】
+- ✅ ユーティリティ関数追加:
+  - generateUid() - ランダムUID生成
+  - getUserProfile() / setUserProfile() - ユーザープロファイル管理
+  - parseInviteCode() - URL招待コード読み取り
+  - getJanCache() / setJanCache() - JANキャッシュ管理
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-20_120000_merge-scanbar-dom-ensure
+BUILD_PARAM: ?b=2026-01-21_210000_p0-p1-product-invite
 DEBUG_PARAM: &debug=1
-POLICY: UI増やさない・既存要素の見た目調整のみ
+POLICY: UI変更なし・スキャン周り一切触らない
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
-2. 通常タブで開く: ブラウザの通常タブで /dev/?b=2026-01-16_1641_scanner-regression-redframe を開く
-3. だめならサイトデータ削除: smart-price-official.github.io のサイトデータを削除
+2. 通常タブで開く: ブラウザの通常タブで /?b=2026-01-21_210000_p0-p1-product-invite を開く
+3. だめならサイトデータ削除: 対象サイトのサイトデータを削除
 4. それでもだめならPWA削除→再追加:
    - スマホのホーム画面からPWAを削除
    - ブラウザで通常タブで開く
@@ -51,7 +68,7 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.31</title>
+  <title>Smart Price v19.9.32</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -335,9 +352,9 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.31"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.31 [120000]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-20_120000_merge-scanbar-dom-ensure"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.32"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.32 [210000]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-21_210000_p0-p1-product-invite"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1018,6 +1035,120 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
     
     // 4. どれもなければplaceholder
     imgEl.src = placeholderImg();
+  }
+
+  // ========= P0/P1: LocalStorage Cache & User Profile =========
+  
+  /**
+   * P1: ランダムなUIDを生成（u_から始まる12文字）
+   */
+  function generateUid() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let uid = 'u_';
+    for (let i = 0; i < 10; i++) {
+      uid += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return uid;
+  }
+
+  /**
+   * P1: ユーザープロファイルを取得（LocalStorage）
+   * @returns {object} { uid, areaId, invitedBy, createdAt }
+   */
+  function getUserProfile() {
+    try {
+      const json = localStorage.getItem('smartPrice_userProfile');
+      if (json) {
+        const profile = JSON.parse(json);
+        // 必須フィールドの検証
+        if (profile.uid) {
+          return profile;
+        }
+      }
+    } catch(e) {
+      if (isDebug()) console.warn('[UserProfile] Failed to load:', e);
+    }
+    return null;
+  }
+
+  /**
+   * P1: ユーザープロファイルを保存（LocalStorage）
+   * @param {object} profile { uid, areaId, invitedBy, createdAt }
+   */
+  function setUserProfile(profile) {
+    try {
+      localStorage.setItem('smartPrice_userProfile', JSON.stringify(profile));
+      if (isDebug()) console.log('[UserProfile] Saved:', profile);
+    } catch(e) {
+      if (isDebug()) console.error('[UserProfile] Failed to save:', e);
+    }
+  }
+
+  /**
+   * P1: URLから招待コードを読み取り
+   * @returns {string|null} invite code (例: "XXXX") または null
+   */
+  function parseInviteCode() {
+    try {
+      const params = new URL(location.href).searchParams;
+      const invite = params.get('invite');
+      if (invite && invite.trim().length > 0) {
+        return invite.trim();
+      }
+    } catch(e) {
+      if (isDebug()) console.warn('[InviteCode] Failed to parse:', e);
+    }
+    return null;
+  }
+
+  /**
+   * P0: JANキャッシュを取得（LocalStorage）
+   * @param {string} jan 
+   * @returns {object|null} { name, maker, imageUrl, imageRefType, areaId, cachedAt }
+   */
+  function getJanCache(jan) {
+    try {
+      const key = `smartPrice_jan_${jan}`;
+      const json = localStorage.getItem(key);
+      if (json) {
+        const data = JSON.parse(json);
+        // キャッシュの有効期限チェック（7日間）
+        if (data.cachedAt) {
+          const now = Date.now();
+          const age = now - data.cachedAt;
+          if (age > 7 * 24 * 60 * 60 * 1000) {
+            // 期限切れ
+            localStorage.removeItem(key);
+            return null;
+          }
+        }
+        return data;
+      }
+    } catch(e) {
+      if (isDebug()) console.warn('[JanCache] Failed to load:', jan, e);
+    }
+    return null;
+  }
+
+  /**
+   * P0: JANキャッシュを保存（LocalStorage）
+   * @param {string} jan 
+   * @param {object} data { name, maker, imageUrl, imageRefType, areaId, source }
+   */
+  function setJanCache(jan, data) {
+    try {
+      const userProfile = getUserProfile();
+      const cacheData = {
+        ...data,
+        cachedAt: Date.now(),
+        areaId: data.areaId || (userProfile ? userProfile.areaId : null)
+      };
+      const key = `smartPrice_jan_${jan}`;
+      localStorage.setItem(key, JSON.stringify(cacheData));
+      if (isDebug()) console.log('[JanCache] Saved:', jan, cacheData);
+    } catch(e) {
+      if (isDebug()) console.error('[JanCache] Failed to save:', jan, e);
+    }
   }
 
   // ========= App State =========
@@ -4206,8 +4337,62 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
         let yahooInfo = null;
         let rakutenInfo = null;
         let offInfo = null;
-        let finalInfo = { name: '', maker: '', imageUrl: '' };
+        let finalInfo = { name: '', maker: '', imageUrl: '', imageRefType: '', areaId: '' };
         let sourceUsed = 'none'; // デバッグ用：どのソースを採用したか
+
+        // ✅ P0: 最優先: LocalStorageキャッシュをチェック（共有DB暫定実装）
+        const cachedData = getJanCache(jan);
+        if (cachedData && cachedData.name) {
+          // キャッシュから復元
+          finalInfo.name = cachedData.name || '';
+          finalInfo.maker = cachedData.maker || '';
+          finalInfo.imageUrl = cachedData.imageUrl || '';
+          finalInfo.imageRefType = cachedData.imageRefType || '';
+          finalInfo.areaId = cachedData.areaId || '';
+          sourceUsed = 'cache';
+
+          // ✅ 即座にフォームに反映
+          const currentJanCheck = String(curBarcode || '').trim();
+          if (currentJanCheck === jan) {
+            if (nameInput && nameInput.value === nameAtStart && finalInfo.name) {
+              nameInput.value = finalInfo.name;
+              nameInput.placeholder = originalPlaceholder;
+            }
+            if (makerInput && makerInput.value === makerAtStart && finalInfo.maker) {
+              makerInput.value = finalInfo.maker;
+            }
+            const imgEl = document.getElementById('productImage');
+            if (imgEl && finalInfo.imageUrl && !imgEl.src) {
+              imgEl.src = finalInfo.imageUrl;
+            }
+          }
+
+          if (isDebug()) {
+            showToast(`[キャッシュ] 使用: ${finalInfo.name.substring(0, 20)}...`, 3000);
+            console.log("[ProcessBarcode] Cache hit:", cachedData);
+          }
+
+          // ✅ キャッシュが十分な場合は、Web検索をスキップ
+          const isCacheSufficient = finalInfo.name && finalInfo.name.length > 3;
+          if (isCacheSufficient) {
+            // ✅ DBに保存（キャッシュデータを使用）
+            if (finalInfo.name && (!p.name || !p.name.trim())) {
+              p.name = finalInfo.name;
+            }
+            if (finalInfo.maker && (!p.maker || !p.maker.trim())) {
+              p.maker = finalInfo.maker;
+            }
+            if (finalInfo.imageUrl && (!p.imageUrl || !p.imageUrl.startsWith('http'))) {
+              p.imageUrl = finalInfo.imageUrl;
+            }
+            db.products[jan] = p;
+            saveDb();
+
+            // ✅ 処理完了
+            processBarcodeInFlight.delete(jan);
+            return;
+          }
+        }
 
         // ✅ P0: 反映ラグ短縮（"先に仮反映→裏で補完"）
         // ✅ 優先順位1: Yahoo最優先（商品身元情報＋価格情報）
@@ -4447,6 +4632,27 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
           
           db.products[jan] = p;
           saveLocalOnly();
+
+        // ✅ P0: 取得した商品情報をキャッシュに保存（共有DB暫定実装）
+        if (finalInfo.name || finalInfo.maker || finalInfo.imageUrl) {
+          // imageRefTypeを判定
+          let imageRefType = '';
+          if (finalInfo.imageUrl) {
+            if (sourceUsed.includes('yahoo')) imageRefType = 'ec';
+            else if (sourceUsed.includes('rakuten')) imageRefType = 'ec';
+            else if (sourceUsed === 'off') imageRefType = 'off';
+            else imageRefType = 'ec'; // デフォルト
+          }
+          finalInfo.imageRefType = imageRefType;
+
+          setJanCache(jan, {
+            name: finalInfo.name || '',
+            maker: finalInfo.maker || '',
+            imageUrl: finalInfo.imageUrl || '',
+            imageRefType: imageRefType,
+            source: sourceUsed
+          });
+        }
         
         // ✅ dirtyフラグで保護: ユーザーが入力し始めていたら上書きしない
         if (nameInput) {
@@ -5009,6 +5215,60 @@ POLICY: UI増やさない・既存要素の見た目調整のみ
     };
     input.click();
   }
+
+  // ========= P1: 初期化処理（招待コード読み取り＆ユーザープロファイル） =========
+  (function initializeUserProfile() {
+    try {
+      // 1. 既存のユーザープロファイルを取得
+      let profile = getUserProfile();
+
+      // 2. プロファイルが存在しない場合は新規作成
+      if (!profile) {
+        profile = {
+          uid: generateUid(),
+          areaId: null,
+          invitedBy: null,
+          createdAt: new Date().toISOString()
+        };
+        setUserProfile(profile);
+        if (isDebug()) {
+          console.log('[UserProfile] Created new profile:', profile);
+        }
+      }
+
+      // 3. URLから招待コードを読み取り
+      const inviteCode = parseInviteCode();
+      if (inviteCode) {
+        // 招待コードが存在する場合、areaIdとinvitedByを更新
+        // 簡易実装: 招待コードをそのままareaIdとして使用
+        // 本格実装では、サーバーAPIで招待コードを検証してareaIdを取得する
+        if (!profile.areaId) {
+          profile.areaId = `area_${inviteCode}`;
+          profile.invitedBy = inviteCode; // 簡易実装（本来は招待者のUIDを取得）
+          profile.invitedAt = new Date().toISOString();
+          setUserProfile(profile);
+
+          if (isDebug()) {
+            showToast(`[招待] エリアに参加: ${profile.areaId}`, 5000);
+            console.log('[UserProfile] Invited to area:', profile);
+          } else {
+            showToast(`エリアに参加しました`, 3000);
+          }
+        }
+      }
+
+      // 4. デバッグモード時はプロファイル情報を表示
+      if (isDebug()) {
+        console.log('[UserProfile] Current profile:', profile);
+        showToast(`[DEBUG] UID: ${profile.uid}\nArea: ${profile.areaId || '未設定'}`, 4000);
+      }
+
+    } catch(e) {
+      if (isDebug()) {
+        console.error('[UserProfile] Initialization failed:', e);
+      }
+    }
+  })();
 </script>
 <script>
 // Service Worker 暫定無効化（キャッシュ汚染対策）
