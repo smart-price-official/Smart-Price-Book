@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v19.9.37
-  FULL_VERSION: 19.9.37
+  VERSION: v19.9.38
+  FULL_VERSION: 19.9.38
 2026-01-23 12:46:01 JST
   TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
 HEAD_COMMIT: （GitHubにpush後に確定）
@@ -13,7 +13,7 @@ CHANGES:
   - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1458_admin-invite-cityblank
+BUILD_PARAM: ?b=2026-01-23_1514_admin-invite-fix
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -36,7 +36,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.34</title>
+  <title>Smart Price 19.9.38</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -343,8 +343,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "19.9.37"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "19.9.37"; // デバッグ用（詳細）
+    const APP_VERSION = "19.9.38"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "19.9.38"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5512,26 +5512,35 @@ function openDiagnostics(){
 }
 
 
-// ===== PATCH v19.9.37 admin/invite/cityblank =====
+
+
+
+// ===== PATCH v19.9.38 admin/invite/cityblank/localonly =====
 let __ADMIN_OK__ = false;
 
 function isAdminOk(){
   try {
     return __ADMIN_OK__ || sessionStorage.getItem('sp_admin_ok') === '1';
-  } catch(e){
+  } catch(e) {
     return __ADMIN_OK__;
   }
 }
 
 function openAdminGate(){
   try {
-    const m = new bootstrap.Modal(document.getElementById('adminGateModal'));
+    const m = document.getElementById('adminGateModal');
+    if(!m) { showToast("管理画面を開けません", 2500); return; }
     const inp = document.getElementById('adminPassInput');
     if(inp) inp.value = "";
-    m.show();
-  } catch(e){
-    showToast("管理画面を開けませんでした", 2500);
+    m.style.display = 'flex';
+  } catch(e) {
+    showToast("管理画面を開けません", 2500);
   }
+}
+
+function closeAdminGate(){
+  const m = document.getElementById('adminGateModal');
+  if(m) m.style.display = 'none';
 }
 
 function unlockAdmin(){
@@ -5540,42 +5549,37 @@ function unlockAdmin(){
     __ADMIN_OK__ = true;
     try { sessionStorage.setItem('sp_admin_ok', '1'); } catch(e){}
     showToast("管理モード：ON", 2000);
-    try { bootstrap.Modal.getInstance(document.getElementById('adminGateModal'))?.hide(); } catch(e){}
-    // 管理者ならURL表示モーダルも使える
+    closeAdminGate();
     try { openWebModal(); } catch(e){}
-  }else{
+  } else {
     showToast("合言葉が違います", 2500);
   }
 }
 
-// 一般ユーザ：難しい文字列を見せずに「ブラウザで開く」だけ
 function openWebSimple(){
-  try{
-    const url = buildBaseUrl() + "?b=" + (BUILD_ID || Date.now());
+  try {
+    const url = buildUrl(false);
     window.open(url, "_blank");
-    showToast("ブラウザで開きました", 2000);
-  }catch(e){
+    showToast("ブラウザで開きました", 1800);
+  } catch(e) {
     showToast("開けませんでした", 2500);
   }
 }
 
-// openWebModal は管理者だけに
 const __orig_openWebModal__ = (typeof openWebModal === 'function') ? openWebModal : null;
 openWebModal = function(){
-  if(!isAdminOk()){
-    // 一般はモーダル表示しない
-    return openWebSimple();
-  }
+  if(!isAdminOk()) return openWebSimple();
   if(__orig_openWebModal__) return __orig_openWebModal__();
 };
 
-// 招待コード（短い）
 function getOrCreateInviteCode(){
   const KEY = 'sp_invite_code_dev';
   let code = '';
   try { code = localStorage.getItem(KEY) || ''; } catch(e){}
   if(!code){
-    const seed = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? Array.from(crypto.getRandomValues(new Uint8Array(6))).map(x=>x.toString(16).padStart(2,'0')).join('') : Math.random().toString(16).slice(2);
+    const seed = (typeof crypto !== 'undefined' && crypto.getRandomValues)
+      ? Array.from(crypto.getRandomValues(new Uint8Array(6))).map(x=>x.toString(16).padStart(2,'0')).join('')
+      : Math.random().toString(16).slice(2);
     code = seed.slice(0,10);
     try { localStorage.setItem(KEY, code); } catch(e){}
   }
@@ -5585,46 +5589,40 @@ function getOrCreateInviteCode(){
 let __inviteKind = 'friend';
 function openInviteModal(kind){
   __inviteKind = (kind === 'family') ? 'family' : 'friend';
+
+  const modal = document.getElementById('inviteModal');
   const titleEl = document.getElementById('inviteTitle');
   const leadEl = document.getElementById('inviteLead');
   const txtEl = document.getElementById('inviteCopyText');
 
   if(titleEl) titleEl.innerText = (__inviteKind === 'family') ? "家族共有" : "友人紹介";
+  if(leadEl) leadEl.innerText = "送る先を選んでください（LINE／メール／コピー）";
 
   const base = buildBaseUrl();
   const code = getOrCreateInviteCode();
   const link = base + "?ref=" + encodeURIComponent(code);
 
-  const copy =
-(__inviteKind === 'family')
-? `家族で使える買い物メモです。\n購入履歴は本人の端末だけに表示されます。\nまずはブラウザで開いて試してみてください。\n\n▶ ${link}`
-: `買い物の記録が増えるほど、安く買える目安が分かってきます。\n購入履歴は他人には共有されません（本人の端末だけ）。\nダウンロード不要、ブラウザで開くだけ。\n\n▶ ${link}`;
-
-  if(leadEl){
-    leadEl.innerText = "送る先を選んでください（LINE／メール／コピー）";
+  let copy = "";
+  if(__inviteKind === 'family'){
+    copy = "家族で使える買い物メモです。\n購入履歴は本人の端末だけに表示されます。\nまずはブラウザで開いて試してみてください。\n\n▶ " + link;
+  } else {
+    copy = "買い物の記録が増えるほど、安く買える目安が分かってきます。\n購入履歴は他人には共有されません（本人の端末だけ）。\nダウンロード不要、ブラウザで開くだけ。\n\n▶ " + link;
   }
+
   if(txtEl) txtEl.innerText = copy;
 
-  try{
-    const m = new bootstrap.Modal(document.getElementById('inviteModal'));
-    m.show();
-  }catch(e){
-    // fallback: copy
-    try{ navigator.clipboard.writeText(copy); showToast("コピーしました", 2000);}catch(_){}
-  }
+  if(!modal) { showToast("画面を開けません", 2500); return; }
+  modal.style.display = 'flex';
+}
+
+function closeInviteModal(){
+  const modal = document.getElementById('inviteModal');
+  if(modal) modal.style.display = 'none';
 }
 
 function shareInvite(mode){
   const txt = document.getElementById('inviteCopyText')?.innerText || '';
-  const base = buildBaseUrl();
-  const urlMatch = txt.match(/https?:\/\/\S+/);
-  const url = urlMatch ? urlMatch[0] : base;
-
-  // まずは共有シート（対応端末のみ）
-  if(mode === 'sns' && navigator.share){
-    navigator.share({ text: txt, url }).catch(()=>{});
-    return;
-  }
+  if(!txt) { showToast("送る文が見つかりません", 2500); return; }
 
   if(mode === 'line'){
     const lineUrl = "https://line.me/R/msg/text/?" + encodeURIComponent(txt);
@@ -5634,92 +5632,116 @@ function shareInvite(mode){
   if(mode === 'mail'){
     const subject = encodeURIComponent("Smart Price（ブラウザで開いて使う）");
     const body = encodeURIComponent(txt);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    window.location.href = "mailto:?subject=" + subject + "&body=" + body;
     return;
   }
-  // copy
-  try{
+  try {
     navigator.clipboard.writeText(txt);
     showToast("コピーしました", 2000);
-  }catch(e){
-    showToast("コピーできませんでした", 2500);
+  } catch(e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast("コピーしました", 2000);
+    } catch(_) {
+      showToast("コピーできませんでした", 2500);
+    }
   }
 }
 
-// 生活圏を空にしたら、店舗情報も空に（既存の土浦固定を消す）
-(function patchCityBlankBehavior(){
+// 生活圏・ストア設定は「ローカルだけ」で管理（クラウド同期から除外）
+(function patchLocalOnlyConfig(){
   const __orig_startMigration__ = (typeof startMigration === 'function') ? startMigration : null;
+  if(!__orig_startMigration__) return;
+
   startMigration = async function(){
-    // 先に入力値を読み取っておく（既存のstartMigrationも同じ要領）
     const cityEl = document.getElementById('home-city-input');
     const cityInput = (cityEl ? cityEl.value : '').trim();
 
-    // cityが空なら、店舗候補もリセットして「未設定」に戻す（ローカル側）
+    const localCfg = {
+      homeCity: cityInput,
+      homeCities: Array.isArray(db?.config?.homeCities) ? db.config.homeCities : [],
+      customStores: Array.isArray(db?.config?.customStores) ? db.config.customStores : [],
+      storeTaxModes: (db?.config?.storeTaxModes) ? db.config.storeTaxModes : {}
+    };
+
     if(cityInput === ''){
-      try{
-        db.config.homeCity = '';
-        db.config.homeCities = [];
-        db.config.customStores = [];
-        db.config.storeTaxModes = {};
-        curStore = "未設定";
-        const ind = document.getElementById('curStoreIndicator');
-        if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
-        renderStoreButtons?.();
-        saveLocalOnly?.();
-      }catch(e){}
+      curStore = "未設定";
+      const ind = document.getElementById('curStoreIndicator');
+      if(ind) ind.innerText = "【 " + curStore + " 】で保存します";
     }
 
-    if(__orig_startMigration__) return await __orig_startMigration__();
+    const ret = await __orig_startMigration__();
+
+    try {
+      db = normalizeDb(db);
+      db.config.homeCity = localCfg.homeCity || '';
+      db.config.homeCities = Array.isArray(localCfg.homeCities) ? localCfg.homeCities : [];
+      db.config.customStores = Array.isArray(localCfg.customStores) ? localCfg.customStores : [];
+      db.config.storeTaxModes = localCfg.storeTaxModes || {};
+      saveLocalOnly();
+      const cityEl2 = document.getElementById('home-city-input');
+      if(cityEl2) cityEl2.value = db.config.homeCity || '';
+      if(typeof renderCityChips === 'function') renderCityChips();
+      if(typeof renderStoreList === 'function') renderStoreList();
+      showToast("ローカル設定を反映しました", 1500);
+    } catch(e){}
+
+    return ret;
   };
 })();
 // ===== /PATCH =====
 
 </script>
 
-<!-- Invite Modal (General) -->
-<div class="modal fade" id="inviteModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark text-white" style="border:2px solid #ff0000; border-radius:16px;">
-      <div class="modal-header border-0">
-        <h5 class="modal-title" id="inviteTitle">友人紹介</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="small text-secondary mb-2" id="inviteLead"></div>
-        <div class="p-3 mb-3" style="background:#111; border-radius:12px; border:1px solid #333;">
-          <div class="fw-bold mb-2">ひとこと</div>
-          <div class="small" id="inviteCopyText" style="white-space:pre-wrap;"></div>
-        </div>
-        <div class="d-grid gap-2">
-          <button class="btn btn-success py-2 fw-bold" onclick="shareInvite('line')">LINEで送る</button>
-          <button class="btn btn-primary py-2 fw-bold" onclick="shareInvite('mail')">メールで送る</button>
-          <button class="btn btn-outline-light py-2 fw-bold" onclick="shareInvite('copy')">リンクをコピー</button>
-        </div>
-        <div class="small text-secondary mt-3">
-          ※このアプリは<strong>ダウンロード不要</strong>です。必ず<strong>ブラウザで開いて</strong>使ってください。<br>
-          ※購入履歴は<strong>他人には表示されません</strong>（本人の端末だけ）。サーバ側には秘匿して保存されます。
-        </div>
-      </div>
+</div>
+
+
+<!-- Invite Modal (General / no-bootstrap) -->
+<div id="inviteModal" class="modal-view" style="display:none;">
+  <div class="card p-3 shadow-lg" style="max-width:520px; margin:0 auto;">
+    <div class="text-center fw-bold mb-2" id="inviteTitle">友人紹介</div>
+    <div class="small text-secondary mb-2" id="inviteLead">送る先を選んでください</div>
+
+    <div class="p-3 mb-3" style="background:#111; border-radius:12px; border:1px solid #333;">
+      <div class="fw-bold mb-2">送る文</div>
+      <div class="small" id="inviteCopyText" style="white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button class="btn btn-success py-2 fw-bold" onclick="shareInvite('line')">LINEで送る</button>
+      <button class="btn btn-primary py-2 fw-bold" onclick="shareInvite('mail')">メールで送る</button>
+      <button class="btn btn-outline-light py-2 fw-bold" onclick="shareInvite('copy')">リンクをコピー</button>
+    </div>
+
+    <div class="small text-secondary mt-3">
+      ※このアプリは<strong>ダウンロード不要</strong>です。必ず<strong>ブラウザで開いて</strong>使ってください。<br>
+      ※購入履歴は<strong>他人には表示されません</strong>（本人の端末だけ）。サーバ側には秘匿して保存されます。
+    </div>
+
+    <div class="text-center mt-3">
+      <button class="btn btn-link text-secondary" onclick="closeInviteModal()">戻る</button>
     </div>
   </div>
 </div>
 
-<!-- Admin Gate Modal -->
-<div class="modal fade" id="adminGateModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark text-white" style="border:2px solid #ff0000; border-radius:16px;">
-      <div class="modal-header border-0">
-        <h5 class="modal-title">管理</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="small text-secondary mb-2">合言葉を入力してください</div>
-        <input id="adminPassInput" type="password" class="form-control bg-dark text-white border-secondary mb-3" placeholder="合言葉">
-        <div class="d-grid gap-2">
-          <button class="btn btn-danger py-2 fw-bold" onclick="unlockAdmin()">開く</button>
-        </div>
-        <div class="small text-secondary mt-3">※スタッフ検証用：管理メニューは一般ユーザに見せません</div>
-      </div>
+<!-- Admin Gate Modal (no-bootstrap) -->
+<div id="adminGateModal" class="modal-view" style="display:none;">
+  <div class="card p-3 shadow-lg" style="max-width:420px; margin:0 auto;">
+    <div class="text-center fw-bold mb-2">管理</div>
+    <div class="small text-secondary mb-2">合言葉を入力してください</div>
+    <input id="adminPassInput" type="password" class="form-control bg-dark text-white border-secondary mb-3" placeholder="合言葉">
+
+    <div class="d-grid gap-2">
+      <button class="btn btn-danger py-2 fw-bold" onclick="unlockAdmin()">開く</button>
+    </div>
+
+    <div class="text-center mt-3">
+      <button class="btn btn-link text-secondary" onclick="closeAdminGate()">戻る</button>
     </div>
   </div>
 </div>
