@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v19.9.41
-  FULL_VERSION: 19.9.41
+  VERSION: v19.9.42
+  FULL_VERSION: 19.9.42
 2026-01-23 12:46:01 JST
   TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
 HEAD_COMMIT: （GitHubにpush後に確定）
@@ -13,7 +13,7 @@ CHANGES:
   - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1558_cityclear-hard-invitefix
+BUILD_PARAM: ?b=2026-01-23_1618_cityclear-wrapper-openweb
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -36,7 +36,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 19.9.41</title>
+  <title>Smart Price 19.9.42</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -180,6 +180,11 @@ POLICY: UI変更なし・スキャン周り一切触らない
 #inviteModal, #adminGateModal{ z-index: 99999 !important; }
 #inviteModal .text-secondary, #inviteModal .small.text-secondary{ color:#EAEAEA !important; opacity: 1 !important; }
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; }
+
+
+/* PATCH v19.9.42: invite readability stronger */
+#inviteModal .text-secondary, #inviteModal .small.text-secondary{ color:#F0F0F0 !important; opacity: 1 !important; }
+#inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 </style>
 </head>
@@ -378,8 +383,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "19.9.41"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "19.9.41"; // デバッグ用（詳細）
+    const APP_VERSION = "19.9.42"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "19.9.42"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5566,34 +5571,87 @@ function openDiagnostics(){
 
 
 
-// ===== PATCH v19.9.41 cityclear-hard + invite/admin =====
-let __ADMIN_OK__ = false;
-function isAdminOk(){ try{ return __ADMIN_OK__ || sessionStorage.getItem('sp_admin_ok')==='1'; }catch(e){ return __ADMIN_OK__; } }
-function openAdminGate(){ const m=document.getElementById('adminGateModal'); if(!m) return showToast("管理画面を開けません",2500); const inp=document.getElementById('adminPassInput'); if(inp) inp.value=""; m.style.display='flex'; }
-function closeAdminGate(){ const m=document.getElementById('adminGateModal'); if(m) m.style.display='none'; }
-function unlockAdmin(){ const pass=(document.getElementById('adminPassInput')?.value||'').trim(); if(pass==='55533557'){ __ADMIN_OK__=true; try{sessionStorage.setItem('sp_admin_ok','1')}catch(e){}; showToast("管理モード：ON",2000); closeAdminGate(); } else showToast("合言葉が違います",2500); }
 
-function getOrCreateInviteCode(){ const KEY='sp_invite_code_dev'; let code=''; try{code=localStorage.getItem(KEY)||''}catch(e){}; if(!code){ const seed=(crypto?.getRandomValues)?Array.from(crypto.getRandomValues(new Uint8Array(6))).map(x=>x.toString(16).padStart(2,'0')).join(''):Math.random().toString(16).slice(2); code=seed.slice(0,10); try{localStorage.setItem(KEY,code)}catch(e){} } return code; }
+// ===== PATCH v19.9.42 city-clear-wrapper + openWebSimple-fix =====
+(function(){
+  // ---- force clear helpers ----
+  function forceClearCityStores(){
+    try {
+      db = normalizeDb(db);
+      if(!db.config) db.config = {};
+      db.config.homeCity = '';
+      db.config.homeCities = [];
+      db.config.customStores = [];
+      db.config.storeTaxModes = {};
+      curStore = "未設定";
+      if(typeof saveLocalOnly === 'function') saveLocalOnly();
+    } catch(e){}
 
-let __inviteKind='friend';
-function openInviteModal(kind){ __inviteKind=(kind==='family')?'family':'friend'; const modal=document.getElementById('inviteModal'); if(!modal) return showToast("画面を開けません",2500);
-  const titleEl=document.getElementById('inviteTitle'); const leadEl=document.getElementById('inviteLead'); const txtEl=document.getElementById('inviteCopyText');
-  if(titleEl) titleEl.innerText=(__inviteKind==='family')?"家族共有":"友人紹介";
-  if(leadEl) leadEl.innerText="送る先を選んでください（LINE／メール／コピー）";
-  const base=buildBaseUrl(); const code=getOrCreateInviteCode(); const link=base+"?ref="+encodeURIComponent(code);
-  const msg=(__inviteKind==='family')
-    ? "家族で使える買い物メモです。\n購入履歴は本人の端末だけに表示されます。\nまずはブラウザで開いて試してみてください。\n\n▶ "+link
-    : "買い物の記録が増えるほど、安く買える目安が分かってきます。\n購入履歴は他人には共有されません（本人の端末だけ）。\nダウンロード不要、ブラウザで開くだけ。\n\n▶ "+link;
-  if(txtEl) txtEl.innerText=msg;
-  modal.style.display='flex';
-}
-function closeInviteModal(){ const modal=document.getElementById('inviteModal'); if(modal) modal.style.display='none'; }
-function shareInvite(mode){ const txt=document.getElementById('inviteCopyText')?.innerText||''; if(!txt) return showToast("送る文が見つかりません",2500);
-  if(mode==='line') return window.open("https://line.me/R/msg/text/?"+encodeURIComponent(txt),"_blank");
-  if(mode==='mail'){ const s=encodeURIComponent("Smart Price（ブラウザで開いて使う）"); const b=encodeURIComponent(txt); window.location.href="mailto:?subject="+s+"&body="+b; return; }
-  try{ navigator.clipboard.writeText(txt); showToast("コピーしました",2000); }
-  catch(e){ try{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast("コピーしました",2000);} catch(_){ showToast("コピーできませんでした",2500); } }
-}
+    // UI refresh
+    try {
+      const cityEl = document.getElementById('home-city-input');
+      if(cityEl) cityEl.value = '';
+      if(typeof renderCityChips === 'function') renderCityChips();
+    } catch(e){}
+
+    try {
+      const ind = document.getElementById('curStoreIndicator');
+      if(ind) ind.innerText = "【 " + curStore + " 】で保存します";
+    } catch(e){}
+
+    try {
+      if(typeof renderStoreList === 'function') renderStoreList(["未設定"]);
+      if(typeof renderStoreButtons === 'function') renderStoreButtons();
+    } catch(e){}
+  }
+
+  // ---- startMigration wrapper (most reliable) ----
+  const orig = (typeof startMigration === 'function') ? startMigration : null;
+  if(orig){
+    startMigration = async function(){
+      const cityEl = document.getElementById('home-city-input');
+      const cityTrim = ((cityEl ? cityEl.value : '') || '').trim();
+      const wantBlank = (cityTrim === '');
+      try {
+        if(wantBlank) localStorage.setItem('sp_city_force_blank','1');
+        else localStorage.removeItem('sp_city_force_blank');
+      } catch(e){}
+
+      const ret = await orig();
+
+      // After sync: cloud may restore Tsuchiura -> force clear if requested
+      try {
+        const force = (localStorage.getItem('sp_city_force_blank') === '1');
+        if(force) {
+          forceClearCityStores();
+          showToast("生活圏を未設定にしました", 1500);
+        }
+      } catch(e){}
+      return ret;
+    };
+  }
+
+  // ---- apply on load if flag is on ----
+  try {
+    const force = (localStorage.getItem('sp_city_force_blank') === '1');
+    if(force){
+      // delay to allow db load
+      setTimeout(forceClearCityStores, 150);
+    }
+  } catch(e){}
+
+  // ---- openWebSimple fix: use location (popup-free) ----
+  window.openWebSimple = function(){
+    try {
+      const url = (typeof buildUrl === 'function') ? buildUrl(false) : buildBaseUrl();
+      // open in same tab to avoid popup blocker; user can return with back
+      window.location.href = url;
+    } catch(e) {
+      showToast("開けませんでした", 2500);
+    }
+  };
+
+})();
 // ===== /PATCH =====
 
 </script>
