@@ -1,9 +1,9 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v20.0.3
-FULL_VERSION: v20.0.3
-P26-01-23 17:20 JST
+VERSION: v19.9.33
+FULL_VERSION: v19.9.33
+P26-2026-01-23 17:08 JST
 TITLE: P0_DB_ONLY（外部検索遮断・DB/キャッシュ最優先）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
@@ -25,20 +25,20 @@ POLICY: UI変更なし・スキャン周り一切触らない
    - ブラウザで通常タブで開く
    - メニューから「ホーム画面に追加」を選択して再追加
 -->
-
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.json">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.33</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-  <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<link href="manifest.json" rel="manifest"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="#D50000" name="theme-color"/>
+<title>Smart Price v19.9.33</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+<style>
     body { font-family: sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; }
     .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
     .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
@@ -145,183 +145,157 @@ POLICY: UI変更なし・スキャン周り一切触らない
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
   </style>
 </head>
-
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.31</span></h5>
-  <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
+<h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.33</span></h5>
+<button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
-
-<div class="store-area"><div id="store-list" class="store-list"></div></div>
-
+<div class="store-area"><div class="store-list" id="store-list"></div></div>
 <div class="container p-3">
-  <div id="mainView">
-    <div class="row g-2 mb-4">
-      <div class="col-7"><button id="scanBtnTop" class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
-      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
-    </div>
-    <div id="historyList"></div>
-  </div>
-
-  <div id="formView" style="display:none;">
-    <div class="card p-3 shadow-lg">
-      <div id="curStoreIndicator" class="text-danger small fw-bold mb-2 text-center" style="opacity:0.8;"></div>
-
-      <div class="text-center mb-2">
-        <button id="storeJumpBtn" class="btn btn-sm btn-outline-secondary w-100" style="display:none;" onclick="jumpToStoreChips()">店名を変更（上に移動）</button>
-      </div>
-
-      <div id="formMainUI">
-        <div class="d-flex mb-3">
-          <div style="position:relative; width:90px; height:90px; margin-right:12px;">
-            <img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;">
-            <div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
-              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
-              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
-            </div>
-            <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
-          </div>
-          <div class="flex-grow-1">
-            <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名（内容量）">
-            <select id="inputCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px;"></select>
-            <!-- ✅ サブカテゴリ復活（最小UI） -->
-            <select id="inputSubCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px; display:none;"></select>
-            <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
-          </div>
-        </div>
-
-        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
-          <div id="calcOptionArea" class="d-flex align-items-center mb-2">
-            <div class="btn-group btn-group-sm w-100 me-2">
-              <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
-              <label class="btn btn-outline-danger" for="taxEx">税別</label>
-              <input type="radio" class="btn-check" name="taxMode" id="taxIn" value="in">
-              <label class="btn btn-outline-danger" for="taxIn">税込</label>
-            </div>
-            <div class="input-group input-group-sm w-50">
-              <input type="number" id="inputDisc" class="form-control bg-dark text-white border-secondary" placeholder="0">
-              <span class="input-group-text bg-dark text-secondary border-secondary">%引</span>
-            </div>
-          </div>
-          <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0">
-        </div>
-
-        <div id="statsBox" class="stats-strip"></div>
-        <div id="detailHistory" class="mb-3" style="display:none;"></div>
-
-        <div class="text-center mb-3">
-          <button id="toggleHistBtn" class="btn btn-sm btn-outline-secondary w-100" onclick="toggleHistoryList()">購入履歴を表示（タップで編集）</button>
-        </div>
-
-        <div class="d-flex gap-2 mb-3">
-          <button id="delHistBtn" class="btn btn-outline-secondary py-3 fw-bold flex-grow-0 px-3 shadow" style="display:none;" onclick="confirmDeleteHist()">削除</button>
-          <button id="saveBtn" class="btn btn-danger py-3 fw-bold fs-5 shadow flex-grow-1" onclick="saveData()">保存</button>
-        </div>
-      </div>
-
-      <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
-    </div>
-  </div>
+<div id="mainView">
+<div class="row g-2 mb-4">
+<div class="col-7"><button class="btn btn-danger w-100 py-3 rounded-4 shadow" id="scanBtnTop" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br/>スキャン</button></div>
+<div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br/>手入力</button></div>
 </div>
-
+<div id="historyList"></div>
+</div>
+<div id="formView" style="display:none;">
+<div class="card p-3 shadow-lg">
+<div class="text-danger small fw-bold mb-2 text-center" id="curStoreIndicator" style="opacity:0.8;"></div>
+<div class="text-center mb-2">
+<button class="btn btn-sm btn-outline-secondary w-100" id="storeJumpBtn" onclick="jumpToStoreChips()" style="display:none;">店名を変更（上に移動）</button>
+</div>
+<div id="formMainUI">
+<div class="d-flex mb-3">
+<div style="position:relative; width:90px; height:90px; margin-right:12px;">
+<img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;"/>
+<div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
+<button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
+<button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
+</div>
+<input accept="image/*" id="imgInput" onchange="handleImage(this)" style="display:none;" type="file"/>
+</div>
+<div class="flex-grow-1">
+<input class="form-control bg-dark text-white border-secondary mb-2" id="inputName" placeholder="商品名（内容量）" type="text"/>
+<select class="form-control bg-dark text-white border-secondary mb-2" id="inputCategory" style="font-size:0.85rem; padding:4px;"></select>
+<!-- ✅ サブカテゴリ復活（最小UI） -->
+<select class="form-control bg-dark text-white border-secondary mb-2" id="inputSubCategory" style="font-size:0.85rem; padding:4px; display:none;"></select>
+<input class="form-control bg-dark text-white border-secondary py-1" id="inputMaker" placeholder="メーカー名" style="font-size:0.85rem;" type="text"/>
+</div>
+</div>
+<div class="mb-3 p-3 border rounded border-danger" id="priceSection" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
+<div class="d-flex align-items-center mb-2" id="calcOptionArea">
+<div class="btn-group btn-group-sm w-100 me-2">
+<input checked="" class="btn-check" id="taxEx" name="taxMode" type="radio" value="ex"/>
+<label class="btn btn-outline-danger" for="taxEx">税別</label>
+<input class="btn-check" id="taxIn" name="taxMode" type="radio" value="in"/>
+<label class="btn btn-outline-danger" for="taxIn">税込</label>
+</div>
+<div class="input-group input-group-sm w-50">
+<input class="form-control bg-dark text-white border-secondary" id="inputDisc" placeholder="0" type="number"/>
+<span class="input-group-text bg-dark text-secondary border-secondary">%引</span>
+</div>
+</div>
+<input class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" id="inputPrice" placeholder="0" type="number"/>
+</div>
+<div class="stats-strip" id="statsBox"></div>
+<div class="mb-3" id="detailHistory" style="display:none;"></div>
+<div class="text-center mb-3">
+<button class="btn btn-sm btn-outline-secondary w-100" id="toggleHistBtn" onclick="toggleHistoryList()">購入履歴を表示（タップで編集）</button>
+</div>
+<div class="d-flex gap-2 mb-3">
+<button class="btn btn-outline-secondary py-3 fw-bold flex-grow-0 px-3 shadow" id="delHistBtn" onclick="confirmDeleteHist()" style="display:none;">削除</button>
+<button class="btn btn-danger py-3 fw-bold fs-5 shadow flex-grow-1" id="saveBtn" onclick="saveData()">保存</button>
+</div>
+</div>
+<button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
+</div>
+</div>
+</div>
 <div id="camera-area">
-  <div id="interactive">
-    <!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
-  </div>
-  <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
+<div id="interactive">
+<!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
 </div>
-
-<div id="dialogModal" class="modal">
-  <div class="modal-content text-center">
-    <h6 id="dialogTitle" class="text-secondary mb-3">Smart Price</h6>
-    <p id="dialogMsg" class="text-white mb-4"></p>
-    <div id="dialogInputArea" style="display:none;"><input type="text" id="dialogInput" class="form-control bg-dark text-white mb-3"></div>
-    <div class="d-flex gap-2">
-      <button id="dialogCancel" class="btn btn-dark flex-grow-1" style="display:none;">やめる</button>
-      <button id="dialogOk" class="btn btn-danger flex-grow-1">OK</button>
-    </div>
-  </div>
+<button class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg" onclick="stopScanner()">×</button>
 </div>
-
-<div id="settingsModal" class="modal">
-  <div class="modal-content">
-    <h5 class="text-white mb-4 text-center">設定</h5>
-
-    <div class="mb-3">
-      <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市">
-      <div id="city-history-chips" class="city-chips"></div>
-    </div>
-
-    <div class="mb-3">
-      <label class="small text-secondary">Firebase URL</label>
-      <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://xxx.firebaseio.com/">
-    </div>
-
-    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
-    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
-    <div id="debugBackupButtons" style="display:none;">
-      <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
-      <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
-    </div>
-    <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
-  </div>
+<div class="modal" id="dialogModal">
+<div class="modal-content text-center">
+<h6 class="text-secondary mb-3" id="dialogTitle">Smart Price</h6>
+<p class="text-white mb-4" id="dialogMsg"></p>
+<div id="dialogInputArea" style="display:none;"><input class="form-control bg-dark text-white mb-3" id="dialogInput" type="text"/></div>
+<div class="d-flex gap-2">
+<button class="btn btn-dark flex-grow-1" id="dialogCancel" style="display:none;">やめる</button>
+<button class="btn btn-danger flex-grow-1" id="dialogOk">OK</button>
 </div>
-
-<div id="webModal" class="modal">
-  <div class="modal-content">
-    <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
-    <div class="hint mb-3">
-      ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br>
+</div>
+</div>
+<div class="modal" id="settingsModal">
+<div class="modal-content">
+<h5 class="text-white mb-4 text-center">設定</h5>
+<div class="mb-3">
+<label class="small text-secondary">生活圏（市）</label>
+<input class="form-control bg-dark text-white border-secondary mb-1" id="home-city-input" placeholder="例：土浦市" type="text"/>
+<div class="city-chips" id="city-history-chips"></div>
+</div>
+<div class="mb-3">
+<label class="small text-secondary">Firebase URL</label>
+<input class="form-control bg-dark text-white border-secondary mb-3" id="fb-url-input" placeholder="https://xxx.firebaseio.com/" type="text"/>
+</div>
+<button class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" id="syncBtn" onclick="startMigration()">設定保存と同期</button>
+<button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+<div id="debugBackupButtons" style="display:none;">
+<button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
+<button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
+</div>
+<button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+</div>
+</div>
+<div class="modal" id="webModal">
+<div class="modal-content">
+<h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
+<div class="hint mb-3">
+      ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br/>
       ・更新確認は <b>まずブラウザで</b> 開くのが安全です。
     </div>
-
-    <label class="small text-secondary">通常URL（コピーして開く）</label>
-    <textarea id="webUrlNormal" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
-    <div class="d-flex gap-2 mb-3">
-      <button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlNormal')">コピー</button>
-      <button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlNormal')">開く</button>
-    </div>
-
-    <label class="small text-secondary">デバッグURL（&debug=1）</label>
-    <textarea id="webUrlDebug" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
-    <div class="d-flex gap-2 mb-3">
-      <button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlDebug')">コピー</button>
-      <button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlDebug')">開く</button>
-    </div>
-
-    <div class="hint mb-3" style="background:#1a1a1a; padding:10px; border-radius:8px; border:1px solid #333;">
-      <b style="color:#ff5252;">📱 アプリとして使う（PWA）</b><br>
-      <span style="font-size:0.7rem; color:#aaa;">
-      <b>Android（Chrome/Edge）：</b> ブラウザで開く → メニュー（⋮）→「ホーム画面に追加」<br>
-      <b>iOS（Safari）：</b> ブラウザで開く → 共有ボタン（□↑）→「ホーム画面に追加」<br>
-      <b>更新が反映されない時：</b> ホーム画面のアイコンを削除 → 再度追加してください
+<label class="small text-secondary">通常URL（コピーして開く）</label>
+<textarea class="form-control bg-dark text-white border-secondary url-box mb-2" id="webUrlNormal" readonly="" rows="2"></textarea>
+<div class="d-flex gap-2 mb-3">
+<button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlNormal')">コピー</button>
+<button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlNormal')">開く</button>
+</div>
+<label class="small text-secondary">デバッグURL（&amp;debug=1）</label>
+<textarea class="form-control bg-dark text-white border-secondary url-box mb-2" id="webUrlDebug" readonly="" rows="2"></textarea>
+<div class="d-flex gap-2 mb-3">
+<button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlDebug')">コピー</button>
+<button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlDebug')">開く</button>
+</div>
+<div class="hint mb-3" style="background:#1a1a1a; padding:10px; border-radius:8px; border:1px solid #333;">
+<b style="color:#ff5252;">📱 アプリとして使う（PWA）</b><br/>
+<span style="font-size:0.7rem; color:#aaa;">
+<b>Android（Chrome/Edge）：</b> ブラウザで開く → メニュー（⋮）→「ホーム画面に追加」<br/>
+<b>iOS（Safari）：</b> ブラウザで開く → 共有ボタン（□↑）→「ホーム画面に追加」<br/>
+<b>更新が反映されない時：</b> ホーム画面のアイコンを削除 → 再度追加してください
       </span>
-    </div>
-
-    <!-- ✅ PWAインストールボタン（beforeinstallpromptがある時だけ表示） -->
-    <button id="pwaInstallBtn" class="btn btn-danger w-100 mb-2" style="display:none;" onclick="installPWA()">
+</div>
+<!-- ✅ PWAインストールボタン（beforeinstallpromptがある時だけ表示） -->
+<button class="btn btn-danger w-100 mb-2" id="pwaInstallBtn" onclick="installPWA()" style="display:none;">
       📱 今すぐインストール
     </button>
-
-    <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
-  </div>
+<button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
 </div>
-
-<div id="toast" class="toast-msg"></div>
+</div>
+<div class="toast-msg" id="toast"></div>
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
 <div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
-
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.32"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.32 [210000]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-21_210000_p0-p1-product-invite"; // ヘッダーと一致させる
+  const APP_VERSION = "19.9.33"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "19.9.33"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-01-23_1708_hf1-init-fallback"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1227,6 +1201,15 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       if (isDebug()) console.warn('[onload] display error:', e);
     }
 
+    // ✅ HF1: 初期化失敗でもUIを出す（config.json / 通信 / Firebase 失敗で真っ白になるのを防ぐ）
+    const __hf1_safeLocalInit = async () => {
+      try { loadLocal(); } catch(e) {}
+      try { db = normalizeDb(db); } catch(e) {}
+      try { initCategorySelect(); } catch(e) {}
+      try { renderStoreList(); } catch(e) {}
+      try { renderHistory(); } catch(e) {}
+    };
+
     try {
       // ✅ Config.json読み込み（Yahoo Proxy URL）
       await loadConfig();
@@ -1291,7 +1274,10 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
       if (isDebug()) console.error('[onload]', e);
     }
-  };
+  
+    // ✅ HF1: 最後の保険（どこかで例外が起きても最低限の画面を出す）
+    try { await __hf1_safeLocalInit(); } catch(e) {}
+};
 
   // ✅ pageshowイベントでも初期化（ブラウザバック対策）
   window.addEventListener("pageshow", async (e) => {
@@ -1384,9 +1370,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if (!o.products || typeof o.products !== "object") o.products = {};
     if (!o.config || typeof o.config !== "object") o.config = {};
 
-    
-    if (typeof o.config.forceBlank !== "boolean") o.config.forceBlank = false;
-// categoryTree を正として整形（DEFAULT_CATEGORY_TREEから補完）
+    // categoryTree を正として整形（DEFAULT_CATEGORY_TREEから補完）
     if (!o.config.categoryTree || typeof o.config.categoryTree !== "object") {
       // 旧 categories しかない場合
       if (Array.isArray(o.config.categories) && o.config.categories.length) {
@@ -1411,14 +1395,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
     if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
     if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
-    
-    // P0: forceBlank が有効な間は「空」を正として維持（履歴チップ復活を根絶）
-    if (o.config.forceBlank && (!o.config.homeCity || !o.config.homeCity.trim())) {
-      o.config.homeCity = "";
-      o.config.homeCities = [];
-      if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
-    }
-if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
+    if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
     Object.keys(o.products).forEach(code => {
       const p = o.products[code];
@@ -1685,20 +1662,7 @@ if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
     // 基本はクラウド優先（端末間で揃いやすい）
     const out = deepClone(cc);
 
-    
-
-    // P0: ローカルで「生活圏を空にする」を選んだら、クラウドより空を優先
-    const lcForceBlank = !!lc.forceBlank;
-    if (lcForceBlank && (!lc.homeCity || !String(lc.homeCity).trim())) {
-      out.forceBlank = true;
-      out.homeCity = \"\";
-      out.homeCities = [];
-      out.customStores = [];
-      out.storeTaxModes = {};
-      // 以降の補完/ユニオンで復活させない
-      return out;
-    }
-// ただし空はローカルで補完
+    // ただし空はローカルで補完
     if (!out.homeCity && lc.homeCity) out.homeCity = lc.homeCity;
     if (!out.lastTax && lc.lastTax) out.lastTax = lc.lastTax;
 
@@ -2031,22 +1995,6 @@ if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
     const list = document.getElementById('store-list');
     if(!list) return;
 
-    // P0: 生活圏未設定なら店候補は未設定のみ（プリセット/履歴から復活させない）
-    if (db.config && db.config.forceBlank) {
-      list.innerHTML = \"\";
-      [\"未設定\"].forEach(name=>{
-        const b=document.createElement(\"button\");
-        b.className=\"btn btn-outline-light w-100 mb-2\";
-        b.innerText=name;
-        b.onclick=()=>selectStore(name);
-        list.appendChild(b);
-      });
-      return;
-    }
-
-    const isDbg = isDebug();
-    const uid = (typeof currentUserId !== \"undefined\") ? currentUserId : null;
-
     const freq = {};
     const storePositions = {}; // 店名 → {lat, lng} のマップ（履歴から取得）
     
@@ -2070,7 +2018,7 @@ if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
       });
     }
     
-    const cityStores = (db.config && db.config.homeCity) ? (CITY_STORE_PRESET[db.config.homeCity] || []) : [];
+    const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
     const customStores = db.config.customStores || [];
     
     // ✅ 近隣店舗候補を統合（nearbyStoreNames）
@@ -4970,21 +4918,6 @@ if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
     try {
       db.config.homeCity = cityInput;
-      // P0: 生活圏が空なら「未設定」を確定（同期で戻させない）
-      if (!cityInput) {
-        db.config.forceBlank = true;
-        db.config.homeCity = "";
-        db.config.homeCities = [];
-        db.config.customStores = [];
-        db.config.storeTaxModes = {};
-        curStore = "未設定";
-      } else {
-        db.config.forceBlank = false;
-        // 履歴チップ用に city を先頭へ
-        db.config.homeCities = [cityInput, ...(Array.isArray(db.config.homeCities)?db.config.homeCities:[])].filter(Boolean);
-        db.config.homeCities = [...new Set(db.config.homeCities)].slice(0,5);
-      }
-
       db = normalizeDb(db);
       saveLocalOnly();
 
@@ -5067,9 +5000,7 @@ if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
     if(!chipArea) return;
     chipArea.innerHTML = "";
     db = normalizeDb(db);
-    
-    if (db.config && db.config.forceBlank) { return; }
-const cities = Array.isArray(db.config.homeCities) ? db.config.homeCities : [];
+    const cities = Array.isArray(db.config.homeCities) ? db.config.homeCities : [];
     cities.forEach(city => {
       if(typeof city !== 'string' || !city.trim()) return;
       const chip = document.createElement('span');
