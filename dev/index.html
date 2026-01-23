@@ -1,11 +1,11 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.0-B
-  FULL_VERSION: v20.1.0-B [STORE_MASTER_EMBEDDED]
+  VERSION: v20.1.1-B
+  FULL_VERSION: v20.1.1-B [STORE_MASTER_EMBEDDED]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_2001_storemasterB
+BUILD_PARAM: ?b=2026-01-23_2028_proxyB
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -341,7 +341,17 @@ POLICY: UI変更なし・スキャン周り一切触らない
       <textarea id="adminFbUrl" class="form-control bg-dark text-white border-secondary url-box" rows="2" readonly></textarea>
     </div>
 
-    <label class="small text-secondary">URL</label>
+    
+    <div class="mb-3">
+      <label class="small text-secondary">Yahoo Proxy URL（GAS）※GPSで近隣ストア名を出すため（管理のみ）</label>
+      <textarea id="adminProxyUrl" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" placeholder="https://script.google.com/macros/s/.../exec"></textarea>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-light w-50" onclick="saveProxyUrl()">保存</button>
+        <button class="btn btn-outline-secondary w-50" onclick="clearProxyUrl()">消す</button>
+      </div>
+      <div class="hint mt-2">※未設定でも動作します（GPSの店名だけ出ません）。</div>
+    </div>
+<label class="small text-secondary">URL</label>
     <textarea id="adminUrlNormal" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
     <div class="d-flex gap-2 mb-3">
       <button class="btn btn-outline-light w-50" onclick="copyText('adminUrlNormal')">コピー</button>
@@ -375,9 +385,44 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.1.0"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.1.0-B"; // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-23_2001_storemasterB"; // ヘッダーと一致させる
+    const APP_VERSION = "20.1.1"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.1.1-B"; // デバッグ用（詳細）
+    const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
+
+    // ===== Proxy URL (Admin only) =====
+    const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
+    function getProxyExecUrl(){
+      try{
+        const v = (localStorage.getItem(PROXY_URL_LS_KEY)||"").trim();
+        if(v) return v;
+      }catch(e){}
+      try{
+        const v2 = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? String(window.SP_CONFIG.yahooProxyExecUrl).trim() : "";
+        return v2 || "";
+      }catch(e){}
+      return "";
+    }
+    function saveProxyUrl(){
+      try{
+        const ta = document.getElementById("adminProxyUrl");
+        const v = ta ? String(ta.value||"").trim() : "";
+        if(v){
+          localStorage.setItem(PROXY_URL_LS_KEY, v);
+          showToast("Proxy URL を保存しました", 2500);
+        }else{
+          localStorage.removeItem(PROXY_URL_LS_KEY);
+          showToast("Proxy URL を消しました", 2500);
+        }
+      }catch(e){}
+    }
+    function clearProxyUrl(){
+      try{
+        localStorage.removeItem(PROXY_URL_LS_KEY);
+        const ta = document.getElementById("adminProxyUrl");
+        if(ta) ta.value = "";
+        showToast("Proxy URL を消しました", 2500);
+      }catch(e){}
+    }
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -3492,8 +3537,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
 
       // ✅ Yahoo Proxy経由で楽天データを取得（action=rakuten）
-      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
-      
+      const proxyUrl = getProxyExecUrl();
       if (!proxyUrl) {
         if (isDebug()) {
           showToast("[楽天] Proxy URL not configured", 5000);
@@ -3635,8 +3679,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
       
       // Config.jsonからYahoo Proxy URLを取得（最優先）
-      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
-      
+      const proxyUrl = getProxyExecUrl();
       if (!proxyUrl) {
         if (isDebug()) {
           showToast("Yahoo検索プロキシURLが設定されていません", 5000);
@@ -3722,13 +3765,9 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
   // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
   async function fetchNearbyStores() {
     try {
-      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
-      
+      const proxyUrl = getProxyExecUrl();
       if (!proxyUrl) {
-        if (isDebug()) {
-          console.log('[FetchStores] Proxy URL not configured');
-          showToast('Yahoo Proxy URLが設定されていません', 10000);
-        }
+        showToast('近隣ストアを出すには、管理で「Yahoo Proxy URL（GAS）」を設定してください', 6000);
         return [];
       }
 
@@ -5550,6 +5589,12 @@ function enterAdmin(){
 function openAdmin(){
   const m = document.getElementById('adminModal');
   if(!m) return;
+  // Proxy URL 表示（管理のみ）
+  try{
+    const p = document.getElementById('adminProxyUrl');
+    if(p) p.value = getProxyExecUrl();
+  }catch(e){}
+
   // URL生成
   try{
     const n = document.getElementById('adminUrlNormal');
