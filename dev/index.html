@@ -2,7 +2,7 @@
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
   VERSION: v20.1.2-B
-  FULL_VERSION: v20.1.3B [GPSTOOL_STOREDEBUG + NOCONV]
+  FULL_VERSION: v20.1.4B [GPSTOOL_STOREDEBUG + NOCONV]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -6120,7 +6120,7 @@ function openDiagnostics(){
 })();
 // ===== /PATCH v20.0.4 =====
 
-// ===== PATCH v20.1.3B: Diagnostics Modal (GPS→Store candidates) =====
+// ===== PATCH v20.1.4B: Diagnostics Modal (GPS→Store candidates) =====
 function __diagEscapeHtml(s){
   return String(s||'').replace(/[&<>"]/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));
 }
@@ -6185,7 +6185,7 @@ function updateDiagModal(){
   }
 }
 
-async function runDiagGps(){
+async async function runDiagGps(){
   try{
     // 1) GPS
     const pos = await getCurrentPosition();
@@ -6225,7 +6225,7 @@ async function runDiagGps(){
     }
   }, { once:true });
 })();
-// ===== /PATCH v20.1.3B =====
+// ===== /PATCH v20.1.4B =====
 
 </script>
 
@@ -6291,7 +6291,7 @@ async function runDiagGps(){
       <button class="btn" id="diagBtnClear">結果クリア</button>
       <button class="btn btn-secondary" id="diagBtnClose">閉じる</button>
     </div>
-    <div id="diagStatus" style="margin:8px 0;font-size:13px;white-space:pre-wrap;"></div>
+    <div id="diagStatus" style="margin:8px 0;font-size:13px;white-space:pre-wrap;color:#000;background:#fff;border:1px solid #ccc;padding:8px;border-radius:8px;min-height:72px;">（ここに ProxyURL / status / count が出ます）</div>
     <div style="margin-top:10px;">
       <div style="font-weight:600;margin-bottom:6px;">候補リスト</div>
       <div id="diagList" style="max-height:220px;overflow:auto;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;"></div>
