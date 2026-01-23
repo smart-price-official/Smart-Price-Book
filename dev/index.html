@@ -2,7 +2,7 @@
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
   VERSION: v20.1.2-B
-  FULL_VERSION: v20.1.2B-gpsstore-noconv
+  FULL_VERSION: v20.1.3B [GPSTOOL_STOREDEBUG + NOCONV]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -1375,6 +1375,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       
       if (res.ok) {
         const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
         window.SP_CONFIG = json || {};
         if (isDebug()) {
           showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}...`, 5000);
@@ -1703,6 +1704,8 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       localStorage.setItem('smart_price_db', JSON.stringify(db));
       return true;
     } catch (e) {
+      try{ window.__lastStoresFetch = window.__lastStoresFetch || {}; window.__lastStoresFetch.err = String(e && e.message ? e.message : e); }catch(_e){}
+
       if (!isQuotaError(e)) {
         showToast("端末保存に失敗しました", 10000);
         return false;
@@ -1752,6 +1755,8 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response;
     } catch (e) {
+      try{ window.__lastStoresFetch = window.__lastStoresFetch || {}; window.__lastStoresFetch.err = String(e && e.message ? e.message : e); }catch(_e){}
+
       clearTimeout(id);
       throw e;
     }
@@ -3375,6 +3380,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           }
 
           const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
 
           // ✅ OFF APIのレスポンス構造を確認
           if (json && json.status === 1 && json.product) {
@@ -3577,6 +3583,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
 
       const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
       
       // ✅ P0: Proxy側が未実装（ok:false等）なら即null返し
       if (!json || !json.ok) {
@@ -3717,6 +3724,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
       
       const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
       
       if (json && json.name) {
         const rawResult = {
@@ -3776,13 +3784,17 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         const radiusKm = 5; // GPS時は5km
         const limit = 40;
         const requestUrl = `${proxyUrl}?action=stores&lat=${curPos.lat}&lng=${curPos.lng}&radius_km=${radiusKm}&limit=${limit}`;
+        window.__lastStoresFetch = { mode:'gps', url: requestUrl, at: Date.now(), status: null, ok: null, count: null, err: null, raw: null };
         
         if (isDebug()) console.log('[FetchStores] GPS mode:', requestUrl);
         
         const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        window.__lastStoresFetch.status = res.status;
+        if (!res.ok) { window.__lastStoresFetch.ok = false; throw new Error(`HTTP ${res.status}`); }
+        window.__lastStoresFetch.ok = true;
         
         const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
         if (json && json.ok && Array.isArray(json.stores)) {
           if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
           // ✅ trim() + 空要素除去
@@ -3833,9 +3845,12 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         if (isDebug()) console.log('[FetchStores] Area mode:', area, requestUrl);
         
         const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        window.__lastStoresFetch.status = res.status;
+        if (!res.ok) { window.__lastStoresFetch.ok = false; throw new Error(`HTTP ${res.status}`); }
+        window.__lastStoresFetch.ok = true;
         
         const json = await res.json();
+        try{ window.__lastStoresFetch.raw = json; }catch(_e){}
         if (json && json.ok && Array.isArray(json.stores)) {
           if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
           // ✅ trim() + 空要素除去
@@ -6104,6 +6119,114 @@ function openDiagnostics(){
 
 })();
 // ===== /PATCH v20.0.4 =====
+
+// ===== PATCH v20.1.3B: Diagnostics Modal (GPS→Store candidates) =====
+function __diagEscapeHtml(s){
+  return String(s||'').replace(/[&<>"]/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));
+}
+function openDiagModal(){
+  const m = document.getElementById('diagModal');
+  if(!m) return;
+  m.style.display = 'flex';
+  updateDiagModal();
+}
+function closeDiagModal(){
+  const m = document.getElementById('diagModal');
+  if(m) m.style.display = 'none';
+}
+function clearDiagModal(){
+  const st = document.getElementById('diagStatus');
+  const list = document.getElementById('diagList');
+  const raw = document.getElementById('diagRaw');
+  if(st) st.textContent = '';
+  if(list) list.innerHTML = '';
+  if(raw) raw.value = '';
+}
+function updateDiagModal(){
+  const st = document.getElementById('diagStatus');
+  const list = document.getElementById('diagList');
+  const raw = document.getElementById('diagRaw');
+
+  const last = window.__lastStoresFetch || null;
+  const names = (window.nearbyStoreNames && Array.isArray(window.nearbyStoreNames)) ? window.nearbyStoreNames : [];
+  let cfg = window.__cfgCache || null;
+  try{ if(!cfg && typeof getConfig==='function') cfg = getConfig(); }catch(_e){}
+  const proxyUrl = (cfg && (cfg.yahooProxyExecUrl || cfg.proxyExecUrl)) ? (cfg.yahooProxyExecUrl || cfg.proxyExecUrl) : '';
+
+  if(st){
+    const lines = [];
+    lines.push(`ProxyURL: ${proxyUrl ? proxyUrl : '(未設定)'}`);
+    lines.push(`GPS: ${window.currentPosition ? (window.currentPosition.lat.toFixed(5)+','+window.currentPosition.lng.toFixed(5)) : '(未取得)'}`);
+    if(last){
+      lines.push(`LastFetch: ${new Date(last.at||Date.now()).toLocaleString()} / status=${last.status} / ok=${last.ok} / count=${last.count}`);
+      if(last.err) lines.push(`Error: ${last.err}`);
+      if(last.url) lines.push(`URL: ${last.url}`);
+    }else{
+      lines.push('LastFetch: (なし)');
+    }
+    lines.push(`nearbyStoreNames: ${names.length}件`);
+    st.textContent = lines.join('\n');
+  }
+
+  if(list){
+    if(names.length===0){
+      list.innerHTML = '<div style="opacity:.8;">（0件）GPS→候補取得 を押してね</div>';
+    }else{
+      list.innerHTML = names.map((n,i)=>`<div style="padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.08);">${i+1}. ${__diagEscapeHtml(n)}</div>`).join('');
+    }
+  }
+
+  if(raw){
+    try{
+      raw.value = last && last.raw ? JSON.stringify(last.raw, null, 2) : '';
+    }catch(e){
+      raw.value = '';
+    }
+  }
+}
+
+async function runDiagGps(){
+  try{
+    // 1) GPS
+    const pos = await getCurrentPosition();
+    window.currentPosition = pos;
+    showToast(`GPS取得成功（${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}）`, 2500);
+
+    // 2) ストア候補取得
+    await fetchNearbyStores();
+    updateDiagModal();
+
+    // 3) 画面側のチップも更新（ホーム生活圏が空でも近傍候補は出す）
+    try{ renderStoreList(''); }catch(_e){}
+  }catch(e){
+    console.error(e);
+    showToast('GPS検証で失敗しました（権限/通信を確認）', 4500);
+    updateDiagModal();
+  }
+}
+
+(function bindDiagModalOnce(){
+  // 既存の初期化と干渉しないように、DOMができた後に紐づけ
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const btnRun = document.getElementById('diagBtnRunGps');
+    const btnClear = document.getElementById('diagBtnClear');
+    const btnClose = document.getElementById('diagBtnClose');
+    const modal = document.getElementById('diagModal');
+
+    if(btnRun) btnRun.addEventListener('click', runDiagGps);
+    if(btnClear) btnClear.addEventListener('click', ()=>{ clearDiagModal(); updateDiagModal(); });
+    if(btnClose) btnClose.addEventListener('click', closeDiagModal);
+
+    if(modal){
+      // 外側クリックで閉じる（誤操作を避けるため：中身以外だけ）
+      modal.addEventListener('click', (ev)=>{
+        if(ev.target === modal) closeDiagModal();
+      });
+    }
+  }, { once:true });
+})();
+// ===== /PATCH v20.1.3B =====
+
 </script>
 
 </div>
@@ -6153,6 +6276,33 @@ function openDiagnostics(){
     </div>
   </div>
 </div>
+
+
+<!-- ===== Diagnostics Modal (GPS Store Tool) ===== -->
+<div id="diagModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:720px;">
+    <h3 style="margin:0 0 10px 0;">検証ツール（GPS→ストア候補）</h3>
+    <div style="font-size:13px;opacity:.9;line-height:1.5;margin-bottom:10px;">
+      ここは「GPS取得→近くの店候補を取る」だけを確認する画面です。<br>
+      ※コンビニは自動で除外します。
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;">
+      <button class="btn btn-primary" id="diagBtnRunGps">GPS→候補取得</button>
+      <button class="btn" id="diagBtnClear">結果クリア</button>
+      <button class="btn btn-secondary" id="diagBtnClose">閉じる</button>
+    </div>
+    <div id="diagStatus" style="margin:8px 0;font-size:13px;white-space:pre-wrap;"></div>
+    <div style="margin-top:10px;">
+      <div style="font-weight:600;margin-bottom:6px;">候補リスト</div>
+      <div id="diagList" style="max-height:220px;overflow:auto;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;"></div>
+    </div>
+    <div style="margin-top:10px;">
+      <div style="font-weight:600;margin-bottom:6px;">生ログ（最新リクエスト）</div>
+      <textarea id="diagRaw" style="width:100%;height:160px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;font-size:12px;"></textarea>
+    </div>
+  </div>
+</div>
+<!-- ===== /Diagnostics Modal ===== -->
 
 </body>
 </html>
