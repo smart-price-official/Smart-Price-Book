@@ -1,7 +1,7 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.0.0
+  VERSION: v20.0.1
   FULL_VERSION: 20.0.0
 2026-01-23 12:46:01 JST
   TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
@@ -36,7 +36,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.0.0</title>
+  <title>Smart Price 20.0.1</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -383,8 +383,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.0.0"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.0.0"; // デバッグ用（詳細）
+    const APP_VERSION = "20.0.1"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.0.1"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5574,9 +5574,10 @@ function openDiagnostics(){
 
 
 
-// ===== PATCH v20.0.0 (force-blank normalize + history scoped stores + invite global + openweb share) =====
+
+// ===== PATCH v20.0.1 (force-blank hard fix: openSettings fill / mergeDb / city chips / store list / openWeb alias) =====
 (function(){
-  // Force-blank flag (city should stay blank even after sync)
+  // force-blank flag
   window.getForceBlank = function(){
     try{ return localStorage.getItem('sp_city_force_blank') === '1'; }catch(e){ return false; }
   };
@@ -5584,171 +5585,165 @@ function openDiagnostics(){
     try{ if(on) localStorage.setItem('sp_city_force_blank','1'); else localStorage.removeItem('sp_city_force_blank'); }catch(e){}
   };
 
-  // 1) normalizeDb 強化：force_blank のときは入口で空を強制（チップ復活の芽を潰す）
-  const _orig_normalizeDb = (typeof normalizeDb === 'function') ? normalizeDb : null;
-  if(_orig_normalizeDb){
-    normalizeDb = function(raw){
-      const db2 = _orig_normalizeDb(raw);
-      try{
-        if(window.getForceBlank && window.getForceBlank()){
-          if(!db2.config) db2.config = {};
-          db2.config.homeCity = '';
-          db2.config.homeCities = [];
-          db2.config.customStores = [];
-          db2.config.storeTaxModes = {};
-        }
-      }catch(e){}
-      return db2;
-    };
-  }
-
-  // 2) CITY_STORE_PRESET に「土浦市」が含まれていても、force_blank 時は使わない
-  //    （既存コードが preset を参照しても空勝ちにする）
-  function forceClearCityStoresUI(){
+  function applyForceBlankToDb(){
     try{
       db = normalizeDb(db);
-      if(!db.config) db.config = {};
+      if(!db.config) db.config={};
       db.config.homeCity = '';
       db.config.homeCities = [];
       db.config.customStores = [];
       db.config.storeTaxModes = {};
-      curStore = "未設定";
-      if(typeof saveLocalOnly === 'function') saveLocalOnly();
+    }catch(e){}
+    try{ curStore = "未設定"; }catch(e){}
+  }
+
+  function repaintForceBlankUI(){
+    try{
+      const cityInput=document.getElementById('home-city-input');
+      if(cityInput) cityInput.value='';
+      const chipArea=document.getElementById('city-history-chips');
+      if(chipArea) chipArea.innerHTML='';
     }catch(e){}
     try{
-      const cityEl=document.getElementById('home-city-input');
-      if(cityEl) cityEl.value='';
-      if(typeof renderCityChips==='function') renderCityChips();
-    }catch(e){}
-    try{
-      if(typeof renderStoreButtons==='function') renderStoreButtons();
-      if(typeof renderStoreList==='function') renderStoreList(["未設定"]);
-    }catch(e){}
-    try{
+      // store indicator
       const ind=document.getElementById('curStoreIndicator');
-      if(ind) ind.innerText="【 "+curStore+" 】で保存します";
+      if(ind) ind.innerText = "【 未設定 】で保存します";
+    }catch(e){}
+    try{
+      // store list: ONLY 未設定 (no auto-select)
+      const list=document.getElementById('store-list');
+      if(list){
+        const gpsTxt = (typeof isGpsOn !== 'undefined' && isGpsOn) ? `GPS<span class="gps-status">●${(typeof lastGpsTime!=='undefined')?lastGpsTime:''}</span>` : `GPS<span class="gps-status">OFF</span>`;
+        list.innerHTML = `<span class="store-tag gps-btn ${(typeof isGpsOn !== 'undefined' && isGpsOn)?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
+        const span=document.createElement('span');
+        span.className='store-tag active';
+        span.innerText='未設定';
+        span.onclick=()=>{ try{ curStore='未設定'; }catch(e){} };
+        list.appendChild(span);
+      }
     }catch(e){}
   }
 
-  // 3) 生活圏入力：空にした瞬間にフラグON→即クリア（同期前でも消える）
+  function forceBlankNow(){
+    window.setForceBlank(true);
+    applyForceBlankToDb();
+    try{ if(typeof saveLocalOnly==='function') saveLocalOnly(); }catch(e){}
+    repaintForceBlankUI();
+  }
+
+  // 1) openSettings: fill抑止（ここが一番強い）
+  const _orig_openSettings = (typeof openSettings === 'function') ? openSettings : null;
+  if(_orig_openSettings){
+    openSettings = function(){
+      const r=_orig_openSettings();
+      try{
+        if(window.getForceBlank && window.getForceBlank()){ forceBlankNow(); }
+      }catch(e){}
+      // watcher attach
+      setTimeout(attachCityWatcher, 0);
+      return r;
+    };
+  }
+
+  // 2) city input watcher: input/change/blur 全部で拾う
   function attachCityWatcher(){
     const el=document.getElementById('home-city-input');
-    if(!el || el.__sp_watch) return;
-    el.__sp_watch=true;
-    el.addEventListener('input', ()=>{
+    if(!el || el.__sp_watch2) return;
+    el.__sp_watch2=true;
+    const handler=()=>{
       const v=((el.value||'')+'').trim();
-      if(v===''){ window.setForceBlank(true); forceClearCityStoresUI(); }
-      else { window.setForceBlank(false); }
-    });
+      if(v==='') forceBlankNow();
+      else window.setForceBlank(false);
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    el.addEventListener('blur', handler);
   }
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(attachCityWatcher, 0));
-  const _orig_openSettings = (typeof openSettings==='function') ? openSettings : null;
-  if(_orig_openSettings){
-    openSettings = function(){ const r=_orig_openSettings(); setTimeout(attachCityWatcher, 50); return r; }
+
+  // 3) normalizeDb: force_blankなら最後に必ず上書き（homeCities再生成も潰す）
+  const _orig_normalizeDb = (typeof normalizeDb === 'function') ? normalizeDb : null;
+  if(_orig_normalizeDb){
+    normalizeDb = function(raw){
+      const out=_orig_normalizeDb(raw);
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          if(!out.config) out.config={};
+          out.config.homeCity='';
+          out.config.homeCities=[];
+          out.config.customStores=[];
+          out.config.storeTaxModes={};
+        }
+      }catch(e){}
+      return out;
+    };
   }
 
-  // 4) 同期（startMigration）後：force_blank なら必ず最後にクリア（クラウド勝ちを止める）
-  const _orig_startMigration = (typeof startMigration==='function') ? startMigration : null;
+  // 4) mergeDb: syncのマージで「空が負ける」を潰す（クラウド/ローカルどっちでも）
+  const _orig_mergeDb = (typeof mergeDb === 'function') ? mergeDb : null;
+  if(_orig_mergeDb){
+    mergeDb = function(localDb, cloudDb){
+      const out=_orig_mergeDb(localDb, cloudDb);
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          if(!out.config) out.config={};
+          out.config.homeCity='';
+          out.config.homeCities=[];
+          out.config.customStores=[];
+          out.config.storeTaxModes={};
+        }
+      }catch(e){}
+      return out;
+    };
+  }
+
+  // 5) renderCityChips: force_blank時は必ず空表示
+  const _orig_renderCityChips = (typeof renderCityChips === 'function') ? renderCityChips : null;
+  if(_orig_renderCityChips){
+    renderCityChips = function(){
+      if(window.getForceBlank && window.getForceBlank()){
+        const chipArea=document.getElementById('city-history-chips');
+        if(chipArea) chipArea.innerHTML='';
+        return;
+      }
+      return _orig_renderCityChips();
+    };
+  }
+
+  // 6) renderStoreList: force_blank時は cityStores/履歴を一切混ぜない（未設定だけ）
+  const _orig_renderStoreList = (typeof renderStoreList === 'function') ? renderStoreList : null;
+  if(_orig_renderStoreList){
+    renderStoreList = function(manualPriority=[]){
+      if(window.getForceBlank && window.getForceBlank()){
+        applyForceBlankToDb();
+        repaintForceBlankUI();
+        return;
+      }
+      return _orig_renderStoreList(manualPriority);
+    };
+  }
+
+  // 7) startMigration: 同期後に必ず再適用
+  const _orig_startMigration = (typeof startMigration === 'function') ? startMigration : null;
   if(_orig_startMigration){
     startMigration = async function(){
       const el=document.getElementById('home-city-input');
       const v=(((el?el.value:'')||'')+'').trim();
       if(v==='') window.setForceBlank(true); else window.setForceBlank(false);
-
       const ret = await _orig_startMigration();
-
-      if(window.getForceBlank && window.getForceBlank()){ forceClearCityStoresUI(); showToast("生活圏を未設定にしました", 1500); }
+      if(window.getForceBlank && window.getForceBlank()){ forceBlankNow(); }
       return ret;
     };
   }
 
-  // 5) 店リスト：履歴から作っている場合の対策（自分の履歴だけ・force_blank時は空）
-  //    renderStoreList が purchases 全件を見ているなら、先にフィルタ関数を用意して使わせる
-  window.filterHistoryForMe = function(all){
-    try{
-      const isDebug = new URLSearchParams(location.search).get('debug') === '1';
-      if(isDebug) return all || [];
-      const uid = (typeof currentUserId !== 'undefined') ? currentUserId : null;
-      if(!uid) return [];
-      return (all||[]).filter(x => x && x.userId === uid);
-    }catch(e){ return []; }
-  };
-
-  const _orig_renderStoreList = (typeof renderStoreList==='function') ? renderStoreList : null;
-  if(_orig_renderStoreList){
-    renderStoreList = function(listOverride){
-      if(window.getForceBlank && window.getForceBlank()) return _orig_renderStoreList(["未設定"]);
-      return _orig_renderStoreList(listOverride);
-    };
+  // 8) openWebSimple alias: HTML onclick 解決の揺れを潰す（必ずグローバルに）
+  if(typeof window.openWebSimple === 'function') {
+    try{ window.openWebSimple = window.openWebSimple; }catch(e){}
+    try{ openWebSimple = window.openWebSimple; }catch(e){}
   }
 
-  // 6) 友人紹介/家族共有：IIFE外から必ず呼べるグローバル実装（エラーで止まりにくい）
-  window.openInviteModal = function(kind){
-    try{
-      const modal=document.getElementById('inviteModal');
-      if(!modal) return showToast("画面を開けません", 2500);
-
-      const isFamily = (kind === 'family');
-      const titleEl=document.getElementById('inviteTitle');
-      const leadEl=document.getElementById('inviteLead');
-      const txtEl=document.getElementById('inviteCopyText');
-      if(titleEl) titleEl.innerText = isFamily ? "家族共有" : "友人紹介";
-      if(leadEl) leadEl.innerText = "送る先を選んでください（LINE／メール／コピー）";
-
-      const KEY='sp_invite_code_dev';
-      let code='';
-      try{ code = localStorage.getItem(KEY) || ''; }catch(e){}
-      if(!code){
-        const seed = (crypto?.getRandomValues)
-          ? Array.from(crypto.getRandomValues(new Uint8Array(6))).map(x=>x.toString(16).padStart(2,'0')).join('')
-          : Math.random().toString(16).slice(2);
-        code = seed.slice(0,10);
-        try{ localStorage.setItem(KEY, code); }catch(e){}
-      }
-
-      const base = (typeof buildBaseUrl==='function')
-        ? buildBaseUrl()
-        : (location.origin + location.pathname.replace(/\/index\.html$/,''));
-
-      const link = base + "?ref=" + encodeURIComponent(code);
-
-      const msg = isFamily
-        ? "家族で使える買い物メモです。\n購入履歴は本人の端末だけに表示されます。\nまずはブラウザで開いて試してみてください。\n\n▶ " + link
-        : "買い物の記録が増えるほど、安く買える目安が分かってきます。\n購入履歴は他人には共有されません（本人の端末だけ）。\nダウンロード不要、ブラウザで開くだけ。\n\n▶ " + link;
-
-      if(txtEl) txtEl.innerText = msg;
-      modal.style.display='flex';
-    }catch(e){ showToast("画面を開けません", 2500); }
-  };
-  window.closeInviteModal = function(){ const m=document.getElementById('inviteModal'); if(m) m.style.display='none'; };
-  window.shareInvite = function(mode){
-    const txt=document.getElementById('inviteCopyText')?.innerText || '';
-    if(!txt) return showToast("送る文が見つかりません", 2500);
-    if(mode==='line') return window.open("https://line.me/R/msg/text/?" + encodeURIComponent(txt), "_blank");
-    if(mode==='mail'){ const s=encodeURIComponent("Smart Price（ブラウザで開いて使う）"); const b=encodeURIComponent(txt); location.href="mailto:?subject="+s+"&body="+b; return; }
-    try{ navigator.clipboard.writeText(txt); showToast("コピーしました", 2000); }
-    catch(e){ showToast("コピーできませんでした", 2500); }
-  };
-
-  // 7) ブラウザで開く：PWA挙動を踏まえ「共有/コピー」フォールバックを追加（戻る現象回避）
-  window.openWebSimple = function(){
-    try{
-      const url = (typeof buildUrl==='function') ? buildUrl(false) : buildBaseUrl();
-      const w = window.open(url, "_blank", "noopener");
-      if(w) return;
-      // popup blocked or PWA behavior → share/copy instead
-      if(navigator.share){
-        navigator.share({ title: "Smart Price", url }).catch(()=>{});
-        showToast("共有からブラウザで開けます", 2200);
-        return;
-      }
-      if(navigator.clipboard){ navigator.clipboard.writeText(url).catch(()=>{}); }
-      showToast("リンクをコピーしました（ブラウザに貼付け）", 2500);
-    }catch(e){ showToast("開けませんでした", 2500); }
-  };
-
-  // 起動時：force_blank がONなら表示も即クリア
-  try{ if(window.getForceBlank && window.getForceBlank()) setTimeout(forceClearCityStoresUI, 120); }catch(e){}
+  // 起動時にも反映
+  try{ if(window.getForceBlank && window.getForceBlank()) setTimeout(forceBlankNow, 120); }catch(e){}
 
 })();
 // ===== /PATCH =====
