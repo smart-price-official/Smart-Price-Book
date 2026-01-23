@@ -1,19 +1,11 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.0.2
-  FULL_VERSION: 20.0.0
-2026-01-23 12:46:01 JST
-  TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
-HEAD_COMMIT: （GitHubにpush後に確定）
-BASE_COMMIT: （push後に確定）
-2026-01-23_1246_uid-scope-dev1
-CHANGES:
-  - [UID_SCOPE_DEV1] 購入履歴に userId を付与し、通常表示は自分の履歴のみ（debug=1 は全表示）
-  - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
+  VERSION: v20.0.3
+  FULL_VERSION: v20.0.3 [FORCEBLANK_GHOSTKILL + INVITE_SCOPEFIX]nFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1644_forceblank-normalize-historyfilter-inviteglobal-openwebshare
+BUILD_PARAM: ?b=2026-01-23_1820_forceblank-ghostkill
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -385,7 +377,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     const APP_VERSION = "20.0.2"; // 画面表示用（数字のみ）
     const FULL_VERSION = "20.0.1"; // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-23_1820_forceblank-ghostkill"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5842,6 +5834,125 @@ function openDiagnostics(){
 })();
 // ===== /PATCH v20.0.2 =====
 
+
+
+
+// ===== PATCH v20.0.3 (ghostkill: forceBlank wins + startMigration explicit + mergeConfig override + city watcher hardened) =====
+(function(){
+  // --- helpers ---
+  function q(id){ return document.getElementById(id); }
+  function safeTrim(s){ return (s==null)?'':String(s).trim(); }
+
+  // ensure get/set exist
+  if(typeof window.getForceBlank!=='function') {
+    window.getForceBlank = function(){ try{ return localStorage.getItem('sp_city_force_blank')==='1'; }catch(e){return false;} };
+  }
+  if(typeof window.setForceBlank!=='function') {
+    window.setForceBlank = function(on){ try{ if(on) localStorage.setItem('sp_city_force_blank','1'); else localStorage.removeItem('sp_city_force_blank'); }catch(e){} };
+  }
+
+  // --- 1) mergeConfig: forceBlank/local blank must win over cloud defaults ---
+  if(typeof window.mergeConfig==='function' && !window.__mergeConfigForceBlankWrapped) {
+    const __origMergeConfig = window.mergeConfig;
+    window.mergeConfig = function(cc, lc){
+      const out = __origMergeConfig(cc, lc);
+      try{
+        const fb = (lc && lc.forceBlank===true) || (cc && cc.forceBlank===true) || window.getForceBlank();
+        if(fb){
+          out.forceBlank = true;
+          out.homeCity = "";
+          out.homeCities = [];
+        }
+      }catch(e){}
+      return out;
+    };
+    window.__mergeConfigForceBlankWrapped = true;
+  }
+
+  // --- 2) startMigration: explicitly attach to window + forceBlank set/clear before sync ---
+  if(typeof window.startMigration==='function' && !window.__startMigrationForceBlankWrapped) {
+    const __origStartMigration = window.startMigration;
+    window.startMigration = async function(){
+      try{
+        const cityInputEl = q('home-city-input');
+        const city = safeTrim(cityInputEl ? cityInputEl.value : '');
+        const blank = (city === '');
+        window.setForceBlank(blank);
+
+        // reflect to db.config immediately (cloud merge対策)
+        try{
+          if(typeof window.db==='object' && window.db){
+            if(!db.config) db.config={};
+            db.config.forceBlank = blank;
+            db.config.homeCity = blank ? "" : city;
+            if(blank) db.config.homeCities = [];
+          }
+        }catch(e){}
+      }catch(e){}
+
+      const r = await __origStartMigration();
+
+      // after sync, force-blank must win again (cloudが戻しても最後に消す)
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          try{ if(!db.config) db.config={}; db.config.forceBlank=true; db.config.homeCity=""; db.config.homeCities=[]; }catch(e){}
+          try{ if(typeof window.applyForceBlankToDb==='function') window.applyForceBlankToDb(); }catch(e){}
+          try{
+            const cityInputEl = q('home-city-input');
+            if(cityInputEl) cityInputEl.value = "";
+            const chips = q('city-history-chips');
+            if(chips) chips.innerHTML = "";
+          }catch(e){}
+          try{ if(typeof window.repaint==='function') window.repaint(); }catch(e){}
+        }
+      }catch(e){}
+
+      return r;
+    };
+    window.__startMigrationForceBlankWrapped = true;
+  }
+
+  // --- 3) openSettings: if forceBlank => always show empty city + no chips ---
+  if(typeof window.openSettings==='function' && !window.__openSettingsForceBlankWrapped) {
+    const __origOpenSettings = window.openSettings;
+    window.openSettings = function(){
+      const r = __origOpenSettings();
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          const cityInputEl = q('home-city-input');
+          if(cityInputEl) cityInputEl.value = "";
+          const chips = q('city-history-chips');
+          if(chips) chips.innerHTML = "";
+        }
+      }catch(e){}
+      return r;
+    };
+    window.__openSettingsForceBlankWrapped = true;
+  }
+
+  // --- 4) city input watcher: mobileイベント取りこぼし対策（input/change/blur/keyup） ---
+  if(!window.__cityWatcherHardened){
+    window.__cityWatcherHardened = true;
+    function attach(){
+      const el=q('home-city-input');
+      if(!el) return;
+      if(el.__sp_watch) return;
+      el.__sp_watch=true;
+      const handler=function(){
+        const v=safeTrim(el.value);
+        const blank=(v==='');
+        window.setForceBlank(blank);
+        try{ if(blank){ const chips=q('city-history-chips'); if(chips) chips.innerHTML=''; } }catch(e){}
+      };
+      ['input','change','blur','keyup'].forEach(ev=>el.addEventListener(ev, handler, {passive:true}));
+    }
+    attach();
+    setTimeout(attach, 300);
+    setTimeout(attach, 900);
+  }
+
+})();
+// ===== /PATCH v20.0.3 =====
 </script>
 
 </div>
