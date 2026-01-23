@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v19.9.38
-  FULL_VERSION: 19.9.38
+  VERSION: v19.9.39
+  FULL_VERSION: 19.9.39
 2026-01-23 12:46:01 JST
   TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
 HEAD_COMMIT: （GitHubにpush後に確定）
@@ -13,7 +13,7 @@ CHANGES:
   - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1514_admin-invite-fix
+BUILD_PARAM: ?b=2026-01-23_1533_modalfix-citychip-storeclear
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -144,7 +144,26 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
     .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
-  </style>
+  
+/* PATCH v19.9.39: modal overlay fix */
+.modal-view{
+  position: fixed !important;
+  left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100vw !important; height: 100vh !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.72);
+  z-index: 99999 !important;
+}
+.modal-view .card{
+  max-height: 90vh;
+  overflow: auto;
+}
+#settingsModal{ z-index: 1000; }
+
+</style>
 </head>
 
 <body>
@@ -266,7 +285,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
     </div>
 
-    <button class="btn btn-outline-warning w-100 mb-2" onclick="openAdminGate()">管理（合言葉）</button>
+    <button class="btn btn-outline-warning w-100 mb-2" onclick="openAdminGate()">管理</button>
     <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
   </div>
 </div>
@@ -343,8 +362,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "19.9.38"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "19.9.38"; // デバッグ用（詳細）
+    const APP_VERSION = "19.9.39"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "19.9.39"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5515,7 +5534,10 @@ function openDiagnostics(){
 
 
 
-// ===== PATCH v19.9.38 admin/invite/cityblank/localonly =====
+
+
+
+// ===== PATCH v19.9.39 modalfix/citychip/storeclear/admin-invite =====
 let __ADMIN_OK__ = false;
 
 function isAdminOk(){
@@ -5653,8 +5675,39 @@ function shareInvite(mode){
   }
 }
 
-// 生活圏・ストア設定は「ローカルだけ」で管理（クラウド同期から除外）
-(function patchLocalOnlyConfig(){
+// 生活圏を空にしたら：チップも店も完全リセット
+function __clearCityAndStores__(){
+  try {
+    db = normalizeDb(db);
+    db.config.homeCity = '';
+    db.config.homeCities = [];
+    db.config.customStores = [];
+    db.config.storeTaxModes = {};
+  } catch(e){}
+
+  try {
+    curStore = "未設定";
+    const ind = document.getElementById('curStoreIndicator');
+    if(ind) ind.innerText = "【 " + curStore + " 】で保存します";
+  } catch(e){}
+
+  try {
+    const cityEl = document.getElementById('home-city-input');
+    if(cityEl) cityEl.value = "";
+    if(typeof renderCityChips === 'function') renderCityChips();
+  } catch(e){}
+
+  try {
+    if(typeof renderStoreButtons === 'function') renderStoreButtons();
+    if(typeof renderStoreList === 'function') renderStoreList();
+  } catch(e){}
+
+  try {
+    if(typeof saveLocalOnly === 'function') saveLocalOnly();
+  } catch(e){}
+}
+
+(function patchStartMigration(){
   const __orig_startMigration__ = (typeof startMigration === 'function') ? startMigration : null;
   if(!__orig_startMigration__) return;
 
@@ -5662,35 +5715,14 @@ function shareInvite(mode){
     const cityEl = document.getElementById('home-city-input');
     const cityInput = (cityEl ? cityEl.value : '').trim();
 
-    const localCfg = {
-      homeCity: cityInput,
-      homeCities: Array.isArray(db?.config?.homeCities) ? db.config.homeCities : [],
-      customStores: Array.isArray(db?.config?.customStores) ? db.config.customStores : [],
-      storeTaxModes: (db?.config?.storeTaxModes) ? db.config.storeTaxModes : {}
-    };
-
-    if(cityInput === ''){
-      curStore = "未設定";
-      const ind = document.getElementById('curStoreIndicator');
-      if(ind) ind.innerText = "【 " + curStore + " 】で保存します";
-    }
-
     const ret = await __orig_startMigration__();
 
-    try {
-      db = normalizeDb(db);
-      db.config.homeCity = localCfg.homeCity || '';
-      db.config.homeCities = Array.isArray(localCfg.homeCities) ? localCfg.homeCities : [];
-      db.config.customStores = Array.isArray(localCfg.customStores) ? localCfg.customStores : [];
-      db.config.storeTaxModes = localCfg.storeTaxModes || {};
-      saveLocalOnly();
-      const cityEl2 = document.getElementById('home-city-input');
-      if(cityEl2) cityEl2.value = db.config.homeCity || '';
-      if(typeof renderCityChips === 'function') renderCityChips();
-      if(typeof renderStoreList === 'function') renderStoreList();
-      showToast("ローカル設定を反映しました", 1500);
-    } catch(e){}
-
+    const cityEl2 = document.getElementById('home-city-input');
+    const cityNow = (cityEl2 ? cityEl2.value : '').trim();
+    if(cityInput === '' || cityNow === ''){
+      __clearCityAndStores__();
+      showToast("生活圏を未設定にしました", 1500);
+    }
     return ret;
   };
 })();
