@@ -1,7 +1,7 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.0.1
+  VERSION: v20.0.2
   FULL_VERSION: 20.0.0
 2026-01-23 12:46:01 JST
   TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
@@ -36,7 +36,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.0.1</title>
+  <title>Smart Price 20.0.2</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -383,7 +383,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.0.1"; // 画面表示用（数字のみ）
+    const APP_VERSION = "20.0.2"; // 画面表示用（数字のみ）
     const FULL_VERSION = "20.0.1"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
@@ -1509,8 +1509,14 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     o.config.categories = Object.keys(o.config.categoryTree);
 
     if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
-    if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
-    if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
+    // P0: forceBlankが有効なら、空の状態を「正」として勝たせる（デフォルト復活を禁止）
+    if (o.config && o.config.forceBlank) {
+      o.config.homeCity = "";
+      o.config.homeCities = [];
+    } else {
+      if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
+      if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
+    }
     if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
     Object.keys(o.products).forEach(code => {
@@ -2115,6 +2121,8 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const storePositions = {}; // 店名 → {lat, lng} のマップ（履歴から取得）
     
     Object.values(db.products).forEach(p => p.history?.forEach(h => {
+      // P0: userId分離（自分の履歴以外は店舗集計に入れない）
+      if (!(h && typeof h.userId === "string" && h.userId === currentUserId)) return;
       if(!h.store || h.store === "未設定") return;
       freq[h.store] = (freq[h.store] || 0) + 1;
       // GPS位置情報があれば保存
@@ -5747,6 +5755,92 @@ function openDiagnostics(){
 
 })();
 // ===== /PATCH =====
+
+
+// ===== PATCH v20.0.2 [GLOBAL FN FIX + OPENWEB FALLBACK] =====
+(function(){
+  try {
+    // 管理合言葉が通ったら true（既存 enterAdmin を安全に拡張）
+    if (typeof window.__sp_admin_ok !== 'boolean') window.__sp_admin_ok = false;
+    if (typeof enterAdmin === 'function' && !enterAdmin.__patched) {
+      const _origEnterAdmin = enterAdmin;
+      enterAdmin = function(){
+        try{
+          const inp = document.getElementById('adminPassInput');
+          const pass = (inp && inp.value) ? String(inp.value) : '';
+          if (pass === '55533557') { window.__sp_admin_ok = true; try{ localStorage.setItem('sp_admin_ok_dev','1'); }catch(e){} }
+        }catch(e){}
+        return _origEnterAdmin.apply(this, arguments);
+      };
+      enterAdmin.__patched = true;
+    }
+    // 起動時にローカルフラグ復元
+    try{ if(localStorage.getItem('sp_admin_ok_dev')==='1') window.__sp_admin_ok = true; }catch(e){}
+
+    // ---- 友人紹介 / 家族共有：onclick から必ず呼べるように window に公開 ----
+    window.openInviteModal = window.openInviteModal || function(kind){
+      try{
+        const modal = document.getElementById('inviteModal');
+        if(!modal) return;
+        const titleEl = document.getElementById('inviteTitle');
+        const bodyEl  = document.getElementById('inviteBody');
+        const txtEl   = document.getElementById('inviteCopyText');
+        const isFamily = (kind === 'family');
+        if(titleEl) titleEl.textContent = isFamily ? '家族共有' : '友人紹介';
+        if(bodyEl) bodyEl.style.color = '#fff';
+
+        const base = window.location.href.split('#')[0].split('?')[0];
+        const link = base + '?ref=' + encodeURIComponent(String(currentUserId||''));
+        const msg = isFamily
+          ? '家族で使える買い物メモ「Smart Price」です。\n購入履歴は第三者に共有されません。\n' + link
+          : '買い物の目安が分かる「Smart Price」です。\n購入履歴は第三者に共有されません。\n' + link;
+        if(txtEl) txtEl.textContent = msg;
+        modal.style.display = 'flex';
+      }catch(e){ try{ console.error(e); }catch(_e){} }
+    };
+
+    window.closeInviteModal = window.closeInviteModal || function(){
+      const modal = document.getElementById('inviteModal');
+      if(modal) modal.style.display = 'none';
+    };
+
+    window.shareInvite = window.shareInvite || async function(mode){
+      try{
+        const txt = (document.getElementById('inviteCopyText')||{}).textContent || '';
+        if(!txt) return;
+        if (navigator.share && mode === 'share') {
+          await navigator.share({ text: txt });
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(txt);
+          showToast && showToast('コピーしました');
+          return;
+        }
+        // clipboard不可の端末は、選択しやすいように prompt
+        window.prompt('この文をコピーしてください', txt);
+      }catch(e){
+        try{ window.prompt('この文をコピーしてください', (document.getElementById('inviteCopyText')||{}).textContent||''); }catch(_e){}
+      }
+    };
+
+    // ---- ブラウザで開く：PWAで _blank が効かない時のフォールバック ----
+    window.openWebSimple = window.openWebSimple || function(){
+      const url = window.location.href.split('#')[0].split('?')[0] + (window.DEFAULT_BUILD ? ('?b=' + encodeURIComponent(String(window.DEFAULT_BUILD))) : '');
+      try{
+        const w = window.open(url, '_blank', 'noopener,noreferrer');
+        if(!w){
+          // ポップアップブロック等
+          window.prompt('このURLをコピーして、ブラウザで開いてください', url);
+        }
+      }catch(e){
+        window.prompt('このURLをコピーして、ブラウザで開いてください', url);
+      }
+    };
+
+  } catch(e) {}
+})();
+// ===== /PATCH v20.0.2 =====
 
 </script>
 
