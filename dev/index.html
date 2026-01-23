@@ -1,18 +1,19 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.33
-FULL_VERSION: v19.9.33
-P26-2026-01-23 17:08 JST
-TITLE: P0_DB_ONLY（外部検索遮断・DB/キャッシュ最優先）
+  VERSION: v20.0.1
+  FULL_VERSION: 20.0.0
+2026-01-23 12:46:01 JST
+  TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
-P26-01-23_1019_p0-db-only
+2026-01-23_1246_uid-scope-dev1
 CHANGES:
+  - [UID_SCOPE_DEV1] 購入履歴に userId を付与し、通常表示は自分の履歴のみ（debug=1 は全表示）
   - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-21_210000_p0-p1-product-invite
+BUILD_PARAM: ?b=2026-01-23_1644_forceblank-normalize-historyfilter-inviteglobal-openwebshare
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -25,20 +26,20 @@ POLICY: UI変更なし・スキャン周り一切触らない
    - ブラウザで通常タブで開く
    - メニューから「ホーム画面に追加」を選択して再追加
 -->
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-<link href="manifest.json" rel="manifest"/>
-<meta content="yes" name="apple-mobile-web-app-capable"/>
-<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
-<meta content="#D50000" name="theme-color"/>
-<title>Smart Price v19.9.33</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
-<style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#D50000">
+  <title>Smart Price 20.0.1</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
     body { font-family: sans-serif; background-color: #121212; color: #e0e0e0; padding-bottom: 90px; touch-action: manipulation; }
     .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
     .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
@@ -143,159 +144,248 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
     .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
-  </style>
+  
+/* PATCH v19.9.39: modal overlay fix */
+.modal-view{
+  position: fixed !important;
+  left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100vw !important; height: 100vh !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.72);
+  z-index: 99999 !important;
+}
+.modal-view .card{
+  max-height: 90vh;
+  overflow: auto;
+}
+#settingsModal{ z-index: 1000; }
+
+
+/* PATCH v19.9.41: invite readability + modal overlay */
+.modal-view{
+  position: fixed !important;
+  left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100vw !important; height: 100vh !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.78);
+  z-index: 99999 !important;
+}
+.modal-view .card{ max-height: 90vh; overflow:auto; }
+#inviteModal, #adminGateModal{ z-index: 99999 !important; }
+#inviteModal .text-secondary, #inviteModal .small.text-secondary{ color:#EAEAEA !important; opacity: 1 !important; }
+#inviteModal #inviteCopyText{ color:#FFFFFF !important; }
+
+
+/* PATCH v19.9.42: invite readability stronger */
+#inviteModal .text-secondary, #inviteModal .small.text-secondary{ color:#F0F0F0 !important; opacity: 1 !important; }
+#inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
+
+</style>
 </head>
+
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-<h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.33</span></h5>
-<button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">19.9.36</span></h5>
+  <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
-<div class="store-area"><div class="store-list" id="store-list"></div></div>
+
+<div class="store-area"><div id="store-list" class="store-list"></div></div>
+
 <div class="container p-3">
-<div id="mainView">
-<div class="row g-2 mb-4">
-<div class="col-7"><button class="btn btn-danger w-100 py-3 rounded-4 shadow" id="scanBtnTop" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br/>スキャン</button></div>
-<div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br/>手入力</button></div>
-</div>
-<div id="historyList"></div>
-</div>
-<div id="formView" style="display:none;">
-<div class="card p-3 shadow-lg">
-<div class="text-danger small fw-bold mb-2 text-center" id="curStoreIndicator" style="opacity:0.8;"></div>
-<div class="text-center mb-2">
-<button class="btn btn-sm btn-outline-secondary w-100" id="storeJumpBtn" onclick="jumpToStoreChips()" style="display:none;">店名を変更（上に移動）</button>
-</div>
-<div id="formMainUI">
-<div class="d-flex mb-3">
-<div style="position:relative; width:90px; height:90px; margin-right:12px;">
-<img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;"/>
-<div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
-<button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
-<button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
-</div>
-<input accept="image/*" id="imgInput" onchange="handleImage(this)" style="display:none;" type="file"/>
-</div>
-<div class="flex-grow-1">
-<input class="form-control bg-dark text-white border-secondary mb-2" id="inputName" placeholder="商品名（内容量）" type="text"/>
-<select class="form-control bg-dark text-white border-secondary mb-2" id="inputCategory" style="font-size:0.85rem; padding:4px;"></select>
-<!-- ✅ サブカテゴリ復活（最小UI） -->
-<select class="form-control bg-dark text-white border-secondary mb-2" id="inputSubCategory" style="font-size:0.85rem; padding:4px; display:none;"></select>
-<input class="form-control bg-dark text-white border-secondary py-1" id="inputMaker" placeholder="メーカー名" style="font-size:0.85rem;" type="text"/>
-</div>
-</div>
-<div class="mb-3 p-3 border rounded border-danger" id="priceSection" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
-<div class="d-flex align-items-center mb-2" id="calcOptionArea">
-<div class="btn-group btn-group-sm w-100 me-2">
-<input checked="" class="btn-check" id="taxEx" name="taxMode" type="radio" value="ex"/>
-<label class="btn btn-outline-danger" for="taxEx">税別</label>
-<input class="btn-check" id="taxIn" name="taxMode" type="radio" value="in"/>
-<label class="btn btn-outline-danger" for="taxIn">税込</label>
-</div>
-<div class="input-group input-group-sm w-50">
-<input class="form-control bg-dark text-white border-secondary" id="inputDisc" placeholder="0" type="number"/>
-<span class="input-group-text bg-dark text-secondary border-secondary">%引</span>
-</div>
-</div>
-<input class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" id="inputPrice" placeholder="0" type="number"/>
-</div>
-<div class="stats-strip" id="statsBox"></div>
-<div class="mb-3" id="detailHistory" style="display:none;"></div>
-<div class="text-center mb-3">
-<button class="btn btn-sm btn-outline-secondary w-100" id="toggleHistBtn" onclick="toggleHistoryList()">購入履歴を表示（タップで編集）</button>
-</div>
-<div class="d-flex gap-2 mb-3">
-<button class="btn btn-outline-secondary py-3 fw-bold flex-grow-0 px-3 shadow" id="delHistBtn" onclick="confirmDeleteHist()" style="display:none;">削除</button>
-<button class="btn btn-danger py-3 fw-bold fs-5 shadow flex-grow-1" id="saveBtn" onclick="saveData()">保存</button>
-</div>
-</div>
-<button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
-</div>
-</div>
-</div>
-<div id="camera-area">
-<div id="interactive">
-<!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
-</div>
-<button class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg" onclick="stopScanner()">×</button>
-</div>
-<div class="modal" id="dialogModal">
-<div class="modal-content text-center">
-<h6 class="text-secondary mb-3" id="dialogTitle">Smart Price</h6>
-<p class="text-white mb-4" id="dialogMsg"></p>
-<div id="dialogInputArea" style="display:none;"><input class="form-control bg-dark text-white mb-3" id="dialogInput" type="text"/></div>
-<div class="d-flex gap-2">
-<button class="btn btn-dark flex-grow-1" id="dialogCancel" style="display:none;">やめる</button>
-<button class="btn btn-danger flex-grow-1" id="dialogOk">OK</button>
-</div>
-</div>
-</div>
-<div class="modal" id="settingsModal">
-<div class="modal-content">
-<h5 class="text-white mb-4 text-center">設定</h5>
-<div class="mb-3">
-<label class="small text-secondary">生活圏（市）</label>
-<input class="form-control bg-dark text-white border-secondary mb-1" id="home-city-input" placeholder="例：土浦市" type="text"/>
-<div class="city-chips" id="city-history-chips"></div>
-</div>
-<div class="mb-3">
-<label class="small text-secondary">Firebase URL</label>
-<input class="form-control bg-dark text-white border-secondary mb-3" id="fb-url-input" placeholder="https://xxx.firebaseio.com/" type="text"/>
-</div>
-<button class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" id="syncBtn" onclick="startMigration()">設定保存と同期</button>
-<button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
-<div id="debugBackupButtons" style="display:none;">
-<button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
-<button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
-</div>
-<button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
-</div>
-</div>
-<div class="modal" id="webModal">
-<div class="modal-content">
-<h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
-<div class="hint mb-3">
-      ・PWA（ホーム追加）だとアドレスが見えないので、ここでURLをコピーしてChrome/Edgeで開けます。<br/>
-      ・更新確認は <b>まずブラウザで</b> 開くのが安全です。
+  <div id="mainView">
+    <div class="row g-2 mb-4">
+      <div class="col-7"><button id="scanBtnTop" class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
+      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
     </div>
-<label class="small text-secondary">通常URL（コピーして開く）</label>
-<textarea class="form-control bg-dark text-white border-secondary url-box mb-2" id="webUrlNormal" readonly="" rows="2"></textarea>
-<div class="d-flex gap-2 mb-3">
-<button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlNormal')">コピー</button>
-<button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlNormal')">開く</button>
+    <div id="historyList"></div>
+  </div>
+
+  <div id="formView" style="display:none;">
+    <div class="card p-3 shadow-lg">
+      <div id="curStoreIndicator" class="text-danger small fw-bold mb-2 text-center" style="opacity:0.8;"></div>
+
+      <div class="text-center mb-2">
+        <button id="storeJumpBtn" class="btn btn-sm btn-outline-secondary w-100" style="display:none;" onclick="jumpToStoreChips()">店名を変更（上に移動）</button>
+      </div>
+
+      <div id="formMainUI">
+        <div class="d-flex mb-3">
+          <div style="position:relative; width:90px; height:90px; margin-right:12px;">
+            <img id="previewImg" style="width:100%; height:100%; object-fit:contain; background:white; border-radius:10px;">
+            <div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1 pb-1">
+              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="document.getElementById('imgInput').click()"><i class="bi bi-folder2-open"></i></button>
+              <button class="btn btn-dark btn-sm p-1 opacity-75" onclick="searchImageWeb()"><i class="bi bi-search"></i></button>
+            </div>
+            <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="handleImage(this)">
+          </div>
+          <div class="flex-grow-1">
+            <input type="text" id="inputName" class="form-control bg-dark text-white border-secondary mb-2" placeholder="商品名（内容量）">
+            <select id="inputCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px;"></select>
+            <!-- ✅ サブカテゴリ復活（最小UI） -->
+            <select id="inputSubCategory" class="form-control bg-dark text-white border-secondary mb-2" style="font-size:0.85rem; padding:4px; display:none;"></select>
+            <input type="text" id="inputMaker" class="form-control bg-dark text-white border-secondary py-1" style="font-size:0.85rem;" placeholder="メーカー名">
+          </div>
+        </div>
+
+        <div id="priceSection" class="mb-3 p-3 border rounded border-danger" style="background:#1a1a1a; border-width: 1px !important; box-sizing: border-box; max-width: 100%; overflow: hidden; padding: 12px !important;">
+          <div id="calcOptionArea" class="d-flex align-items-center mb-2">
+            <div class="btn-group btn-group-sm w-100 me-2">
+              <input type="radio" class="btn-check" name="taxMode" id="taxEx" value="ex" checked>
+              <label class="btn btn-outline-danger" for="taxEx">税別</label>
+              <input type="radio" class="btn-check" name="taxMode" id="taxIn" value="in">
+              <label class="btn btn-outline-danger" for="taxIn">税込</label>
+            </div>
+            <div class="input-group input-group-sm w-50">
+              <input type="number" id="inputDisc" class="form-control bg-dark text-white border-secondary" placeholder="0">
+              <span class="input-group-text bg-dark text-secondary border-secondary">%引</span>
+            </div>
+          </div>
+          <input type="number" id="inputPrice" class="form-control text-end fw-bold text-danger border-0 bg-transparent fs-1" placeholder="0">
+        </div>
+
+        <div id="statsBox" class="stats-strip"></div>
+        <div id="detailHistory" class="mb-3" style="display:none;"></div>
+
+        <div class="text-center mb-3">
+          <button id="toggleHistBtn" class="btn btn-sm btn-outline-secondary w-100" onclick="toggleHistoryList()">購入履歴を表示（タップで編集）</button>
+        </div>
+
+        <div class="d-flex gap-2 mb-3">
+          <button id="delHistBtn" class="btn btn-outline-secondary py-3 fw-bold flex-grow-0 px-3 shadow" style="display:none;" onclick="confirmDeleteHist()">削除</button>
+          <button id="saveBtn" class="btn btn-danger py-3 fw-bold fs-5 shadow flex-grow-1" onclick="saveData()">保存</button>
+        </div>
+      </div>
+
+      <button class="btn btn-link text-secondary w-100" onclick="showHome()">戻る</button>
+    </div>
+  </div>
 </div>
-<label class="small text-secondary">デバッグURL（&amp;debug=1）</label>
-<textarea class="form-control bg-dark text-white border-secondary url-box mb-2" id="webUrlDebug" readonly="" rows="2"></textarea>
-<div class="d-flex gap-2 mb-3">
-<button class="btn btn-dark flex-grow-1" onclick="copyUrl('webUrlDebug')">コピー</button>
-<button class="btn btn-danger flex-grow-1" onclick="openUrlFromBox('webUrlDebug')">開く</button>
+
+<div id="camera-area">
+  <div id="interactive">
+    <!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
+  </div>
+  <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
 </div>
-<div class="hint mb-3" style="background:#1a1a1a; padding:10px; border-radius:8px; border:1px solid #333;">
-<b style="color:#ff5252;">📱 アプリとして使う（PWA）</b><br/>
-<span style="font-size:0.7rem; color:#aaa;">
-<b>Android（Chrome/Edge）：</b> ブラウザで開く → メニュー（⋮）→「ホーム画面に追加」<br/>
-<b>iOS（Safari）：</b> ブラウザで開く → 共有ボタン（□↑）→「ホーム画面に追加」<br/>
-<b>更新が反映されない時：</b> ホーム画面のアイコンを削除 → 再度追加してください
-      </span>
+
+<div id="dialogModal" class="modal">
+  <div class="modal-content text-center">
+    <h6 id="dialogTitle" class="text-secondary mb-3">Smart Price</h6>
+    <p id="dialogMsg" class="text-white mb-4"></p>
+    <div id="dialogInputArea" style="display:none;"><input type="text" id="dialogInput" class="form-control bg-dark text-white mb-3"></div>
+    <div class="d-flex gap-2">
+      <button id="dialogCancel" class="btn btn-dark flex-grow-1" style="display:none;">やめる</button>
+      <button id="dialogOk" class="btn btn-danger flex-grow-1">OK</button>
+    </div>
+  </div>
 </div>
-<!-- ✅ PWAインストールボタン（beforeinstallpromptがある時だけ表示） -->
-<button class="btn btn-danger w-100 mb-2" id="pwaInstallBtn" onclick="installPWA()" style="display:none;">
-      📱 今すぐインストール
-    </button>
-<button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
+
+<div id="settingsModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-4 text-center">設定</h5>
+
+    <div class="mb-3">
+      <label class="small text-secondary">生活圏（市）</label>
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市">
+      <div id="city-history-chips" class="city-chips"></div>
+    </div>
+
+    <input type="hidden" id="fb-url-input">
+
+    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebSimple()">ブラウザで開く</button>
+    <button class="btn btn-outline-light w-100 py-2 fw-bold mb-2" onclick="openInviteModal('friend')">友人紹介</button>
+    <button class="btn btn-outline-light w-100 py-2 fw-bold mb-2" onclick="openInviteModal('family')">家族共有</button>
+    <button class="btn btn-outline-danger w-100 py-2 fw-bold mb-2" onclick="openAdminGate()">管理</button>
+    <div id="debugBackupButtons" style="display:none;">
+      <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
+      <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
+    </div>
+<button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+  </div>
 </div>
+
+<div id="webModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">ブラウザで開く</h5>
+
+    <textarea id="webUrlNormal" class="form-control bg-dark text-white border-secondary url-box mb-3" rows="2" readonly style="display:none;"></textarea>
+
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-danger w-100 py-3 fw-bold" onclick="openWebDirect()">開く</button>
+    </div>
+
+    <button class="btn btn-link text-secondary w-100" onclick="closeWebModal()">戻る</button>
+  </div>
 </div>
-<div class="toast-msg" id="toast"></div>
+
+
+<div id="adminGateModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">管理</h5>
+    <div class="hint mb-3">
+      合言葉を入力してください。
+    </div>
+    <input type="password" id="adminPassInput" class="form-control bg-dark text-white border-secondary mb-3" placeholder="合言葉">
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-warning w-100 py-2 fw-bold" onclick="enterAdmin()">入る</button>
+    </div>
+    <button class="btn btn-link text-secondary w-100" onclick="closeAdminGate()">戻る</button>
+  </div>
+</div>
+
+<div id="adminModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">管理メニュー</h5>
+
+    <div class="mb-3">
+      <label class="small text-secondary">同期先（変更できません）</label>
+      <textarea id="adminFbUrl" class="form-control bg-dark text-white border-secondary url-box" rows="2" readonly></textarea>
+    </div>
+
+    <label class="small text-secondary">URL</label>
+    <textarea id="adminUrlNormal" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-outline-light w-50" onclick="copyText('adminUrlNormal')">コピー</button>
+      <button class="btn btn-danger w-50" onclick="openUrlFromBox('adminUrlNormal')">開く</button>
+    </div>
+
+    <label class="small text-secondary">デバッグURL</label>
+    <textarea id="adminUrlDebug" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-outline-light w-50" onclick="copyText('adminUrlDebug')">コピー</button>
+      <button class="btn btn-danger w-50" onclick="openUrlFromBox('adminUrlDebug')">開く</button>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-outline-info w-50" onclick="openDiagnostics()">検証ツール</button>
+      <button id="pwaInstallBtnAdmin" class="btn btn-outline-success w-50" style="display:none;" onclick="installPWA()">📱 アイコンを作る</button>
+    </div>
+
+    <button class="btn btn-link text-secondary w-100" onclick="closeAdmin()">閉じる</button>
+  </div>
+</div>
+
+<div id="toast" class="toast-msg"></div>
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
 <div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
-<!-- Firebase SDK (v9 compat) -->
+
+<!-- SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "19.9.33"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "19.9.33"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-23_1708_hf1-init-fallback"; // ヘッダーと一致させる
+    const APP_VERSION = "20.0.1"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.0.1"; // デバッグ用（詳細）
+    const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -369,6 +459,44 @@ POLICY: UI変更なし・スキャン周り一切触らない
   function isDebug() {
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
+
+// ======== UID SCOPE (DEV) ========
+// 商品マスターは共通。購入履歴（history）だけ userId で分離する。
+const USER_ID_KEY = 'sp_user_id_dev';
+function getOrCreateUserId() {
+  let uid = localStorage.getItem(USER_ID_KEY);
+  if (!uid) {
+    try {
+      uid = (window.crypto && typeof window.crypto.randomUUID === 'function') ? window.crypto.randomUUID() : null;
+    } catch(e) {
+      uid = null;
+    }
+    if (!uid) uid = 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(USER_ID_KEY, uid);
+  }
+  return uid;
+}
+const currentUserId = getOrCreateUserId();
+
+function shouldShowHistoryItem(h) {
+  // debug=1 でも全件表示にしない（スタッフ検証の事故防止）
+  return !!(h && typeof h.userId === 'string' && h.userId === currentUserId);
+}
+
+function filterHistoryForMe(history) {
+  const arr = Array.isArray(history) ? history : [];
+  return arr.filter(shouldShowHistoryItem);
+}
+
+function lastHistoryForMe(history) {
+  const arr = Array.isArray(history) ? history : [];
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const h = arr[i];
+    if (h && typeof h.userId === 'string' && h.userId === currentUserId) return h;
+  }
+  return null;
+}
+
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
     const errorDisplay = document.getElementById('debug-error-display');
@@ -1109,7 +1237,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
   
   // ✅ P0: 外部検索完全遮断（DB/キャッシュのみ）
-  window.SP_P0_DB_ONLY = true;
+  window.SP_P0_DB_ONLY = false;
 let isGpsOn = false, curPos = null, lastGpsTime = "";
   let activeSyncController = null;
   // ✅ 同期ロック（二重起動防止）
@@ -1179,14 +1307,14 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     try {
       const versionBadge = document.getElementById('version-badge');
       if (versionBadge) {
-        versionBadge.textContent = FULL_VERSION;
+        versionBadge.textContent = APP_VERSION;
       }
       
       // document.titleを更新（debug=1の時だけBUILD_IDも併記）
       if (isDebug()) {
-        document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
+        document.title = `Smart Price ${APP_VERSION} / ${BUILD_ID}`;
       } else {
-        document.title = `Smart Price ${FULL_VERSION}`;
+        document.title = `Smart Price ${APP_VERSION}`;
       }
     } catch(e) {
       if (isDebug()) console.warn('[onload] version update error:', e);
@@ -1200,15 +1328,6 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     } catch(e) {
       if (isDebug()) console.warn('[onload] display error:', e);
     }
-
-    // ✅ HF1: 初期化失敗でもUIを出す（config.json / 通信 / Firebase 失敗で真っ白になるのを防ぐ）
-    const __hf1_safeLocalInit = async () => {
-      try { loadLocal(); } catch(e) {}
-      try { db = normalizeDb(db); } catch(e) {}
-      try { initCategorySelect(); } catch(e) {}
-      try { renderStoreList(); } catch(e) {}
-      try { renderHistory(); } catch(e) {}
-    };
 
     try {
       // ✅ Config.json読み込み（Yahoo Proxy URL）
@@ -1274,10 +1393,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       showToast(`起動エラー: ${e.message || '不明なエラー'}`, 10000);
       if (isDebug()) console.error('[onload]', e);
     }
-  
-    // ✅ HF1: 最後の保険（どこかで例外が起きても最低限の画面を出す）
-    try { await __hf1_safeLocalInit(); } catch(e) {}
-};
+  };
 
   // ✅ pageshowイベントでも初期化（ブラウザバック対策）
   window.addEventListener("pageshow", async (e) => {
@@ -1408,7 +1524,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
       // ✅ 画像参照の移植：last.imageKeyがあればproductへコピー（永続化）
       if (Array.isArray(p.history) && p.history.length > 0 && !p.imageKey) {
-        const last = p.history[p.history.length - 1];
+        const last = lastHistoryForMe(p.history);
         if (last && typeof last === 'object') {
           if (last.imageKey && typeof last.imageKey === 'string') {
             p.imageKey = last.imageKey;
@@ -1704,7 +1820,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   function lastHistoryTs(p) {
     try {
-      const h = (p && Array.isArray(p.history) && p.history.length) ? p.history[p.history.length-1] : null;
+      const h = lastHistoryForMe(p && p.history);
       return histTs(h);
     } catch(e){ return 0; }
   }
@@ -2104,15 +2220,20 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       // ✅ 必ずまっさらにする
     list.innerHTML = "";
 
-    const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
-    items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
+    const items = Object.keys(db.products).map(k => {
+      const p = db.products[k] || {};
+      const last = lastHistoryForMe(p.history);
+      const lastT = last ? (histTs(last) || 0) : 0;
+      return { code: k, ...p, __last: last, __lastT: lastT };
+    });
+    items.sort((a,b) => (b.__lastT || 0) - (a.__lastT || 0));
 
     // ✅ 重複防止ガード（codeキー + 正規化キー）
     const renderedKeys = new Set();
     const renderedNormalizedKeys = new Set();
 
     for (const it of items) {
-      if (!it.history || !it.history.length) continue;
+      if (!it.__last) continue;
       
       // codeキーで重複チェック
       if (renderedKeys.has(it.code)) {
@@ -2131,7 +2252,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       if (normalized && normalized !== '|') {
         renderedNormalizedKeys.add(normalized);
       }
-      const last = it.history[it.history.length-1];
+      const last = it.__last;
       const div = document.createElement('div');
       div.className = 'card price-card';
       div.onclick = (e) => {
@@ -2355,7 +2476,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       // 2. 共有画像からランダム表示（固定しない）
       const prev = document.getElementById('previewImg');
       if (prev) {
-        const last = p.history && p.history.length > 0 ? p.history[p.history.length - 1] : null;
+        const last = lastHistoryForMe(p.history);
         prev.src = placeholderImg();
         prev.referrerPolicy = "no-referrer";
         
@@ -2603,8 +2724,9 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
   function renderStats(history) {
     const box = document.getElementById('statsBox');
     if (!box) return;
-    if (!Array.isArray(history) || history.length === 0) { box.innerHTML = "過去データなし"; return; }
-    const pArr = history.map(h => h.price);
+    const safe = filterHistoryForMe(history);
+    if (!Array.isArray(safe) || safe.length === 0) { box.innerHTML = "過去データなし"; return; }
+    const pArr = safe.map(h => h.price);
     const avg = Math.floor(pArr.reduce((a,b)=>a+b,0)/pArr.length);
     const low = Math.min(...pArr);
     const last = pArr[pArr.length-1];
@@ -2620,8 +2742,11 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if(!div) return;
     div.innerHTML = "";
     const safeHistory = Array.isArray(history) ? history : [];
+    let shown = 0;
 
     [...safeHistory].reverse().forEach((h, idx) => {
+      if (!shouldShowHistoryItem(h)) return;
+      shown++;
       const row = document.createElement('div');
       row.className = "history-row";
       const actIdx = safeHistory.length - 1 - idx;
@@ -2642,6 +2767,9 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         </div>`;
       div.appendChild(row);
     });
+    if (shown === 0) {
+      div.innerHTML = '<div class="text-secondary small">過去データなし</div>';
+    }
   }
 
   function editHistoryMode(idx) {
@@ -2650,6 +2778,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const p = db.products[curBarcode];
     const h = p && Array.isArray(p.history) ? p.history[idx] : null;
     if(!h) return;
+    if (!shouldShowHistoryItem(h)) { showToast("この履歴は編集できません", 4000); editingHistIdx = null; return; }
 
     document.getElementById('inputPrice').value = h.price;
     document.getElementById('inputDisc').value = 0;
@@ -2750,8 +2879,12 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
 
       if (editingHistIdx !== null) {
-        p.history[editingHistIdx].price = val;
-        p.history[editingHistIdx].store = curStore;
+        const tgt = p.history[editingHistIdx];
+        if (!tgt) { showToast("履歴が見つかりません", 4000); if (saveBtn) saveBtn.disabled = false; return; }
+        if (!shouldShowHistoryItem(tgt)) { showToast("この履歴は編集できません", 4000); if (saveBtn) saveBtn.disabled = false; return; }
+        if (!tgt.userId) tgt.userId = currentUserId;
+        tgt.price = val;
+        tgt.store = curStore;
         showToast("変更を反映しました", 2000);
         if (isDebug()) console.log("[SaveData] History updated:", editingHistIdx);
       } else {
@@ -2769,7 +2902,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
             console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
           }
         }
-        const entry = { price: finalP, store: curStore, ts: Date.now() };
+        const entry = { price: finalP, store: curStore, ts: Date.now(), userId: currentUserId };
         if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
         p.history.push(entry);
         showToast("保存完了", 2000);
@@ -4895,6 +5028,10 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   async function confirmDeleteHist() {
     if(editingHistIdx === null) return;
+    const p = db.products[curBarcode];
+    const h = p && Array.isArray(p.history) ? p.history[editingHistIdx] : null;
+    if (!h) return;
+    if (!shouldShowHistoryItem(h)) { showToast("この履歴は削除できません", 4000); return; }
     const ok = await customConfirm("この履歴を削除しますか？");
     if(!ok) return;
     db.products[curBarcode].history.splice(editingHistIdx, 1);
@@ -4905,6 +5042,15 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   // ========= Settings / Sync =========
   async function startMigration() {
+    // [v19.9.41] 生活圏クリア要求を先に記録（同期で戻っても最後に消す）
+    const __cityEl = document.getElementById('home-city-input');
+    const __cityTrim = ((__cityEl ? __cityEl.value : '') || '').trim();
+    if(__cityTrim === ''){
+      try { localStorage.setItem('sp_city_force_blank', '1'); } catch(e){}
+    } else {
+      try { localStorage.removeItem('sp_city_force_blank'); } catch(e){}
+    }
+
     const btn = document.getElementById('syncBtn');
     const urlEl = document.getElementById('fb-url-input');
     const cityEl = document.getElementById('home-city-input');
@@ -5326,6 +5472,331 @@ if ("serviceWorker" in navigator) {
     }
   });
 }
+
+
+// ====== P1: 簡易「ブラウザで開く」(一般ユーザ向け)
+function openWebDirect(){
+  try {
+    const url = buildUrl(false);
+    window.open(url, '_blank');
+  } catch(e){}
+  closeWebModal();
+}
+
+// ====== 管理メニュー（合言葉）
+function openAdminGate(){
+  const m = document.getElementById('adminGateModal');
+  if(!m) return;
+  const inp = document.getElementById('adminPassInput');
+  if(inp) inp.value = '';
+  m.style.display = "flex";
+}
+function closeAdminGate(){
+  const m = document.getElementById('adminGateModal');
+  if(m) m.style.display = "none";
+}
+function enterAdmin(){
+  const inp = document.getElementById('adminPassInput');
+  const pass = (inp && inp.value) ? String(inp.value) : '';
+  if(pass !== '55533557'){
+    // やさしく何もしない（誤入力時に情報を出さない）
+    return;
+  }
+  closeAdminGate();
+  openAdmin();
+}
+function openAdmin(){
+  const m = document.getElementById('adminModal');
+  if(!m) return;
+  // URL生成
+  try{
+    const n = document.getElementById('adminUrlNormal');
+    const d = document.getElementById('adminUrlDebug');
+    if(n) n.value = buildUrl(false);
+    if(d) d.value = buildUrl(true);
+  }catch(e){}
+  // 同期先表示（変更不可）
+  try{
+    const fb = document.getElementById('adminFbUrl');
+    if(fb){
+      const fbInput = document.getElementById('fb-url-input');
+      fb.value = (fbInput && fbInput.value) ? fbInput.value : '';
+    }
+  }catch(e){}
+  // PWAインストールボタン（管理のみ）
+  try{
+    const btn = document.getElementById('pwaInstallBtnAdmin');
+    if(btn){
+      btn.style.display = (typeof deferredPrompt !== 'undefined' && deferredPrompt) ? 'block' : 'none';
+    }
+  }catch(e){}
+  m.style.display = "flex";
+}
+function closeAdmin(){
+  const m = document.getElementById('adminModal');
+  if(m) m.style.display = "none";
+}
+function copyText(id){
+  try{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.select();
+    document.execCommand('copy');
+  }catch(e){}
+}
+function openUrlFromBox(id){
+  try{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const url = String(el.value||'');
+    if(url) window.open(url, '_blank');
+  }catch(e){}
+}
+function openDiagnostics(){
+  try{
+    const base = location.origin + location.pathname.replace(/\/dev\/?$/, '/dev/');
+    const url = base + 'diagnostics.html?b=' + encodeURIComponent(BUILD_ID);
+    window.open(url, '_blank');
+  }catch(e){}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ===== PATCH v20.0.1 (force-blank hard fix: openSettings fill / mergeDb / city chips / store list / openWeb alias) =====
+(function(){
+  // force-blank flag
+  window.getForceBlank = function(){
+    try{ return localStorage.getItem('sp_city_force_blank') === '1'; }catch(e){ return false; }
+  };
+  window.setForceBlank = function(on){
+    try{ if(on) localStorage.setItem('sp_city_force_blank','1'); else localStorage.removeItem('sp_city_force_blank'); }catch(e){}
+  };
+
+  function applyForceBlankToDb(){
+    try{
+      db = normalizeDb(db);
+      if(!db.config) db.config={};
+      db.config.homeCity = '';
+      db.config.homeCities = [];
+      db.config.customStores = [];
+      db.config.storeTaxModes = {};
+    }catch(e){}
+    try{ curStore = "未設定"; }catch(e){}
+  }
+
+  function repaintForceBlankUI(){
+    try{
+      const cityInput=document.getElementById('home-city-input');
+      if(cityInput) cityInput.value='';
+      const chipArea=document.getElementById('city-history-chips');
+      if(chipArea) chipArea.innerHTML='';
+    }catch(e){}
+    try{
+      // store indicator
+      const ind=document.getElementById('curStoreIndicator');
+      if(ind) ind.innerText = "【 未設定 】で保存します";
+    }catch(e){}
+    try{
+      // store list: ONLY 未設定 (no auto-select)
+      const list=document.getElementById('store-list');
+      if(list){
+        const gpsTxt = (typeof isGpsOn !== 'undefined' && isGpsOn) ? `GPS<span class="gps-status">●${(typeof lastGpsTime!=='undefined')?lastGpsTime:''}</span>` : `GPS<span class="gps-status">OFF</span>`;
+        list.innerHTML = `<span class="store-tag gps-btn ${(typeof isGpsOn !== 'undefined' && isGpsOn)?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
+        const span=document.createElement('span');
+        span.className='store-tag active';
+        span.innerText='未設定';
+        span.onclick=()=>{ try{ curStore='未設定'; }catch(e){} };
+        list.appendChild(span);
+      }
+    }catch(e){}
+  }
+
+  function forceBlankNow(){
+    window.setForceBlank(true);
+    applyForceBlankToDb();
+    try{ if(typeof saveLocalOnly==='function') saveLocalOnly(); }catch(e){}
+    repaintForceBlankUI();
+  }
+
+  // 1) openSettings: fill抑止（ここが一番強い）
+  const _orig_openSettings = (typeof openSettings === 'function') ? openSettings : null;
+  if(_orig_openSettings){
+    openSettings = function(){
+      const r=_orig_openSettings();
+      try{
+        if(window.getForceBlank && window.getForceBlank()){ forceBlankNow(); }
+      }catch(e){}
+      // watcher attach
+      setTimeout(attachCityWatcher, 0);
+      return r;
+    };
+  }
+
+  // 2) city input watcher: input/change/blur 全部で拾う
+  function attachCityWatcher(){
+    const el=document.getElementById('home-city-input');
+    if(!el || el.__sp_watch2) return;
+    el.__sp_watch2=true;
+    const handler=()=>{
+      const v=((el.value||'')+'').trim();
+      if(v==='') forceBlankNow();
+      else window.setForceBlank(false);
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    el.addEventListener('blur', handler);
+  }
+  document.addEventListener('DOMContentLoaded', ()=>setTimeout(attachCityWatcher, 0));
+
+  // 3) normalizeDb: force_blankなら最後に必ず上書き（homeCities再生成も潰す）
+  const _orig_normalizeDb = (typeof normalizeDb === 'function') ? normalizeDb : null;
+  if(_orig_normalizeDb){
+    normalizeDb = function(raw){
+      const out=_orig_normalizeDb(raw);
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          if(!out.config) out.config={};
+          out.config.homeCity='';
+          out.config.homeCities=[];
+          out.config.customStores=[];
+          out.config.storeTaxModes={};
+        }
+      }catch(e){}
+      return out;
+    };
+  }
+
+  // 4) mergeDb: syncのマージで「空が負ける」を潰す（クラウド/ローカルどっちでも）
+  const _orig_mergeDb = (typeof mergeDb === 'function') ? mergeDb : null;
+  if(_orig_mergeDb){
+    mergeDb = function(localDb, cloudDb){
+      const out=_orig_mergeDb(localDb, cloudDb);
+      try{
+        if(window.getForceBlank && window.getForceBlank()){
+          if(!out.config) out.config={};
+          out.config.homeCity='';
+          out.config.homeCities=[];
+          out.config.customStores=[];
+          out.config.storeTaxModes={};
+        }
+      }catch(e){}
+      return out;
+    };
+  }
+
+  // 5) renderCityChips: force_blank時は必ず空表示
+  const _orig_renderCityChips = (typeof renderCityChips === 'function') ? renderCityChips : null;
+  if(_orig_renderCityChips){
+    renderCityChips = function(){
+      if(window.getForceBlank && window.getForceBlank()){
+        const chipArea=document.getElementById('city-history-chips');
+        if(chipArea) chipArea.innerHTML='';
+        return;
+      }
+      return _orig_renderCityChips();
+    };
+  }
+
+  // 6) renderStoreList: force_blank時は cityStores/履歴を一切混ぜない（未設定だけ）
+  const _orig_renderStoreList = (typeof renderStoreList === 'function') ? renderStoreList : null;
+  if(_orig_renderStoreList){
+    renderStoreList = function(manualPriority=[]){
+      if(window.getForceBlank && window.getForceBlank()){
+        applyForceBlankToDb();
+        repaintForceBlankUI();
+        return;
+      }
+      return _orig_renderStoreList(manualPriority);
+    };
+  }
+
+  // 7) startMigration: 同期後に必ず再適用
+  const _orig_startMigration = (typeof startMigration === 'function') ? startMigration : null;
+  if(_orig_startMigration){
+    startMigration = async function(){
+      const el=document.getElementById('home-city-input');
+      const v=(((el?el.value:'')||'')+'').trim();
+      if(v==='') window.setForceBlank(true); else window.setForceBlank(false);
+      const ret = await _orig_startMigration();
+      if(window.getForceBlank && window.getForceBlank()){ forceBlankNow(); }
+      return ret;
+    };
+  }
+
+  // 8) openWebSimple alias: HTML onclick 解決の揺れを潰す（必ずグローバルに）
+  if(typeof window.openWebSimple === 'function') {
+    try{ window.openWebSimple = window.openWebSimple; }catch(e){}
+    try{ openWebSimple = window.openWebSimple; }catch(e){}
+  }
+
+  // 起動時にも反映
+  try{ if(window.getForceBlank && window.getForceBlank()) setTimeout(forceBlankNow, 120); }catch(e){}
+
+})();
+// ===== /PATCH =====
+
 </script>
+
+</div>
+
+
+<!-- Invite Modal (General / no-bootstrap) -->
+<div id="inviteModal" class="modal-view" style="display:none;">
+  <div class="card p-3 shadow-lg" style="max-width:520px; margin:0 auto;">
+    <div class="text-center fw-bold mb-2" id="inviteTitle">友人紹介</div>
+    <div class="small text-white mb-2" id="inviteLead" style="color:#fff;">送る先を選んでください</div>
+
+    <div class="p-3 mb-3" style="background:#111; border-radius:12px; border:1px solid #333;">
+      <div class="fw-bold mb-2">送る文</div>
+      <div class="small" id="inviteCopyText" style="white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button class="btn btn-success py-2 fw-bold" onclick="shareInvite('line')">LINEで送る</button>
+      <button class="btn btn-primary py-2 fw-bold" onclick="shareInvite('mail')">メールで送る</button>
+      <button class="btn btn-outline-light py-2 fw-bold" onclick="shareInvite('copy')">リンクをコピー</button>
+    </div>
+
+    <div class="small text-white mt-3">
+      ※このアプリは<strong>ダウンロード不要</strong>です。必ず<strong>ブラウザで開いて</strong>使ってください。<br>
+      ※購入履歴は<strong>他人には表示されません</strong>（本人の端末だけ）。サーバ側には秘匿して保存されます。
+    </div>
+
+    <div class="text-center mt-3">
+      <button class="btn btn-link text-secondary" onclick="closeInviteModal()">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Gate Modal (no-bootstrap) -->
+<div id="adminGateModal" class="modal-view" style="display:none;">
+  <div class="card p-3 shadow-lg" style="max-width:420px; margin:0 auto;">
+    <div class="text-center fw-bold mb-2">管理</div>
+    <div class="small text-white mb-2">合言葉を入力してください</div>
+    <input id="adminPassInput" type="password" class="form-control bg-dark text-white border-secondary mb-3" placeholder="合言葉">
+
+    <div class="d-grid gap-2">
+      <button class="btn btn-danger py-2 fw-bold" onclick="unlockAdmin()">開く</button>
+    </div>
+
+    <div class="text-center mt-3">
+      <button class="btn btn-link text-secondary" onclick="closeAdminGate()">戻る</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
