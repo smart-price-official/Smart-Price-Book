@@ -1,11 +1,11 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.0.3
-  FULL_VERSION: v20.0.3 [FORCEBLANK_GHOSTKILL + INVITE_SCOPEFIX]nFoodFacts）を完全スキップ（物理遮断）
+  VERSION: v20.1.0-B
+  FULL_VERSION: v20.1.0-B [STORE_MASTER_EMBEDDED]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1820_forceblank-ghostkill
+BUILD_PARAM: ?b=2026-01-23_2001_storemasterB
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -28,7 +28,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.0.3</title>
+  <title>Smart Price 20.1.0</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -183,7 +183,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">19.9.36</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.1.0</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -375,9 +375,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.0.2"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.0.1"; // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-23_1820_forceblank-ghostkill"; // ヘッダーと一致させる
+    const APP_VERSION = "20.1.0"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.1.0-B"; // デバッグ用（詳細）
+    const BUILD_ID = "2026-01-23_2001_storemasterB"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -642,11 +642,79 @@ function lastHistoryForMe(history) {
     storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
   };
 
-  const CITY_STORE_PRESET = {
-    "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
-    "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
-    "東海村": ["カスミ東海店", "ヨークベニマル東海店", "イオン東海店"]
+  const STORE_MASTER_MODE = "EMBEDDED"; // "EMBEDDED" (B) -> "FIREBASE" (A) later
+
+  // B運用: 埋め込みストアマスター（表示名はここが唯一の正解）
+  const STORE_MASTER_EMBEDDED = {
+    "土浦市": [
+      { storeId: "tsuchiura_kasumi_ekimae", storeName: "カスミ土浦駅前店", type: "super" },
+      { storeId: "tsuchiura_kasumi_araka", storeName: "カスミ ピアシティ荒川本郷店", type: "super" },
+      { storeId: "tsuchiura_york", storeName: "ヨークベニマル", type: "super" },
+      { storeId: "tsuchiura_taiyo", storeName: "タイヨー", type: "super" },
+      { storeId: "tsuchiura_marumo", storeName: "まるも", type: "super" },
+      { storeId: "tsuchiura_welcia", storeName: "ウエルシア", type: "drug" }
+    ],
+    "つくば市": [
+      { storeId: "tsukuba_kasumi_takezono", storeName: "カスミ つくば竹園店", type: "super" },
+      { storeId: "tsukuba_york_takezono", storeName: "ヨークベニマル つくば竹園店", type: "super" },
+      { storeId: "tsukuba_lopia", storeName: "ロピア つくば店", type: "super" },
+      { storeId: "tsukuba_taiyo", storeName: "タイヨー", type: "super" },
+      { storeId: "tsukuba_welcia", storeName: "ウエルシア", type: "drug" }
+    ],
+    "東海村": [
+      { storeId: "tokai_kasumi", storeName: "カスミ東海店", type: "super" },
+      { storeId: "tokai_york", storeName: "ヨークベニマル東海店", type: "super" },
+      { storeId: "tokai_aeon", storeName: "イオン東海店", type: "super" }
+    ]
   };
+
+  // 旧プリセットは使用しない（互換のため空に固定）
+  const CITY_STORE_PRESET = {};
+
+  function _normStoreName(s){
+    if(!s) return "";
+    return String(s).replace(/\s+/g, " ").trim();
+  }
+  function _hashStoreId(prefix, name){
+    try{
+      const h = (prefix + "|" + name);
+      let out = 0;
+      for(let i=0;i<h.length;i++){ out = ((out<<5)-out) + h.charCodeAt(i); out |= 0; }
+      return prefix + "_" + Math.abs(out);
+    }catch(e){
+      return prefix + "_" + Math.random().toString(36).slice(2);
+    }
+  }
+  function getStoreMasterByCity(city){
+    const c = _normStoreName(city);
+    const arr = STORE_MASTER_EMBEDDED[c];
+    return Array.isArray(arr) ? arr.slice() : [];
+  }
+  function buildStoreOptions(city){
+    const opts = [];
+    const seen = new Set();
+
+    // 1) 生活圏（市）の公式候補
+    const master = getStoreMasterByCity(city);
+    master.forEach(o=>{
+      const key = _normStoreName(o.storeName);
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      opts.push({ storeId: o.storeId, storeName: o.storeName, source: "master" });
+    });
+
+    // 2) GPS近隣候補（名前だけ）→ 表記を整えて追加
+    const nearby = (Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : []).map(_normStoreName).filter(Boolean);
+    nearby.forEach(name=>{
+      const key = _normStoreName(name);
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      opts.push({ storeId: _hashStoreId("gps", key), storeName: key, source: "gps" });
+    });
+
+    return opts;
+  }
+;
 
   // ========= Image Store (IndexedDB) =========
   const IMG_DB_NAME = "smart_price_img_db_v1";
@@ -1214,7 +1282,7 @@ function lastHistoryForMe(history) {
 
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "未設定";
+  let curBarcode = null, curStore = "未設定", curStoreId = "";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -1507,7 +1575,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       o.config.homeCities = [];
     } else {
       if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
-      if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
+      if (!Array.isArray(o.config.homeCities)) o.config.homeCities = (o.config.forceBlank ? [] : (o.config.homeCity ? [o.config.homeCity] : []));
     }
     if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
@@ -2105,96 +2173,58 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
   }
 
   function renderStoreList(manualPriority = []) {
+    try{
+      // forceBlank: 生活圏が空のときは「未設定」固定で候補を出さない
+      if(db && db.config && db.config.forceBlank){
+        curStore = "未設定";
+        curStoreId = "";
+        const ind = document.getElementById('curStoreIndicator');
+        if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        const list = document.getElementById('store-list');
+        if(list) list.innerHTML = '';
+        return;
+      }
+    }catch(e){}
+
     db = normalizeDb(db);
     const list = document.getElementById('store-list');
     if(!list) return;
 
-    const freq = {};
-    const storePositions = {}; // 店名 → {lat, lng} のマップ（履歴から取得）
-    
-    Object.values(db.products).forEach(p => p.history?.forEach(h => {
-      // P0: userId分離（自分の履歴以外は店舗集計に入れない）
-      if (!(h && typeof h.userId === "string" && h.userId === currentUserId)) return;
-      if(!h.store || h.store === "未設定") return;
-      freq[h.store] = (freq[h.store] || 0) + 1;
-      // GPS位置情報があれば保存
-      if (h.lat && h.lng && !storePositions[h.store]) {
-        storePositions[h.store] = { lat: h.lat, lng: h.lng };
-      }
-    }));
-    
-    let sortedFreq = Object.keys(freq).sort((a,b) => freq[b] - freq[a]);
-    
-    // ✅ GPSが有効で位置情報がある場合、近い順に並び替え
-    if (isGpsOn && curPos && Object.keys(storePositions).length > 0) {
-      sortedFreq = sortedFreq.sort((a, b) => {
-        const distA = storePositions[a] ? calcDistance(curPos.lat, curPos.lng, storePositions[a].lat, storePositions[a].lng) : 999;
-        const distB = storePositions[b] ? calcDistance(curPos.lat, curPos.lng, storePositions[b].lat, storePositions[b].lng) : 999;
-        return distA - distB;
-      });
-    }
-    
-    const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
-    const customStores = db.config.customStores || [];
-    
-    // ✅ 近隣店舗候補を統合（nearbyStoreNames）
-    const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
-    
-    // ✅ 地域外ユーザー向けデフォルトストア
-    const defaultStores = ["カスミ", "ヨークベニマル", "タイヨー", "ウエルシア"];
-    
-    // ✅ 空なら プリセット + customStores を必ず表示
-    const allStores = [...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
-    
-    // ✅ ストアがない場合はデフォルトを追加（地域外ユーザー対策）
-    if (allStores.length <= 1) { // "未設定"のみの場合
-      allStores.push(...defaultStores);
-    }
-    
-    const finalSet = ["未設定", ...allStores];
-    
-    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
-    if (curStore === "未設定" && finalSet.length > 1) {
-      curStore = finalSet[1]; // 「未設定」以外の最初の候補
-      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
-    }
+    const city = (db && db.config) ? (db.config.homeCity || '') : '';
+    const opts = buildStoreOptions(city);
 
-    const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
-    list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
-
-    finalSet.forEach(name => {
+    // 表示順: master → gps（入力ミス防止のため、手入力ボタンは出さない）
+    list.innerHTML = '';
+    if(!opts.length){
       const span = document.createElement('span');
-      span.className = 'store-tag' + (name === curStore ? ' active' : '');
-      span.innerText = name;
-      span.onclick = () => {
-        document.querySelectorAll('.store-tag').forEach(s => s.classList.remove('active'));
+      span.className = 'text-muted small';
+      span.style.padding = '6px 2px';
+      span.innerText = 'ストア候補がありません（生活圏（市）を設定すると一覧が出ます）';
+      list.appendChild(span);
+      return;
+    }
+
+    opts.forEach(o=>{
+      const span = document.createElement('span');
+      span.className = 'store-tag';
+      span.innerText = o.storeName;
+
+      if(curStore === o.storeName){
         span.classList.add('active');
-        curStore = name;
+      }
+
+      span.onclick = () => {
+        curStore = o.storeName;
+        curStoreId = o.storeId || '';
+        try{ db.config.lastStoreId = curStoreId; db.config.lastStoreName = curStore; }catch(e){}
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
-        
-        // ✅ ストアの税別/税込既定値を自動反映
-        const storeTaxMode = db.config.storeTaxModes && db.config.storeTaxModes[curStore];
-        if (storeTaxMode) {
-          const taxModeId = storeTaxMode === "in" ? 'taxIn' : 'taxEx';
-          const taxEl = document.getElementById(taxModeId);
-          if (taxEl) {
-            taxEl.checked = true;
-            if (isDebug()) {
-              console.log('[StoreTaxMode] Auto-switch:', curStore, '→', storeTaxMode);
-              showToast(`税${storeTaxMode === "in" ? "込" : "別"}に自動切替`, 2000);
-            }
-          }
-        }
+        saveDb();
+        renderStoreList();
       };
+
       list.appendChild(span);
     });
-
-    const addBtn = document.createElement('span');
-    addBtn.className = 'store-tag add-store';
-    addBtn.innerText = '＋店名入力';
-    addBtn.onclick = () => promptAddStore();
-    list.appendChild(addBtn);
   }
 
   // ========= Home History =========
@@ -2912,7 +2942,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
             console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
           }
         }
-        const entry = { price: finalP, store: curStore, ts: Date.now(), userId: currentUserId };
+        const entry = { price: finalP, storeId: (curStoreId||""), store: curStore, ts: Date.now(), userId: currentUserId };
         if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
         p.history.push(entry);
         showToast("保存完了", 2000);
@@ -5057,8 +5087,10 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const __cityTrim = ((__cityEl ? __cityEl.value : '') || '').trim();
     if(__cityTrim === ''){
       try { localStorage.setItem('sp_city_force_blank', '1'); } catch(e){}
+      try { if (db && db.config) db.config.forceBlank = true; } catch(e){}
     } else {
       try { localStorage.removeItem('sp_city_force_blank'); } catch(e){}
+      try { if (db && db.config) db.config.forceBlank = false; } catch(e){}
     }
 
     const btn = document.getElementById('syncBtn');
@@ -5847,7 +5879,7 @@ function openDiagnostics(){
 
 
 
-// ===== PATCH v20.0.3 (ghostkill: forceBlank wins + startMigration explicit + mergeConfig override + city watcher hardened) =====
+// ===== PATCH v20.0.4 (ghostkill: forceBlank wins + startMigration explicit + mergeConfig override + city watcher hardened) =====
 (function(){
   // --- helpers ---
   function q(id){ return document.getElementById(id); }
@@ -5962,7 +5994,7 @@ function openDiagnostics(){
   }
 
 })();
-// ===== /PATCH v20.0.3 =====
+// ===== /PATCH v20.0.4 =====
 </script>
 
 </div>
