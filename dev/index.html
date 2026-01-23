@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v19.9.35
-  FULL_VERSION: v19.9.35 [UID_SCOPE_DEV1 + EXT_LOOKUP_ON]
+  VERSION: 19.9.35
+  FULL_VERSION: 19.9.35 [UID_SCOPE_DEV1 + EXT_LOOKUP_ON + DEBUG_NO_ALL]
 2026-01-23 12:46:01 JST
-  TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON：Yahoo/楽天/OFF）
+  TITLE: Smart Price dev｜購入履歴 userId 分離（外部検索ON／debugで全件は出さない）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: （push後に確定）
 2026-01-23_1246_uid-scope-dev1
@@ -13,7 +13,7 @@ CHANGES:
   - P0: 外部検索（Yahoo/楽天/OpenFoodFacts）を完全スキップ（物理遮断）
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_1357_uid-scope-dev1-exton
+BUILD_PARAM: ?b=2026-01-23_1411_uid-scope-dev2-exton
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -320,9 +320,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.34"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.34 [P0_DB_ONLY + UID_SCOPE_DEV1]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-01-23_1246_uid-scope-dev1"; // ヘッダーと一致させる
+    const APP_VERSION = "19.9.35"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "19.9.35 [UID_SCOPE_DEV1 + EXT_LOOKUP_ON + DEBUG_NO_ALL]"; // デバッグ用（詳細）
+    const BUILD_ID = "2026-01-23_1411_uid-scope-dev2-exton"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -416,7 +416,7 @@ function getOrCreateUserId() {
 const currentUserId = getOrCreateUserId();
 
 function shouldShowHistoryItem(h) {
-  if (isDebug()) return true;
+  // debug=1 でも全件表示にしない（スタッフ検証の事故防止）
   return !!(h && typeof h.userId === 'string' && h.userId === currentUserId);
 }
 
@@ -427,7 +427,6 @@ function filterHistoryForMe(history) {
 
 function lastHistoryForMe(history) {
   const arr = Array.isArray(history) ? history : [];
-  if (isDebug()) return arr.length ? arr[arr.length - 1] : null;
   for (let i = arr.length - 1; i >= 0; i--) {
     const h = arr[i];
     if (h && typeof h.userId === 'string' && h.userId === currentUserId) return h;
