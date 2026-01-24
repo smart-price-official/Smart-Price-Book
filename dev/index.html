@@ -1,12 +1,15 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.11DD
-  FULL_VERSION: v20.1.11DD [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
+  VERSION: v20.2.0B
+  FULL_VERSION: v20.2.0B [UIFIX + GPS-STRETCHFIX]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
+BUILD_PARAM: ?b=2026-01-24_1954_gps-stretchfix
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
+
+CHANGES:
+  - P0: 起動時にストア候補が無い場合、説明文スパンの高さでGPS/未設定タグが引き伸ばされるのを防止（.store-list に align-items:center を追加）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
@@ -35,7 +38,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
     .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
     .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
     .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 55px; }
-    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
+    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; align-items: center; }
     .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
     .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
     .store-tag.gps-btn { border: 1px solid #ff5252; color: #ff5252; }
@@ -186,7 +189,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
-<div style="background:#1e1e1e; padding:8px 10px; overflow-x:auto; min-height:55px; border-bottom:1px solid #333;"><div id="store-list" style="display:flex; gap:8px; align-items:center; height:35px;"></div></div>
+<div class="store-area"><div id="store-list" class="store-list"></div></div>
 
 <div class="container p-3">
   <div id="mainView">
@@ -390,7 +393,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 const VERSION_INFO = {
   NUM: APP_VERSION,
   FULL: FULL_VERSION,
-  BUILD: "2026-01-24_0000_uifix"
+  BUILD: "2026-01-24_1954_gps-stretchfix"
 };
 function applyVersionUI(){
   try {
@@ -404,7 +407,7 @@ function applyVersionUI(){
 document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-24_1954_gps-stretchfix"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -2272,45 +2275,46 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
     list.innerHTML = '';
 
-    // 0) GPSボタン（最初から正しいサイズで描画）
-    try {
+    // 0) GPSボタン（常に表示）
+    try{
       const gps = document.createElement('span');
-      // ここが肝：'store-tag' クラスを確実に先に付与してサイズを固定
-      gps.className = 'store-tag gps-btn d-inline-flex align-items-center justify-content-center'; 
-      gps.classList.add('gps-btn');
-      if (typeof isGpsOn !== 'undefined' && isGpsOn) gps.classList.add('on');
-      
+      gps.className = 'store-tag gps-btn';
+      if(typeof isGpsOn !== 'undefined' && isGpsOn) gps.classList.add('on');
       const gpsTxt = (typeof isGpsOn !== 'undefined' && isGpsOn)
         ? `GPS<span class="gps-status">●${(typeof lastGpsTime!=='undefined')?lastGpsTime:''}</span>`
         : `GPS<span class="gps-status">OFF</span>`;
       gps.innerHTML = gpsTxt;
-      gps.onclick = () => { try { toggleGps(); } catch (_e) {} };
+      gps.onclick = () => { try{ toggleGps(); }catch(_e){} };
       list.appendChild(gps);
-    } catch (e) { console.error("GPS描画エラー", e); }
+    }catch(e){}
 
-    // 1) 未設定ボタン（最初から表示させ、トグルを安定化）
-    try {
+    // 1) 未設定ボタン（ON固定にしない。選択されている時だけactive）
+    try{
       const u = document.createElement('span');
       u.className = 'store-tag';
       u.innerText = '未設定';
-      if (curStore === '未設定') u.classList.add('active');
+      if(curStore === '未設定') u.classList.add('active');
       u.onclick = () => {
-        if (curStore === '未設定') {
+        // トグル：もう一度押したら解除
+        if(curStore === '未設定'){
           curStore = '';
           curStoreId = '';
-          try { db.config.lastStoreName = ''; } catch (e) {}
-        } else {
+          try{ db.config.lastStoreId = ''; db.config.lastStoreName = ''; }catch(e){}
+          const ind = document.getElementById('curStoreIndicator');
+          if(ind) ind.innerText = '';
+        }else{
           curStore = '未設定';
           curStoreId = '';
-          try { db.config.lastStoreName = '未設定'; } catch (e) {}
+          try{ db.config.lastStoreId = ''; db.config.lastStoreName = '未設定'; }catch(e){}
+          const ind = document.getElementById('curStoreIndicator');
+          if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
         }
-        if (typeof saveDb === 'function') saveDb();
+        saveDb();
         renderStoreList();
-        const ind = document.getElementById('curStoreIndicator');
-        if (ind) ind.innerText = curStore ? `【 ${curStore} 】で保存します` : '';
       };
       list.appendChild(u);
-    } catch (e) { console.error("未設定描画エラー", e); }
+    }catch(e){}
+
     // 2) 候補が無い場合も、GPS/未設定は残したまま案内を出す
     if(!opts.length){
       const span = document.createElement('span');
@@ -4698,8 +4702,6 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
             }
             const prev = document.getElementById('previewImg') || document.getElementById('productImage');
             if (prev) {
-Use Control + Shift + m to toggle the tab key moving focus. Alternatively, use esc then tab to move to the next interactive element on the page.
-
               if (p.imageKey) {
                 try { await applyImageKeyToImg(prev, p.imageKey); } catch(e) {}
               } else if (finalInfo.imageUrl) {
