@@ -4,7 +4,7 @@ FILE: Smart-Price-Book/index.html
   VERSION: v20.2.0B
   FULL_VERSION: v20.2.0B [UIFIX + GPS-STRETCHFIX]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_1954_gps-stretchfix
+BUILD_PARAM: ?b=2026-01-24_2007_storebar-msgnowrap
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -30,7 +30,7 @@ CHANGES:
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.2.0</title>
+  <title>Smart Price v20.2.0B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -185,7 +185,7 @@ CHANGES:
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.2.0</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.2.0B</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -387,13 +387,13 @@ CHANGES:
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.2.0"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.2.0B";
+    const APP_VERSION = "v20.2.0B"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "v20.2.0B";
 // ===== VERSION SSOT =====
 const VERSION_INFO = {
   NUM: APP_VERSION,
   FULL: FULL_VERSION,
-  BUILD: "2026-01-24_1954_gps-stretchfix"
+  BUILD: "2026-01-24_2007_storebar-msgnowrap"
 };
 function applyVersionUI(){
   try {
@@ -407,7 +407,7 @@ function applyVersionUI(){
 document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-24_1954_gps-stretchfix"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-24_2007_storebar-msgnowrap"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -2318,9 +2318,15 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     // 2) 候補が無い場合も、GPS/未設定は残したまま案内を出す
     if(!opts.length){
       const span = document.createElement('span');
+      // ※案内文が折り返されると、起動直後だけストア帯が縦に太く見えることがあるため
+      //   1行固定（nowrap）＋小さめ文字で高さを増やさない
       span.className = 'text-muted small';
-      span.style.padding = '6px 2px';
-      span.innerText = 'ストア候補がありません（GPSを押す→近隣ストアが出ます）';
+      span.style.padding = '0 6px';
+      span.style.opacity = '0.65';
+      span.style.fontSize = '12px';
+      span.style.whiteSpace = 'nowrap';
+      span.style.lineHeight = '1.2';
+      span.textContent = 'ストア候補がありません（GPSを押す→近隣ストアが出ます）';
       list.appendChild(span);
       return;
     }
