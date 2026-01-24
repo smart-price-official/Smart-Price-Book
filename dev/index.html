@@ -4,7 +4,7 @@ FILE: Smart-Price-Book/index.html
   VERSION: v20.2.4B
   FULL_VERSION: v20.2.4B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2142_verlock-v20.2.4B
+BUILD_PARAM: ?b=2026-01-24_2234_webmodalfix-v20.2.4B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -291,7 +291,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
     <input type="hidden" id="fb-url-input">
 
     <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
-    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebSimple()">ブラウザで開く</button>
+    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザで開く</button>
     <button class="btn btn-outline-light w-100 py-2 fw-bold mb-2" onclick="openInviteModal('friend')">友人紹介</button>
     <button class="btn btn-outline-light w-100 py-2 fw-bold mb-2" onclick="openInviteModal('family')">家族共有</button>
     <button class="btn btn-outline-danger w-100 py-2 fw-bold mb-2" onclick="openAdminGate()">管理</button>
@@ -389,7 +389,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 const VERSION_INFO = {
   NUM: "20.2.4",
   REV: "B",
-  BUILD: "2026-01-24_2142_verlock-v20.2.4B",
+  BUILD: "2026-01-24_2234_webmodalfix-v20.2.4B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -409,7 +409,7 @@ document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-24_2142_verlock-v20.2.4B"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-24_2234_webmodalfix-v20.2.4B"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -6299,6 +6299,66 @@ async function runDiagGps(){
   }, { once:true });
 })();
 // ===== /PATCH v20.1.8B =====
+
+
+/* ===== PATCH v20.2.4B-webmodalfix (2026-01-24 22:34 JST) =====
+   - 設定→「ブラウザで開く」: openWebModalへ統一
+   - webModal内ボタン（開く/戻る）が効かない端末対策：onclick用関数を必ずwindowへ露出
+   - UIは変更しない（挙動のみ復旧）
+===== */
+(function(){
+  function buildShareUrl(){
+    try {
+      const base = window.location.origin + window.location.pathname;
+      const p = new URLSearchParams(window.location.search || '');
+      const b = p.get('b') || window.DEFAULT_BUILD || '';
+      if(!b) return base;
+      return base + '?b=' + encodeURIComponent(String(b));
+    } catch(e) {
+      try {
+        const base = window.location.href.split('#')[0].split('?')[0];
+        const b = window.DEFAULT_BUILD || '';
+        return b ? (base + '?b=' + encodeURIComponent(String(b))) : base;
+      } catch(_e) {
+        return window.location.href;
+      }
+    }
+  }
+
+  // web modal open/close
+  window.openWebModal = window.openWebModal || function(){
+    try {
+      const m = document.getElementById('webModal');
+      if(!m) return;
+      const n = document.getElementById('webUrlNormal');
+      if(n) n.value = buildShareUrl();
+      m.style.display = 'flex';
+    } catch(e) {}
+  };
+  window.closeWebModal = window.closeWebModal || function(){
+    try {
+      const m = document.getElementById('webModal');
+      if(m) m.style.display = 'none';
+    } catch(e) {}
+  };
+  window.openWebDirect = window.openWebDirect || function(){
+    try {
+      const url = buildShareUrl();
+      const w = window.open(url, '_blank', 'noopener,noreferrer');
+      if(!w) {
+        window.prompt('このURLをコピーして、ブラウザで開いてください', url);
+      }
+    } catch(e) {
+      try {
+        const url = buildShareUrl();
+        window.prompt('このURLをコピーして、ブラウザで開いてください', url);
+      } catch(_e) {}
+    }
+    try { window.closeWebModal(); } catch(e) {}
+  };
+
+})();
+/* ===== /PATCH v20.2.4B-webmodalfix ===== */
 
 </script>
 
