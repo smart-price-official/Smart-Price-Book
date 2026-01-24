@@ -2,7 +2,7 @@
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
   VERSION: v20.1.2-B
-  FULL_VERSION: v20.1.5B [GPSTOOL_STOREDEBUG + NOCONV]
+  FULL_VERSION: v20.1.7B [GPSTOOL_STOREDEBUG + NOCONV + FB_REASON]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -28,7 +28,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.1.2</title>
+  <title>Smart Price v20.1.2-B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -385,8 +385,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.1.2"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.1.2-B"; // デバッグ用（詳細）
+    const APP_VERSION = "v20.1.2-B"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "v20.1.2-B"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
@@ -442,13 +442,26 @@ POLICY: UI変更なし・スキャン周り一切触らない
   let firebaseDb = null;
   let currentAuthUid = null;
   let isFirebaseReady = false;
+  let firebaseDiag = {ready:false, code:"", message:"", detail:"", ts:""};
+  function setFirebaseDiag(ready, code, message, detail){
+    firebaseDiag = {ready:!!ready, code:code||"", message:message||"", detail:detail||"", ts:(new Date()).toISOString()};
+  }
+
 
   async function initializeFirebase() {
     try {
       if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey) {
         if (isDebug()) console.warn('[Firebase] Config not set, fallback to legacy mode');
+        setFirebaseDiag(false,"NO_CONFIG","Firebase設定が未設定です","");
         return false;
       }
+
+      if (typeof firebase === "undefined") {
+        if (isDebug()) console.warn("[Firebase] SDK not loaded");
+        setFirebaseDiag(false,"SDK_MISSING","Firebase SDKが読み込めていません","");
+        return false;
+      }
+
 
       // Firebase初期化
       firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
@@ -464,6 +477,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
       }
 
       isFirebaseReady = true;
+      setFirebaseDiag(true,"","OK","");
       if (isDebug()) {
         console.log('[Firebase] Initialized successfully');
         console.log('[Firebase] Auth UID:', currentAuthUid);
@@ -473,6 +487,10 @@ POLICY: UI変更なし・スキャン周り一切触らない
     } catch(e) {
       if (isDebug()) console.warn('[Firebase] Initialization failed:', e);
       isFirebaseReady = false;
+      const offline = (typeof navigator !== "undefined" && navigator.onLine === false);
+      const code = offline ? "OFFLINE" : "INIT_ERROR";
+      const msg  = offline ? "ネットワークOFF（機内モード/圏外の可能性）" : (e && e.message ? e.message : "初期化エラー");
+      setFirebaseDiag(false, code, msg, (e && e.stack ? String(e.stack) : String(e||"")));
       return false;
     }
   }
@@ -6165,6 +6183,12 @@ function updateDiagModal(){
       lines.push('LastFetch: (なし)');
     }
     lines.push(`nearbyStoreNames: ${names.length}件`);
+    lines.push(`Firebase: ${isFirebaseReady ? 'ON' : 'OFF'}`);
+    if(!isFirebaseReady){
+      lines.push(`FirebaseReason: ${firebaseDiag.code || '-'}`);
+      lines.push(`FirebaseMessage: ${firebaseDiag.message || '-'}`);
+    }
+
     st.textContent = lines.join('\n');
   }
 
