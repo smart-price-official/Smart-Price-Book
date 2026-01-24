@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.10B
-  FULL_VERSION: v20.1.10B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
+  VERSION: v20.2.0
+  FULL_VERSION: v20.2.0 [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
 DEBUG_PARAM: &debug=1
@@ -2272,45 +2272,46 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
     list.innerHTML = '';
 
-    // 0) GPSボタン（常に表示）
-    try{
+    // 0) GPSボタン（大きさと形を統一）
+    try {
       const gps = document.createElement('span');
-      gps.className = 'store-tag gps-btn';
-      if(typeof isGpsOn !== 'undefined' && isGpsOn) gps.classList.add('on');
+      // クラス名を 'store-tag' だけにすることで他のボタンと形を合わせます
+      gps.className = 'store-tag' + (typeof isGpsOn !== 'undefined' && isGpsOn ? ' gps-btn on' : ' gps-btn');
       const gpsTxt = (typeof isGpsOn !== 'undefined' && isGpsOn)
         ? `GPS<span class="gps-status">●${(typeof lastGpsTime!=='undefined')?lastGpsTime:''}</span>`
         : `GPS<span class="gps-status">OFF</span>`;
       gps.innerHTML = gpsTxt;
-      gps.onclick = () => { try{ toggleGps(); }catch(_e){} };
+      gps.onclick = () => { try { toggleGps(); } catch (_e) {} };
       list.appendChild(gps);
-    }catch(e){}
+    } catch (e) {}
 
-    // 1) 未設定ボタン（ON固定にしない。選択されている時だけactive）
-    try{
+    // 1) 未設定ボタン（トグルOFFを確実にする修正）
+    try {
       const u = document.createElement('span');
       u.className = 'store-tag';
       u.innerText = '未設定';
-      if(curStore === '未設定') u.classList.add('active');
+      if (curStore === '未設定') u.classList.add('active');
       u.onclick = () => {
-        // トグル：もう一度押したら解除
-        if(curStore === '未設定'){
+        // トグル判定を明確に：未設定なら空にする
+        if (curStore === '未設定') {
           curStore = '';
           curStoreId = '';
-          try{ db.config.lastStoreId = ''; db.config.lastStoreName = ''; }catch(e){}
-          const ind = document.getElementById('curStoreIndicator');
-          if(ind) ind.innerText = '';
-        }else{
+          try { db.config.lastStoreName = ''; } catch (e) {}
+        } else {
           curStore = '未設定';
           curStoreId = '';
-          try{ db.config.lastStoreId = ''; db.config.lastStoreName = '未設定'; }catch(e){}
-          const ind = document.getElementById('curStoreIndicator');
-          if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+          try { db.config.lastStoreName = '未設定'; } catch (e) {}
         }
-        saveDb();
+        // 状態を変えたら即時保存して再描画
+        if (typeof saveDb === 'function') saveDb();
         renderStoreList();
+        
+        // インジケーターの更新
+        const ind = document.getElementById('curStoreIndicator');
+        if (ind) ind.innerText = curStore ? `【 ${curStore} 】で保存します` : '';
       };
       list.appendChild(u);
-    }catch(e){}
+    } catch (e) {}
 
     // 2) 候補が無い場合も、GPS/未設定は残したまま案内を出す
     if(!opts.length){
