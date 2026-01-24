@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.8B
-  FULL_VERSION: v20.1.8B [CITY-MERGE-FIX + GPS-CANDIDATES]
+  VERSION: v20.1.9B
+  FULL_VERSION: v20.1.9B [CITY-MERGE-FIX + GPS-CANDIDATES]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -28,7 +28,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.1.8B</title>
+  <title>Smart Price v20.1.9B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -183,7 +183,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.1.0</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.1.9</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -385,8 +385,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "v20.1.8B"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "v20.1.8B"; // デバッグ用（詳細）
+    const APP_VERSION = "v20.1.9B"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "v20.1.9B"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
@@ -690,30 +690,8 @@ function lastHistoryForMe(history) {
   const STORE_MASTER_MODE = "EMBEDDED"; // "EMBEDDED" (B) -> "FIREBASE" (A) later
 
   // B運用: 埋め込みストアマスター（表示名はここが唯一の正解）
-  const STORE_MASTER_EMBEDDED = {
-    "土浦市": [
-      { storeId: "tsuchiura_kasumi_ekimae", storeName: "カスミ土浦駅前店", type: "super" },
-      { storeId: "tsuchiura_kasumi_araka", storeName: "カスミ ピアシティ荒川本郷店", type: "super" },
-      { storeId: "tsuchiura_york", storeName: "ヨークベニマル", type: "super" },
-      { storeId: "tsuchiura_taiyo", storeName: "タイヨー", type: "super" },
-      { storeId: "tsuchiura_marumo", storeName: "まるも", type: "super" },
-      { storeId: "tsuchiura_welcia", storeName: "ウエルシア", type: "drug" }
-    ],
-    "つくば市": [
-      { storeId: "tsukuba_kasumi_takezono", storeName: "カスミ つくば竹園店", type: "super" },
-      { storeId: "tsukuba_york_takezono", storeName: "ヨークベニマル つくば竹園店", type: "super" },
-      { storeId: "tsukuba_lopia", storeName: "ロピア つくば店", type: "super" },
-      { storeId: "tsukuba_taiyo", storeName: "タイヨー", type: "super" },
-      { storeId: "tsukuba_welcia", storeName: "ウエルシア", type: "drug" }
-    ],
-    "東海村": [
-      { storeId: "tokai_kasumi", storeName: "カスミ東海店", type: "super" },
-      { storeId: "tokai_york", storeName: "ヨークベニマル東海店", type: "super" },
-      { storeId: "tokai_aeon", storeName: "イオン東海店", type: "super" }
-    ]
-  };
-
-  // 旧プリセットは使用しない（互換のため空に固定）
+  const STORE_MASTER_EMBEDDED = {}; // v20.1.9B: 生活圏の固定リストは廃止（GPS/実績から自動作成）
+// 旧プリセットは使用しない（互換のため空に固定）
   const CITY_STORE_PRESET = {};
 
   function _normStoreName(s){
@@ -730,35 +708,60 @@ function lastHistoryForMe(history) {
       return prefix + "_" + Math.random().toString(36).slice(2);
     }
   }
-  function getStoreMasterByCity(city){
-    const c = _normStoreName(city);
-    const arr = STORE_MASTER_EMBEDDED[c];
-    return Array.isArray(arr) ? arr.slice() : [];
-  }
-  function buildStoreOptions(city){
-    const opts = [];
-    const seen = new Set();
+  
+function getStoreMasterByCity(city){
+  // v20.1.9B: 固定の市別ストア辞書は使わない（誤差が大きく、ユーザー体験が悪い）
+  return [];
+}
 
-    // 1) 生活圏（市）の公式候補
-    const master = getStoreMasterByCity(city);
-    master.forEach(o=>{
-      const key = _normStoreName(o.storeName);
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      opts.push({ storeId: o.storeId, storeName: o.storeName, source: "master" });
+function buildStoreOptions(city){
+  // v20.1.9B: ストア候補は「GPSで拾った店名」＋「自分の購入実績からの店名」だけ
+  const opts = [];
+  const seen = new Set();
+
+  const norm = _normStoreName;
+  const add = (id, name, source) => {
+    const key = norm(name);
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    opts.push({ storeId: id || _hashStoreId(source||'auto', key), storeName: key, source: source||'auto' });
+  };
+
+  // 1) 自分の購入実績（履歴）から店名を抽出（頻度→最新順）
+  try{
+    const freq = new Map();
+    const last = new Map();
+
+    const products = (db && db.products) ? db.products : {};
+    Object.keys(products).forEach(jan=>{
+      const p = products[jan];
+      if(!p || !Array.isArray(p.history)) return;
+      const safe = filterHistoryForMe(p.history);
+      safe.forEach(h=>{
+        const s = norm(h && (h.store || h.storeName || ''));
+        if(!s || s === '未設定') return;
+        freq.set(s, (freq.get(s)||0) + 1);
+        const t = Number(h.ts||0);
+        if(!last.has(s) || t > last.get(s)) last.set(s, t);
+      });
     });
 
-    // 2) GPS近隣候補（名前だけ）→ 表記を整えて追加
-    const nearby = (Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : []).map(_normStoreName).filter(Boolean);
-    nearby.forEach(name=>{
-      const key = _normStoreName(name);
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      opts.push({ storeId: _hashStoreId("gps", key), storeName: key, source: "gps" });
+    const ranked = Array.from(freq.keys()).sort((a,b)=>{
+      const fa=freq.get(a)||0, fb=freq.get(b)||0;
+      if(fb!==fa) return fb-fa;
+      const ta=last.get(a)||0, tb=last.get(b)||0;
+      return tb-ta;
     });
 
-    return opts;
-  }
+    ranked.slice(0, 24).forEach(name => add(_hashStoreId('hist', name), name, 'hist'));
+  }catch(e){ /* ignore */ }
+
+  // 2) GPS近隣候補（名前だけ）
+  const nearby = (Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : []).map(norm).filter(Boolean);
+  nearby.forEach(name => add(_hashStoreId("gps", name), name, "gps"));
+
+  return opts;
+}
 ;
 
   // ========= Image Store (IndexedDB) =========
@@ -3803,44 +3806,29 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         
         const json = await res.json();
         try{ window.__lastStoresFetch.raw = json; }catch(_e){}
-        if (json && json.ok && Array.isArray(json.stores)) {
-          if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
-          // ✅ trim() + 空要素除去
-                    const raw = Array.isArray(json.stores) ? json.stores : [];
-          const denyNameRe = /(セブン|ファミリーマート|ローソン|ミニストップ|デイリーヤマザキ|ポプラ)/;
-          const allowNameRe = /(カスミ|ヨークベニマル|タイヨー|イオン|ロピア|ベイシア|業務スーパー|マミーマート|コープ|西友|ヤオコー|オーケー|トライアル|ドン・キホーテ|ウエルシア|ツルハ|マツキヨ|カワチ|スギ薬局)/;
 
-          const pick = (s) => {
-            const kind = String(s.kind || '').toLowerCase();
-            const name = String(s.name || '').trim();
-            if (!name) return false;
-            if (denyNameRe.test(name)) return false;
-            if (kind === 'convenience') return false;
-            // pharmacyは基本除外。ただし「ウエルシア」等のドラッグ系は残す
-            if (kind === 'pharmacy' && !allowNameRe.test(name)) return false;
-            // まずは「スーパー」優先＋主要チェーン
-            return (kind === 'supermarket') || allowNameRe.test(name);
-          };
+        // v20.1.9B: 返り値の形ゆれを許容（ok/stores以外でも拾う）
+        const list = (() => {
+          if (Array.isArray(json)) return json;
+          if (!json) return [];
+          if (Array.isArray(json.stores)) return json.stores;
+          if (Array.isArray(json.results)) return json.results;
+          if (json.data && Array.isArray(json.data.stores)) return json.data.stores;
+          return [];
+        })();
 
-          let names = raw.filter(pick).map(s => String(s.name || '').trim()).filter(n => n.length > 0);
+        const denyNameRe = /(セブン|ファミリーマート|ローソン|ミニストップ|デイリーヤマザキ|ポプラ)/;
+        const pickName = (s) => {
+          const name = String((s && (s.name || s.storeName || s.title)) || '').trim();
+          if (!name) return null;
+          if (denyNameRe.test(name)) return null; // コンビニだけ除外
+          return name;
+        };
 
-          // もし0件なら「コンビニだけ除外」で広めに拾う（地方でスーパー判定が弱い場合の保険）
-          if (names.length === 0) {
-            names = raw
-              .filter(s => {
-                const kind = String(s.kind || '').toLowerCase();
-                const name = String(s.name || '').trim();
-                if (!name) return false;
-                if (denyNameRe.test(name)) return false;
-                return kind !== 'convenience';
-              })
-              .map(s => String(s.name || '').trim())
-              .filter(n => n.length > 0);
-          }
+        let names = list.map(pickName).filter(Boolean);
 
-          return names;
-        }
-        return [];
+        // 0件ならそのまま空で返す（上位で手入力誘導）
+        return names;
       }
 
       // 優先順位2: 生活圏（area）
