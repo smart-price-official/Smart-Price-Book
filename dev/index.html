@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.11B
-  FULL_VERSION: v20.1.11B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
+  VERSION: v20.1.10B
+  FULL_VERSION: v20.1.10B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
 DEBUG_PARAM: &debug=1
@@ -27,7 +27,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.1.11B</title>
+  <title>Smart Price 20.2.0</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -182,7 +182,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.1.9</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.2.0</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -343,7 +343,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
     
     <div class="mb-3">
       <label class="small text-secondary">Yahoo Proxy URL（GAS）※GPSで近隣ストア名を出すため（管理のみ）</label>
-      <textarea id="adminProxyUrl" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" placeholder="https://script.google.com/macros/s/.../exec"></textarea>
+      <textarea id="adminProxyUrl" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" placeholder="https://script.google.com/macros/s//exec"></textarea>
       <div class="d-flex gap-2">
         <button class="btn btn-outline-light w-50" onclick="saveProxyUrl()">保存</button>
         <button class="btn btn-outline-secondary w-50" onclick="clearProxyUrl()">消す</button>
@@ -384,8 +384,26 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "v20.1.11B"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "v20.1.11B"; // デバッグ用（詳細）
+    const APP_VERSION = "20.2.0"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.2.0B";
+// ===== VERSION SSOT =====
+const VERSION_INFO = {
+  NUM: APP_VERSION,
+  FULL: FULL_VERSION,
+  BUILD: "2026-01-24_0000_uifix"
+};
+function applyVersionUI(){
+  try {
+    document.title = "Smart Price " + VERSION_INFO.NUM;
+    const badge = document.getElementById("version-badge");
+    if (badge) badge.textContent = VERSION_INFO.NUM;
+    const fv = document.getElementById("full-version");
+    if (fv) fv.textContent = VERSION_INFO.FULL;
+  } catch(e) {}
+}
+document.addEventListener("DOMContentLoaded", applyVersionUI);
+// ===== /VERSION SSOT =====
+ // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
@@ -546,7 +564,7 @@ function lastHistoryForMe(history) {
     // ✅ P0修正: エラーログを追加する関数
     function addErrorLog(errorInfo) {
       errorLogs.push({
-        ...errorInfo,
+        errorInfo,
         timestamp: errorInfo.timestamp || new Date().toISOString()
       });
       // 最大件数を超えたら古いものを削除
@@ -996,7 +1014,7 @@ function buildStoreOptions(city){
         const images = [];
         for (const [imageId, record] of Object.entries(data)) {
           if (record && typeof record === 'object' && record.imageUrl) {
-            images.push({ imageId, ...record });
+            images.push({ imageId, record });
           }
         }
         
@@ -1020,7 +1038,7 @@ function buildStoreOptions(city){
       const images = [];
       for (const [imageId, record] of Object.entries(data)) {
         if (record && typeof record === 'object' && record.imageUrl) {
-          images.push({ imageId, ...record });
+          images.push({ imageId, record });
         }
       }
       return images;
@@ -1315,7 +1333,7 @@ function buildStoreOptions(city){
     try {
       const userProfile = getUserProfile();
       const cacheData = {
-        ...data,
+        data,
         cachedAt: Date.now(),
         areaId: data.areaId || (userProfile ? userProfile.areaId : null)
       };
@@ -1329,7 +1347,7 @@ function buildStoreOptions(city){
 
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "", curStoreId = "";
+  let curBarcode = null, curStore = "未設定", curStoreId = "";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -1380,7 +1398,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         try{ window.__lastStoresFetch.raw = json; }catch(_e){}
         window.SP_CONFIG = json || {};
         if (isDebug()) {
-          showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}...`, 5000);
+          showToast(`[Config] Loaded OK: ${JSON.stringify(json).substring(0, 100)}`, 5000);
           console.log('[Config] Loaded:', window.SP_CONFIG);
         }
       } else {
@@ -1659,13 +1677,13 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     });
 
     if (o.config.homeCity) {
-      o.config.homeCities = [o.config.homeCity, ...o.config.homeCities.filter(c => c !== o.config.homeCity)].slice(0, 5);
+      o.config.homeCities = [o.config.homeCity, o.config.homeCities.filter(c => c !== o.config.homeCity)].slice(0, 5);
     }
 
     o.config.customStores = (o.config.customStores || [])
       .filter(s => typeof s === "string" && s.trim())
       .map(s => s.trim());
-    o.config.customStores = [...new Set(o.config.customStores)].slice(0, 20);
+    o.config.customStores = [new Set(o.config.customStores)].slice(0, 20);
 
     return o;
   }
@@ -1760,7 +1778,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const signal = options.signal || internalController.signal;
     const id = setTimeout(() => internalController.abort(), timeout);
     try {
-      const response = await fetch(resource, { cache: 'no-store', ...options, signal });
+      const response = await fetch(resource, { cache: 'no-store', options, signal });
       clearTimeout(id);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response;
@@ -1909,9 +1927,9 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if (!out.lastTax && lc.lastTax) out.lastTax = lc.lastTax;
 
     // homeCities/customStoresはユニオン
-    const hc = [...new Set([...(Array.isArray(out.homeCities)?out.homeCities:[]), ...(Array.isArray(lc.homeCities)?lc.homeCities:[])])].filter(Boolean).slice(0,5);
+    const hc = [new Set([(Array.isArray(out.homeCities)?out.homeCities:[]), (Array.isArray(lc.homeCities)?lc.homeCities:[])])].filter(Boolean).slice(0,5);
     out.homeCities = hc;
-    const cs = [...new Set([...(Array.isArray(out.customStores)?out.customStores:[]), ...(Array.isArray(lc.customStores)?lc.customStores:[])])].filter(Boolean).slice(0,20);
+    const cs = [new Set([(Array.isArray(out.customStores)?out.customStores:[]), (Array.isArray(lc.customStores)?lc.customStores:[])])].filter(Boolean).slice(0,20);
     out.customStores = cs;
 
     // categoryTreeは"欠けを補う"
@@ -1923,7 +1941,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         // サブカテゴリを補完
         const a = Array.isArray(out.categoryTree[cat]) ? out.categoryTree[cat] : [];
         const b = Array.isArray(ltree[cat]) ? ltree[cat] : [];
-        out.categoryTree[cat] = [...new Set([...a,...b])];
+        out.categoryTree[cat] = [new Set([a,b])];
       }
     });
 
@@ -1935,7 +1953,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const cd = normalizeDb(deepClone(cloudDb || {}));
 
     const merged = { products:{}, config:{} };
-    const keys = new Set([...Object.keys(ld.products||{}), ...Object.keys(cd.products||{})]);
+    const keys = new Set([Object.keys(ld.products||{}), Object.keys(cd.products||{})]);
 
     keys.forEach(code => {
       merged.products[code] = mergeProduct(ld.products[code], cd.products[code]);
@@ -2177,13 +2195,13 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       // ✅ DEFAULT_CATEGORY_TREEから取得して、db.config.categoryTreeに保存
       list = DEFAULT_CATEGORY_TREE[cat];
       if (!db.config.categoryTree) db.config.categoryTree = {};
-      db.config.categoryTree[cat] = [...list];
+      db.config.categoryTree[cat] = [list];
       saveLocalOnly(); // 保存して次回から使えるように
     } else {
       list = ["その他"];
     }
     
-    if (!list.includes("その他")) list = [...list, "その他"];
+    if (!list.includes("その他")) list = [list, "その他"];
 
     sub.style.display = 'block';
     sub.innerHTML = `<option value="__NONE__">サブカテゴリを選ぶ</option>` +
@@ -2214,7 +2232,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     db = normalizeDb(db);
     const s = (name || "").trim();
     if (!s) return;
-    db.config.customStores = [s, ...(db.config.customStores || []).filter(x => x !== s)].slice(0, 20);
+    db.config.customStores = [s, (db.config.customStores || []).filter(x => x !== s)].slice(0, 20);
     saveLocalOnly();
     syncFirebasePut();
   }
@@ -2236,12 +2254,12 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     try{
       // forceBlankでも候補表示は維持する（GPS/実績から候補を出す）
       if(db && db.config && db.config.forceBlank){
-        if(!curStore || curStore === "" ){
-          curStore = "未設定";
-          curStoreId = "";
-        }
+        // ※forceBlank中でも、未設定を自動で選択しない（ユーザー操作のみでactiveにする）
         const ind = document.getElementById('curStoreIndicator');
-        if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        if(ind){
+          if(curStore && curStore !== "") ind.innerText = `【 ${curStore} 】で保存します`;
+          else ind.innerText = "";
+        }
       }
     }catch(e){}
 
@@ -2274,7 +2292,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       u.innerText = '未設定';
       if(curStore === '未設定') u.classList.add('active');
       u.onclick = () => {
-        // トグル：もう一度押したら「未選択」に戻す（ON固定を防ぐ）
+        // トグル：もう一度押したら解除
         if(curStore === '未設定'){
           curStore = '';
           curStoreId = '';
@@ -2368,7 +2386,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       const p = db.products[k] || {};
       const last = lastHistoryForMe(p.history);
       const lastT = last ? (histTs(last) || 0) : 0;
-      return { code: k, ...p, __last: last, __lastT: lastT };
+      return { code: k, p, __last: last, __lastT: lastT };
     });
     items.sort((a,b) => (b.__lastT || 0) - (a.__lastT || 0));
 
@@ -2602,14 +2620,14 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
       const catVal = p.category || "__NONE__";
       if (catSel) {
-        catSel.value = ([...catSel.options].some(o => o.value === catVal)) ? catVal : "__NONE__";
+        catSel.value = ([catSel.options].some(o => o.value === catVal)) ? catVal : "__NONE__";
       }
 
       if (catVal && catVal !== "__NONE__") {
         initSubCategorySelect(catVal);
         const subVal = p.subCategory || "__NONE__";
         if (subSel) {
-          subSel.value = ([...subSel.options].some(o => o.value === subVal)) ? subVal : "__NONE__";
+          subSel.value = ([subSel.options].some(o => o.value === subVal)) ? subVal : "__NONE__";
         }
       } else {
         if (subSel) subSel.style.display = 'none';
@@ -2872,7 +2890,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if (!Array.isArray(safe) || safe.length === 0) { box.innerHTML = "過去データなし"; return; }
     const pArr = safe.map(h => h.price);
     const avg = Math.floor(pArr.reduce((a,b)=>a+b,0)/pArr.length);
-    const low = Math.min(...pArr);
+    const low = Math.min(pArr);
     const last = pArr[pArr.length-1];
     box.innerHTML = `<div class="stats-row">
       <div class="stat-item">平均<span class="stat-val">${avg}円</span></div>
@@ -2888,7 +2906,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     const safeHistory = Array.isArray(history) ? history : [];
     let shown = 0;
 
-    [...safeHistory].reverse().forEach((h, idx) => {
+    [safeHistory].reverse().forEach((h, idx) => {
       if (!shouldShowHistoryItem(h)) return;
       shown++;
       const row = document.createElement('div');
@@ -3403,7 +3421,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
       // ✅ デバッグ: OFF検索開始
       if (isDebug()) {
-        showToast(`[OFF] Fetching...`, 3000);
+        showToast(`[OFF] Fetching`, 3000);
         console.log("[OFF] JAN:", jan);
       }
 
@@ -3536,7 +3554,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
               };
 
               if (isDebug()) {
-                showToast(`[OFF] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+                showToast(`[OFF] OK name=${result.name ? result.name.substring(0, 20) + '' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
                 console.log("[OFF] Found:", result);
               }
 
@@ -3592,7 +3610,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
       // ✅ デバッグ: 楽天検索開始
       if (isDebug()) {
-        showToast(`[楽天] Fetching...`, 3000);
+        showToast(`[楽天] Fetching`, 3000);
         console.log("[Rakuten] JAN:", jan, "Keyword:", keyword);
       }
 
@@ -3686,7 +3704,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           };
 
           if (isDebug()) {
-            showToast(`[楽天] OK name=${result.name ? result.name.substring(0, 20) + '...' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
+            showToast(`[楽天] OK name=${result.name ? result.name.substring(0, 20) + '' : '(empty)'} brand=${result.maker || '(empty)'} img=${result.imageUrl ? 'OK' : '(empty)'}`, 5000);
             console.log("[Rakuten] Found:", result);
           }
 
@@ -3974,7 +3992,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
     if (isDebug()) {
       showToast("カメラ起動中…", 2000);
-      console.log("[Scanner] Starting scanner...");
+      console.log("[Scanner] Starting scanner");
     }
     
     try {
@@ -4517,7 +4535,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         
         // history をマージ
         if (Array.isArray(mp.history) && mp.history.length > 0) {
-          jp.history = [...(jp.history || []), ...mp.history];
+          jp.history = [(jp.history || []), mp.history];
           // タイムスタンプでソート
           jp.history.sort((a, b) => histTs(a) - histTs(b));
         }
@@ -4691,7 +4709,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           }
 
           if (isDebug()) {
-            showToast(`[DB] 使用: ${(finalInfo.name || '').substring(0, 20)}...`, 2500);
+            showToast(`[DB] 使用: ${(finalInfo.name || '').substring(0, 20)}`, 2500);
             console.log("[ProcessBarcode] DB hit:", p);
           }
 
@@ -4728,7 +4746,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           }
 
           if (isDebug()) {
-            showToast(`[キャッシュ] 使用: ${finalInfo.name.substring(0, 20)}...`, 3000);
+            showToast(`[キャッシュ] 使用: ${finalInfo.name.substring(0, 20)}`, 3000);
             console.log("[ProcessBarcode] Cache hit:", cachedData);
           }
 
@@ -4985,7 +5003,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
               if (mNormalized === normalized) {
                 // 統合：history と imageKey をマージ
                 if (Array.isArray(mp.history) && mp.history.length > 0) {
-                  p.history = [...(p.history || []), ...mp.history];
+                  p.history = [(p.history || []), mp.history];
                 }
                 if (mp.imageKey && !p.imageKey) {
                   p.imageKey = mp.imageKey;
@@ -5701,6 +5719,7 @@ function openWebDirect(){
 
 // ====== 管理メニュー（合言葉）
 function openAdminGate(){
+  try{ window.openAdminGate = openAdminGate; }catch(e){}
   const m = document.getElementById('adminGateModal');
   if(!m) return;
   const inp = document.getElementById('adminPassInput');
@@ -5876,29 +5895,6 @@ function openDiagnostics(){
     el.addEventListener('blur', handler);
   }
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(attachCityWatcher, 0));
-  // P0: 設定メニューの onclick が「未定義/途中エラー」で沈まないように安全ラッパーを先に用意（UIは変えない）
-  try{
-    if(typeof window.openWebSimple !== 'function'){
-      window.openWebSimple = function(){
-        try{
-          const url = window.location.href.split('#')[0].split('?')[0] + (window.DEFAULT_BUILD ? ('?b=' + encodeURIComponent(String(window.DEFAULT_BUILD))) : '');
-          const w = window.open(url, '_blank', 'noopener,noreferrer');
-          if(!w) window.prompt('このURLをコピーして、ブラウザで開いてください', url);
-        }catch(e){
-          try{ window.prompt('このURLをコピーして、ブラウザで開いてください', String(window.location.href)); }catch(_e){}
-        }
-      };
-    }
-    if(typeof window.openInviteModal !== 'function'){
-      window.openInviteModal = function(_kind){
-        try{ const m=document.getElementById('inviteModal'); if(m) m.style.display='flex'; }catch(_e){}
-      };
-    }
-    // HTML属性の onclick から直接参照される名前を必ず作る
-    if(typeof window.openWebSimple === 'function' && typeof openWebSimple !== 'function') { window.openWebSimple = window.openWebSimple; }
-    if(typeof window.openInviteModal === 'function' && typeof openInviteModal !== 'function') { window.openInviteModal = window.openInviteModal; }
-  }catch(e){}
-
 
   // 3) normalizeDb: force_blankなら最後に必ず上書き（homeCities再生成も潰す）
   const _orig_normalizeDb = (typeof normalizeDb === 'function') ? normalizeDb : null;
