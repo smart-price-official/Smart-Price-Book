@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.2-B
-  FULL_VERSION: v20.1.7B [GPSTOOL_STOREDEBUG + NOCONV + FB_REASON]
+  VERSION: v20.1.8B
+  FULL_VERSION: v20.1.8B [CITY-MERGE-FIX + GPS-CANDIDATES]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -28,7 +28,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.1.2-B</title>
+  <title>Smart Price v20.1.8B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -385,8 +385,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "v20.1.2-B"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "v20.1.2-B"; // デバッグ用（詳細）
+    const APP_VERSION = "v20.1.8B"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "v20.1.8B"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
@@ -442,26 +442,13 @@ POLICY: UI変更なし・スキャン周り一切触らない
   let firebaseDb = null;
   let currentAuthUid = null;
   let isFirebaseReady = false;
-  let firebaseDiag = {ready:false, code:"", message:"", detail:"", ts:""};
-  function setFirebaseDiag(ready, code, message, detail){
-    firebaseDiag = {ready:!!ready, code:code||"", message:message||"", detail:detail||"", ts:(new Date()).toISOString()};
-  }
-
 
   async function initializeFirebase() {
     try {
       if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey) {
         if (isDebug()) console.warn('[Firebase] Config not set, fallback to legacy mode');
-        setFirebaseDiag(false,"NO_CONFIG","Firebase設定が未設定です","");
         return false;
       }
-
-      if (typeof firebase === "undefined") {
-        if (isDebug()) console.warn("[Firebase] SDK not loaded");
-        setFirebaseDiag(false,"SDK_MISSING","Firebase SDKが読み込めていません","");
-        return false;
-      }
-
 
       // Firebase初期化
       firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
@@ -477,7 +464,6 @@ POLICY: UI変更なし・スキャン周り一切触らない
       }
 
       isFirebaseReady = true;
-      setFirebaseDiag(true,"","OK","");
       if (isDebug()) {
         console.log('[Firebase] Initialized successfully');
         console.log('[Firebase] Auth UID:', currentAuthUid);
@@ -487,10 +473,6 @@ POLICY: UI変更なし・スキャン周り一切触らない
     } catch(e) {
       if (isDebug()) console.warn('[Firebase] Initialization failed:', e);
       isFirebaseReady = false;
-      const offline = (typeof navigator !== "undefined" && navigator.onLine === false);
-      const code = offline ? "OFFLINE" : "INIT_ERROR";
-      const msg  = offline ? "ネットワークOFF（機内モード/圏外の可能性）" : (e && e.message ? e.message : "初期化エラー");
-      setFirebaseDiag(false, code, msg, (e && e.stack ? String(e.stack) : String(e||"")));
       return false;
     }
   }
@@ -1633,13 +1615,21 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     o.config.categories = Object.keys(o.config.categoryTree);
 
     if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
-    // P0: forceBlankが有効なら、空の状態を「正」として勝たせる（デフォルト復活を禁止）
-    if (o.config && o.config.forceBlank) {
-      o.config.homeCity = "";
-      o.config.homeCities = [];
-    } else {
+    // P0: forceBlank（市を空にしたい意思）を尊重。ただし「市が入力されたら forceBlank は自動解除」。
+    if (o.config) {
+      const _hc = (typeof o.config.homeCity === "string") ? o.config.homeCity.trim() : "";
+      if (o.config.forceBlank) {
+        if (_hc) {
+          // 入力がある＝空にしたい意思ではない → 自動解除（ここが肝）
+          o.config.forceBlank = false;
+        } else {
+          // 空にしたい意思がある → 空を勝たせ、履歴チップも消す
+          o.config.homeCity = "";
+          o.config.homeCities = [];
+        }
+      }
       if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
-      if (!Array.isArray(o.config.homeCities)) o.config.homeCities = (o.config.forceBlank ? [] : (o.config.homeCity ? [o.config.homeCity] : []));
+      if (!Array.isArray(o.config.homeCities)) o.config.homeCities = (o.config.homeCity ? [o.config.homeCity] : []);
     }
     if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
@@ -2242,15 +2232,15 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   function renderStoreList(manualPriority = []) {
     try{
-      // forceBlank: 生活圏が空のときは「未設定」固定で候補を出さない
+      // forceBlankでも「候補ゼロ固定」にしない（GPS候補は出す）。
+      // ただし、未選択のときは保存先を「未設定」にしておく。
       if(db && db.config && db.config.forceBlank){
-        curStore = "未設定";
-        curStoreId = "";
+        if(!curStore || curStore === "" ){
+          curStore = "未設定";
+          curStoreId = "";
+        }
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
-        const list = document.getElementById('store-list');
-        if(list) list.innerHTML = '';
-        return;
       }
     }catch(e){}
 
@@ -2267,7 +2257,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       const span = document.createElement('span');
       span.className = 'text-muted small';
       span.style.padding = '6px 2px';
-      span.innerText = 'ストア候補がありません（生活圏（市）を設定すると一覧が出ます）';
+      span.innerText = 'ストア候補がありません（①GPSを押す ②または生活圏（市）を設定）';
       list.appendChild(span);
       return;
     }
@@ -5260,6 +5250,23 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         if (cloud0 && cloud0.products) {
           db = mergeDb(db, cloud0); // ✅ マージ方式で画像情報が消えない
           saveLocalOnly();
+
+          // ★P0: ここで「今入力した生活圏（市）」を必ず勝たせる（クラウドが古い/空でも戻さない）
+          try{
+            const _nowCity = String(cityInput || '').trim();
+            if(!db.config) db.config = {};
+            if(_nowCity){
+              db.config.homeCity = _nowCity;
+              db.config.forceBlank = false;
+              try{ localStorage.removeItem('sp_city_force_blank'); }catch(_e){}
+            }else{
+              db.config.homeCity = '';
+              db.config.forceBlank = true;
+              try{ localStorage.setItem('sp_city_force_blank','1'); }catch(_e){}
+            }
+            db = normalizeDb(db);
+            saveLocalOnly();
+          }catch(_e){}
         }
       } catch(e) {
         // 読めなくても続行
@@ -6138,7 +6145,7 @@ function openDiagnostics(){
 })();
 // ===== /PATCH v20.0.4 =====
 
-// ===== PATCH v20.1.5B: Diagnostics Modal (GPS→Store candidates) =====
+// ===== PATCH v20.1.8B: Diagnostics Modal (GPS→Store candidates) =====
 function __diagEscapeHtml(s){
   return String(s||'').replace(/[&<>"]/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));
 }
@@ -6183,12 +6190,6 @@ function updateDiagModal(){
       lines.push('LastFetch: (なし)');
     }
     lines.push(`nearbyStoreNames: ${names.length}件`);
-    lines.push(`Firebase: ${isFirebaseReady ? 'ON' : 'OFF'}`);
-    if(!isFirebaseReady){
-      lines.push(`FirebaseReason: ${firebaseDiag.code || '-'}`);
-      lines.push(`FirebaseMessage: ${firebaseDiag.message || '-'}`);
-    }
-
     st.textContent = lines.join('\n');
   }
 
@@ -6249,7 +6250,7 @@ async function runDiagGps(){
     }
   }, { once:true });
 })();
-// ===== /PATCH v20.1.5B =====
+// ===== /PATCH v20.1.8B =====
 
 </script>
 
