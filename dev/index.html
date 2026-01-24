@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.5B
-  FULL_VERSION: v20.2.5B [VERLOCK SSOT]
+  VERSION: v20.2.6B
+  FULL_VERSION: v20.2.6B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix-v20.2.5B
+BUILD_PARAM: ?b=2026-01-25_0005_settingsbtnfix2-v20.2.6B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -27,7 +27,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.2.5</title>
+  <title>Smart Price 20.2.6</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -387,13 +387,13 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.2.5",
+  NUM: "20.2.6",
   REV: "B",
-  BUILD: "2026-01-24_2359_settingsbtnfix-v20.2.5B",
+  BUILD: "2026-01-25_0005_settingsbtnfix2-v20.2.6B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
-const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.2.5B
+const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.2.6B
 
 function applyVersionUI(){
   try {
@@ -409,7 +409,7 @@ document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-24_2359_settingsbtnfix-v20.2.5B"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-25_0005_settingsbtnfix2-v20.2.6B"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -6360,45 +6360,105 @@ async function runDiagGps(){
 })();
 /* ===== /PATCH v20.2.5B-webmodalfix ===== */
 
-/* ===== PATCH v20.2.5B-settingsbtnfix (2026-01-24 23:55 JST) =====
-- 設定内の下段ボタン（ブラウザで開く/友人紹介/家族共有/管理）が「全滅」する対策
-- inline onclick から確実に呼べるように、必要関数を window に明示的に固定
-- UI変更なし（挙動のみ復旧）
+/* ===== PATCH v20.2.6B-settingsbtnfix2 (2026-01-25 00:05 JST) =====
+- 設定内の下段ボタン（ブラウザで開く/友人紹介/家族共有/管理）が反応しない問題を修正
+- no-op（空の関数）で上書きしてしまうケースを回避し、onclick名を実装へ確実に接続
+- UI変更なし（見た目そのまま）
 ===== */
+
 (function(){
   try{
-    // 既に存在するものは尊重しつつ、未定義なら no-op で ReferenceError を防ぐ
-    if(typeof window.openWebModal !== 'function') window.openWebModal = function(){};
-    if(typeof window.closeWebModal !== 'function') window.closeWebModal = function(){};
-    if(typeof window.openWebDirect !== 'function') window.openWebDirect = function(){};
+    const isNoop = (fn) => {
+      try {
+        if(typeof fn !== 'function') return false;
+        const s = (fn.toString() || '').replace(/\s+/g,' ').trim();
+        return (s === 'function(){}' || s === 'function () {}' || (s.includes('{}') && s.length < 40));
+      } catch(e) { return false; }
+    };
 
-    if(typeof window.startMigration !== 'function' && typeof startMigration === 'function') window.startMigration = startMigration;
-    if(typeof window.openSettings !== 'function' && typeof openSettings === 'function') window.openSettings = openSettings;
-    if(typeof window.closeSettings !== 'function' && typeof closeSettings === 'function') window.closeSettings = closeSettings;
+    const hasReal = (name) => (typeof window[name] === 'function' && !isNoop(window[name]));
 
-    if(typeof window.openAdminGate !== 'function' && typeof openAdminGate === 'function') window.openAdminGate = openAdminGate;
-    if(typeof window.closeAdminGate !== 'function' && typeof closeAdminGate === 'function') window.closeAdminGate = closeAdminGate;
-    if(typeof window.enterAdmin !== 'function' && typeof enterAdmin === 'function') window.enterAdmin = enterAdmin;
-    if(typeof window.closeAdmin !== 'function' && typeof closeAdmin === 'function') window.closeAdmin = closeAdmin;
-    if(typeof window.openAdmin !== 'function' && typeof openAdmin === 'function') window.openAdmin = openAdmin;
+    // ---- ブラウザで開く（webModal）----
+    if(typeof openWebModal === 'function') window.openWebModal = openWebModal;
+    if(typeof closeWebModal === 'function') window.closeWebModal = closeWebModal;
+    if(typeof openWebDirect === 'function') window.openWebDirect = openWebDirect;
 
-    if(typeof window.exportBackup !== 'function' && typeof exportBackup === 'function') window.exportBackup = exportBackup;
-    if(typeof window.importBackup !== 'function' && typeof importBackup === 'function') window.importBackup = importBackup;
+    // ---- 管理（旧onclick名 unlockAdmin の通訳）----
+    window.unlockAdmin = function(){
+      if(typeof window.enterAdmin === 'function') return window.enterAdmin();
+      if(typeof enterAdmin === 'function') return enterAdmin();
+      if(typeof window.openAdminGate === 'function') return window.openAdminGate();
+      if(typeof openAdminGate === 'function') return openAdminGate();
+    };
 
-    // 友人紹介/家族共有：window.* 実装を inline onclick 名としても確実に使えるよう固定
-    if(typeof window.openInviteModal !== 'function') window.openInviteModal = function(){};
-    if(typeof window.closeInviteModal !== 'function') window.closeInviteModal = function(){};
-    if(typeof window.shareInvite !== 'function') window.shareInvite = function(){};
+    if(typeof enterAdmin === 'function') window.enterAdmin = enterAdmin;
+    if(typeof openAdminGate === 'function') window.openAdminGate = openAdminGate;
+    if(typeof closeAdminGate === 'function') window.closeAdminGate = closeAdminGate;
+    if(typeof openAdmin === 'function') window.openAdmin = openAdmin;
+    if(typeof closeAdmin === 'function') window.closeAdmin = closeAdmin;
 
-    // 互換：旧ボタン名 unlockAdmin() → 現行 enterAdmin()
-    if(typeof window.unlockAdmin !== 'function'){
-      window.unlockAdmin = function(){
-        try{ if(typeof window.enterAdmin === 'function') return window.enterAdmin(); }catch(e){}
+    // ---- 友人紹介 / 家族共有（inviteModal）----
+    // まず「本物」が見えているなら、それをwindowに接続
+    if(typeof openInviteModal === 'function') window.openInviteModal = openInviteModal;
+    if(typeof closeInviteModal === 'function') window.closeInviteModal = closeInviteModal;
+    if(typeof shareInvite === 'function') window.shareInvite = shareInvite;
+
+    // 見えていない/空関数だった場合のフォールバック実装（最低限）
+    if(!hasReal('openInviteModal')) {
+      window.openInviteModal = function(kind){
+        const m = document.getElementById('inviteModal');
+        if(!m) return;
+        const t = document.getElementById('inviteTitle');
+        if(t) t.innerText = (kind === 'family' ? '家族共有' : '友人紹介');
+        m.style.display = 'flex';
       };
     }
-  }catch(e){}
+
+    if(!hasReal('closeInviteModal')) {
+      window.closeInviteModal = function(){
+        const m = document.getElementById('inviteModal');
+        if(m) m.style.display = 'none';
+      };
+    }
+
+    if(!hasReal('shareInvite')) {
+      window.shareInvite = async function(){
+        const el =
+          document.getElementById('inviteUrl') ||
+          document.getElementById('inviteLink') ||
+          document.querySelector('[data-invite-url]');
+        const url = el ? ((el.value || el.textContent || '').trim()) : location.href;
+
+        // 共有（対応端末）
+        try {
+          if(navigator.share) {
+            await navigator.share({ title:'Smart Price 招待', text:'Smart Price 招待URL', url });
+            return;
+          }
+        } catch(e) {}
+
+        // クリップボード（非対応なら黙って終わる）
+        try {
+          if(navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+          }
+        } catch(e) {}
+
+        try {
+          if(typeof showToast === 'function') showToast('招待URLをコピーしました');
+        } catch(e) {}
+      };
+    }
+
+    // ---- その他（存在するなら window に接続）----
+    if(typeof startMigration === 'function') window.startMigration = startMigration;
+    if(typeof exportBackup === 'function') window.exportBackup = exportBackup;
+    if(typeof importBackup === 'function') window.importBackup = importBackup;
+
+  } catch(e) {}
 })();
- /* ===== /PATCH v20.2.5B-settingsbtnfix ===== */
+
+/* ===== /PATCH v20.2.6B-settingsbtnfix2 ===== */
 
 
 
