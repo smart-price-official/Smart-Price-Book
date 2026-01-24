@@ -6431,5 +6431,22 @@ async function runDiagGps(){
 </div>
 <!-- ===== /Diagnostics Modal ===== -->
 
+
+/* === HOTFIX v20.2.6A === */
+// 未設定ON固定を解除
+if (typeof curStore === 'undefined' || curStore === '未設定') {
+  curStore = '';
+}
+// saveDb 未定義で止まらないよう互換シム
+window.saveDb = window.saveDb || function(){
+  try { if (typeof saveLocalOnly === 'function') saveLocalOnly(); } catch(e){}
+};
+// 管理ボタンが背面に隠れないように
+window.openAdminGate = function(){
+  try { if (typeof closeSettings === 'function') closeSettings(); } catch(e){}
+  try { if (typeof showAdminGate === 'function') showAdminGate(); } catch(e){}
+};
+/* === END HOTFIX === */
+
 </body>
 </html>
