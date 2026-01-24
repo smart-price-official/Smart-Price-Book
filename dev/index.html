@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.1A
-  FULL_VERSION: v20.2.1A [UIFIX + GPS-STRETCHFIX]
+  VERSION: v20.2.2A
+  FULL_VERSION: v20.2.2A [SETTINGS-BTN-FIX]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2019_store-onfix
+BUILD_PARAM: ?b=2026-01-24_2030_settingsbtn-fix
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -30,7 +30,7 @@ CHANGES:
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.2.1A</title>
+  <title>Smart Price 20.2.2A</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -185,7 +185,7 @@ CHANGES:
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.2.1A</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price P.2.2A</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -6331,6 +6331,78 @@ async function runDiagGps(){
   }, { once:true });
 })();
 // ===== /PATCH v20.1.8B =====
+
+
+  // ===== VERSION_INFO (single source of truth) =====
+  const VERSION_INFO = {
+    NUM: "20.2.2",
+    REV: "A",
+    BUILD: "2026-01-24_2030_settingsbtn-fix",
+    get FULL() { return "v" + this.NUM + this.REV; }
+  };
+
+  // Apply version to title/badge (UI element already exists; just update text)
+  try {
+    document.title = "Smart Price " + VERSION_INFO.NUM + VERSION_INFO.REV;
+    const vb = document.querySelector('.v-badge');
+    if(vb) vb.textContent = VERSION_INFO.NUM + VERSION_INFO.REV;
+  } catch(e) {}
+
+  // ===== SETTINGS BUTTON ONCLICK HARDENING =====
+  // Some environments lose global lookup for inline onclick. Force-export stable entrypoints.
+  (function ensureOnclickGlobals(){
+    const expose = (name, fn) => {
+      try {
+        if(typeof fn === 'function') {
+          // Do not overwrite existing special handlers (e.g., window.openInviteModal is real modal).
+          if(typeof window[name] !== 'function') window[name] = fn;
+        }
+      } catch(e) {}
+    };
+
+    // Export all functions referenced by onclick in settingsModal.
+    expose('startMigration', startMigration);
+    expose('openWebSimple', openWebSimple);
+    // NOTE: Do NOT expose 'openInviteModal' here (window.openInviteModal is the real modal function).
+    // The inline onclick calls openInviteModal('friend'), which resolves to the shim function declaration.
+    // We keep that shim as-is and ensure the real window.openInviteModal exists elsewhere in the code.
+    expose('openAdminGate', openAdminGate);
+    expose('exportBackup', exportBackup);
+    expose('importBackup', importBackup);
+    expose('closeSettings', closeSettings);
+    expose('openWebDirect', openWebDirect);
+    expose('closeWebModal', closeWebModal);
+    expose('enterAdmin', enterAdmin);
+    expose('closeAdminGate', closeAdminGate);
+    expose('saveProxyUrl', saveProxyUrl);
+    expose('clearProxyUrl', clearProxyUrl);
+    expose('copyText', copyText);
+    expose('openUrlFromBox', openUrlFromBox);
+    expose('openDiagnostics', openDiagnostics);
+    expose('installPWA', installPWA);
+    expose('closeAdmin', closeAdmin);
+
+    // Add safe wrappers for common failures so buttons don't feel "dead".
+    const wrap = (name) => {
+      try {
+        const orig = window[name];
+        if(typeof orig !== 'function') return;
+        window[name] = function(...args){
+          try {
+            return orig.apply(this, args);
+          } catch(err) {
+            try {
+              if(typeof showToast === 'function') showToast('操作に失敗しました: ' + name, 5000);
+            } catch(_e) {}
+            try {
+              if(window.__debugLog) window.__debugLog.push({t:Date.now(), type:'ERR', name, msg:String(err)});
+            } catch(_e) {}
+          }
+        };
+      } catch(e) {}
+    };
+    ['startMigration','openWebSimple','openAdminGate','exportBackup','importBackup','closeSettings','openWebDirect','enterAdmin','saveProxyUrl','clearProxyUrl','openDiagnostics','installPWA','closeAdmin'].forEach(wrap);
+  })();
 
 </script>
 
