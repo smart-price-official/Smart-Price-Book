@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.1.10B
-  FULL_VERSION: v20.1.10B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
+  VERSION: v20.1.11B
+  FULL_VERSION: v20.1.11B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
 DEBUG_PARAM: &debug=1
@@ -27,7 +27,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.1.10B</title>
+  <title>Smart Price v20.1.11B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -384,8 +384,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "v20.1.10B"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "v20.1.10B"; // デバッグ用（詳細）
+    const APP_VERSION = "v20.1.11B"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "v20.1.11B"; // デバッグ用（詳細）
     const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
@@ -1329,7 +1329,7 @@ function buildStoreOptions(city){
 
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "未設定", curStoreId = "";
+  let curBarcode = null, curStore = "", curStoreId = "";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -2274,11 +2274,20 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       u.innerText = '未設定';
       if(curStore === '未設定') u.classList.add('active');
       u.onclick = () => {
-        curStore = '未設定';
-        curStoreId = '';
-        try{ db.config.lastStoreId = ''; db.config.lastStoreName = '未設定'; }catch(e){}
-        const ind = document.getElementById('curStoreIndicator');
-        if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        // トグル：もう一度押したら「未選択」に戻す（ON固定を防ぐ）
+        if(curStore === '未設定'){
+          curStore = '';
+          curStoreId = '';
+          try{ db.config.lastStoreId = ''; db.config.lastStoreName = ''; }catch(e){}
+          const ind = document.getElementById('curStoreIndicator');
+          if(ind) ind.innerText = '';
+        }else{
+          curStore = '未設定';
+          curStoreId = '';
+          try{ db.config.lastStoreId = ''; db.config.lastStoreName = '未設定'; }catch(e){}
+          const ind = document.getElementById('curStoreIndicator');
+          if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
+        }
         saveDb();
         renderStoreList();
       };
@@ -5867,6 +5876,29 @@ function openDiagnostics(){
     el.addEventListener('blur', handler);
   }
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(attachCityWatcher, 0));
+  // P0: 設定メニューの onclick が「未定義/途中エラー」で沈まないように安全ラッパーを先に用意（UIは変えない）
+  try{
+    if(typeof window.openWebSimple !== 'function'){
+      window.openWebSimple = function(){
+        try{
+          const url = window.location.href.split('#')[0].split('?')[0] + (window.DEFAULT_BUILD ? ('?b=' + encodeURIComponent(String(window.DEFAULT_BUILD))) : '');
+          const w = window.open(url, '_blank', 'noopener,noreferrer');
+          if(!w) window.prompt('このURLをコピーして、ブラウザで開いてください', url);
+        }catch(e){
+          try{ window.prompt('このURLをコピーして、ブラウザで開いてください', String(window.location.href)); }catch(_e){}
+        }
+      };
+    }
+    if(typeof window.openInviteModal !== 'function'){
+      window.openInviteModal = function(_kind){
+        try{ const m=document.getElementById('inviteModal'); if(m) m.style.display='flex'; }catch(_e){}
+      };
+    }
+    // HTML属性の onclick から直接参照される名前を必ず作る
+    if(typeof window.openWebSimple === 'function' && typeof openWebSimple !== 'function') { window.openWebSimple = window.openWebSimple; }
+    if(typeof window.openInviteModal === 'function' && typeof openInviteModal !== 'function') { window.openInviteModal = window.openInviteModal; }
+  }catch(e){}
+
 
   // 3) normalizeDb: force_blankなら最後に必ず上書き（homeCities再生成も潰す）
   const _orig_normalizeDb = (typeof normalizeDb === 'function') ? normalizeDb : null;
