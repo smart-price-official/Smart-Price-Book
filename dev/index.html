@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.4B
-  FULL_VERSION: v20.2.4B [VERLOCK SSOT]
+  VERSION: v20.2.5B
+  FULL_VERSION: v20.2.5B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2234_webmodalfix-v20.2.4B
+BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix-v20.2.5B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -27,7 +27,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.2.4</title>
+  <title>Smart Price 20.2.5</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -387,13 +387,13 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.2.4",
+  NUM: "20.2.5",
   REV: "B",
-  BUILD: "2026-01-24_2234_webmodalfix-v20.2.4B",
+  BUILD: "2026-01-24_2359_settingsbtnfix-v20.2.5B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
-const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.2.4B
+const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.2.5B
 
 function applyVersionUI(){
   try {
@@ -409,7 +409,7 @@ document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-24_2234_webmodalfix-v20.2.4B"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-24_2359_settingsbtnfix-v20.2.5B"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -6301,7 +6301,7 @@ async function runDiagGps(){
 // ===== /PATCH v20.1.8B =====
 
 
-/* ===== PATCH v20.2.4B-webmodalfix (2026-01-24 22:34 JST) =====
+/* ===== PATCH v20.2.5B-webmodalfix (2026-01-24 22:34 JST) =====
    - 設定→「ブラウザで開く」: openWebModalへ統一
    - webModal内ボタン（開く/戻る）が効かない端末対策：onclick用関数を必ずwindowへ露出
    - UIは変更しない（挙動のみ復旧）
@@ -6358,7 +6358,49 @@ async function runDiagGps(){
   };
 
 })();
-/* ===== /PATCH v20.2.4B-webmodalfix ===== */
+/* ===== /PATCH v20.2.5B-webmodalfix ===== */
+
+/* ===== PATCH v20.2.5B-settingsbtnfix (2026-01-24 23:55 JST) =====
+- 設定内の下段ボタン（ブラウザで開く/友人紹介/家族共有/管理）が「全滅」する対策
+- inline onclick から確実に呼べるように、必要関数を window に明示的に固定
+- UI変更なし（挙動のみ復旧）
+===== */
+(function(){
+  try{
+    // 既に存在するものは尊重しつつ、未定義なら no-op で ReferenceError を防ぐ
+    if(typeof window.openWebModal !== 'function') window.openWebModal = function(){};
+    if(typeof window.closeWebModal !== 'function') window.closeWebModal = function(){};
+    if(typeof window.openWebDirect !== 'function') window.openWebDirect = function(){};
+
+    if(typeof window.startMigration !== 'function' && typeof startMigration === 'function') window.startMigration = startMigration;
+    if(typeof window.openSettings !== 'function' && typeof openSettings === 'function') window.openSettings = openSettings;
+    if(typeof window.closeSettings !== 'function' && typeof closeSettings === 'function') window.closeSettings = closeSettings;
+
+    if(typeof window.openAdminGate !== 'function' && typeof openAdminGate === 'function') window.openAdminGate = openAdminGate;
+    if(typeof window.closeAdminGate !== 'function' && typeof closeAdminGate === 'function') window.closeAdminGate = closeAdminGate;
+    if(typeof window.enterAdmin !== 'function' && typeof enterAdmin === 'function') window.enterAdmin = enterAdmin;
+    if(typeof window.closeAdmin !== 'function' && typeof closeAdmin === 'function') window.closeAdmin = closeAdmin;
+    if(typeof window.openAdmin !== 'function' && typeof openAdmin === 'function') window.openAdmin = openAdmin;
+
+    if(typeof window.exportBackup !== 'function' && typeof exportBackup === 'function') window.exportBackup = exportBackup;
+    if(typeof window.importBackup !== 'function' && typeof importBackup === 'function') window.importBackup = importBackup;
+
+    // 友人紹介/家族共有：window.* 実装を inline onclick 名としても確実に使えるよう固定
+    if(typeof window.openInviteModal !== 'function') window.openInviteModal = function(){};
+    if(typeof window.closeInviteModal !== 'function') window.closeInviteModal = function(){};
+    if(typeof window.shareInvite !== 'function') window.shareInvite = function(){};
+
+    // 互換：旧ボタン名 unlockAdmin() → 現行 enterAdmin()
+    if(typeof window.unlockAdmin !== 'function'){
+      window.unlockAdmin = function(){
+        try{ if(typeof window.enterAdmin === 'function') return window.enterAdmin(); }catch(e){}
+      };
+    }
+  }catch(e){}
+})();
+ /* ===== /PATCH v20.2.5B-settingsbtnfix ===== */
+
+
 
 </script>
 
