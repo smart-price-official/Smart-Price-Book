@@ -2,7 +2,7 @@
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
   VERSION: v20.1.2-B
-  FULL_VERSION: v20.1.4B [GPSTOOL_STOREDEBUG + NOCONV]
+  FULL_VERSION: v20.1.5B [GPSTOOL_STOREDEBUG + NOCONV]
   - P0: バーコード処理は「DB（db.products）→ JanCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
@@ -6120,7 +6120,7 @@ function openDiagnostics(){
 })();
 // ===== /PATCH v20.0.4 =====
 
-// ===== PATCH v20.1.4B: Diagnostics Modal (GPS→Store candidates) =====
+// ===== PATCH v20.1.5B: Diagnostics Modal (GPS→Store candidates) =====
 function __diagEscapeHtml(s){
   return String(s||'').replace(/[&<>"]/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));
 }
@@ -6185,7 +6185,7 @@ function updateDiagModal(){
   }
 }
 
-async async function runDiagGps(){
+async function runDiagGps(){
   try{
     // 1) GPS
     const pos = await getCurrentPosition();
@@ -6225,7 +6225,7 @@ async async function runDiagGps(){
     }
   }, { once:true });
 })();
-// ===== /PATCH v20.1.4B =====
+// ===== /PATCH v20.1.5B =====
 
 </script>
 
