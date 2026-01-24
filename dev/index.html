@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION:  v20.2.1A
+  VERSION: v20.2.1A
   FULL_VERSION: v20.2.1A [UIFIX + GPS-STRETCHFIX]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2007_storebar-msgnowrap
+BUILD_PARAM: ?b=2026-01-24_2019_store-onfix
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -185,7 +185,7 @@ CHANGES:
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge"> v20.2.1A</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.2.1A</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -387,13 +387,13 @@ CHANGES:
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = " v20.2.1A"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "v20.2.1A";
+    const APP_VERSION = "20.2.1"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.2.1A";
 // ===== VERSION SSOT =====
 const VERSION_INFO = {
   NUM: APP_VERSION,
   FULL: FULL_VERSION,
-  BUILD: "2026-01-24_2015_storeselect-settingsfix"
+  BUILD: "2026-01-24_2019_store-onfix"
 };
 function applyVersionUI(){
   try {
@@ -1762,6 +1762,22 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     }
   }
 
+  // ===== SAVE DB SHIM (SSOT) =====
+  // 旧コード互換: saveDb() を呼ぶ箇所が残っていても動くようにする
+  function saveDb(){
+    try{
+      if (typeof saveLocalOnly === "function") return saveLocalOnly();
+      // フォールバック
+      localStorage.setItem("smart_price_db", JSON.stringify(db));
+      return true;
+    }catch(e){
+      try{ showToast("端末保存に失敗しました", 6000); }catch(_e){}
+      return false;
+    }
+  }
+  window.saveDb = saveDb;
+
+
   function loadLocal() {
     try {
       const saved = localStorage.getItem('smart_price_db');
@@ -2309,7 +2325,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           const ind = document.getElementById('curStoreIndicator');
           if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
         }
-        saveDb();
+        try{ saveDb(); }catch(e){}
         renderStoreList();
       };
       list.appendChild(u);
@@ -2350,7 +2366,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         try{ db.config.lastStoreId = curStoreId; db.config.lastStoreName = curStore; }catch(e){}
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
-        saveDb();
+        try{ saveDb(); }catch(e){}
         renderStoreList();
       };
 
