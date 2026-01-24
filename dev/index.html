@@ -1,15 +1,12 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.2A
-  FULL_VERSION: v20.2.2A [SETTINGS-BTN-FIX]
+  VERSION: v20.1.10B
+  FULL_VERSION: v20.1.10B [GPS-CANDIDATES + FORCEBLANK-STORELIST-FIX]nCache → 未登録（即入力）」の最短ルートに固定
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2030_settingsbtn-fix
+BUILD_PARAM: ?b=2026-01-23_2209_gpsstore-noconv
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
-
-CHANGES:
-  - P0: 起動時にストア候補が無い場合、説明文スパンの高さでGPS/未設定タグが引き伸ばされるのを防止（.store-list に align-items:center を追加）
 
 ⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
 1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
@@ -30,7 +27,7 @@ CHANGES:
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.2.2A</title>
+  <title>Smart Price 20.2.3A</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -38,7 +35,7 @@ CHANGES:
     .header { background: linear-gradient(135deg, #D50000, #9b0000); padding: 12px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
     .v-badge { background: #ff5252; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 10px; font-weight: bold; }
     .store-area { background: #1e1e1e; padding: 10px; border-bottom: 1px solid #333; min-height: 55px; }
-    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; align-items: center; }
+    .store-list { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch;  align-items: center;}
     .store-tag { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; white-space: nowrap; font-size: 0.85rem; background: #2c2c2c; color: #ccc; }
     .store-tag.active { background: #D50000; color: white; border-color: #D50000; }
     .store-tag.gps-btn { border: 1px solid #ff5252; color: #ff5252; }
@@ -185,7 +182,7 @@ CHANGES:
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price P.2.2A</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.2.3A</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -387,13 +384,13 @@ CHANGES:
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-    const APP_VERSION = "20.2.1"; // 画面表示用（数字のみ）
-    const FULL_VERSION = "20.2.1A";
+    const APP_VERSION = "20.2.0"; // 画面表示用（数字のみ）
+    const FULL_VERSION = "20.2.0B";
 // ===== VERSION SSOT =====
 const VERSION_INFO = {
   NUM: APP_VERSION,
   FULL: FULL_VERSION,
-  BUILD: "2026-01-24_2019_store-onfix"
+  BUILD: "2026-01-24_0000_uifix"
 };
 function applyVersionUI(){
   try {
@@ -407,7 +404,7 @@ function applyVersionUI(){
 document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-24_2007_storebar-msgnowrap"; // ヘッダーと一致させる
+    const BUILD_ID = "2026-01-23_2028_proxyB"; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -1350,7 +1347,7 @@ function buildStoreOptions(city){
 
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "", curStoreId = "";
+  let curBarcode = null, curStore = "未設定", curStoreId = "";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -1761,22 +1758,6 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       }
     }
   }
-
-  // ===== SAVE DB SHIM (SSOT) =====
-  // 旧コード互換: saveDb() を呼ぶ箇所が残っていても動くようにする
-  function saveDb(){
-    try{
-      if (typeof saveLocalOnly === "function") return saveLocalOnly();
-      // フォールバック
-      localStorage.setItem("smart_price_db", JSON.stringify(db));
-      return true;
-    }catch(e){
-      try{ showToast("端末保存に失敗しました", 6000); }catch(_e){}
-      return false;
-    }
-  }
-  window.saveDb = saveDb;
-
 
   function loadLocal() {
     try {
@@ -2325,7 +2306,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
           const ind = document.getElementById('curStoreIndicator');
           if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
         }
-        try{ saveDb(); }catch(e){}
+        saveDb();
         renderStoreList();
       };
       list.appendChild(u);
@@ -2334,14 +2315,11 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     // 2) 候補が無い場合も、GPS/未設定は残したまま案内を出す
     if(!opts.length){
       const span = document.createElement('span');
-      // ※案内文が折り返されると、起動直後だけストア帯が縦に太く見えることがあるため
-      //   1行固定（nowrap）＋小さめ文字で高さを増やさない
       span.className = 'text-muted small';
-      span.style.padding = '0 6px';
-      span.style.opacity = '0.65';
-      span.style.fontSize = '12px';
+      span.style.padding = '6px 2px';
       span.style.whiteSpace = 'nowrap';
       span.style.lineHeight = '1.2';
+      span.style.fontSize = '12px';
       span.textContent = 'ストア候補がありません（GPSを押す→近隣ストアが出ます）';
       list.appendChild(span);
       return;
@@ -2366,7 +2344,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         try{ db.config.lastStoreId = curStoreId; db.config.lastStoreName = curStore; }catch(e){}
         const ind = document.getElementById('curStoreIndicator');
         if(ind) ind.innerText = `【 ${curStore} 】で保存します`;
-        try{ saveDb(); }catch(e){}
+        saveDb();
         renderStoreList();
       };
 
@@ -5472,17 +5450,6 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     
     m.style.display = "flex";
   }
-
-  // ===== UI-CLICK SHIMS (settings buttons) =====
-  // HTML onclick は「グローバル関数名」が必要。環境差で参照が揺れるため、必ずここで揃える。
-  function openWebSimple(){ try{ openWebModal(); }catch(e){ try{ showToast('ブラウザ画面を開けません', 4000); }catch(_e){} } }
-  window.openWebSimple = openWebSimple;
-
-  function openInviteModal(kind){ try{ if(typeof window.openInviteModal === 'function') return window.openInviteModal(kind); }catch(e){} }
-  function closeInviteModal(){ try{ if(typeof window.closeInviteModal === 'function') return window.closeInviteModal(); }catch(e){} }
-  function shareInvite(){ try{ if(typeof window.shareInvite === 'function') return window.shareInvite(); }catch(e){} }
-
-
   function closeWebModal() {
     const m = document.getElementById('webModal');
     if(m) m.style.display = "none";
@@ -5871,7 +5838,7 @@ function openDiagnostics(){
       db.config.customStores = [];
       db.config.storeTaxModes = {};
     }catch(e){}
-    try{ curStore = ""; curStoreId = ""; }catch(e){}
+    try{ curStore = "未設定"; }catch(e){}
   }
 
   function repaintForceBlankUI(){
@@ -6332,78 +6299,6 @@ async function runDiagGps(){
 })();
 // ===== /PATCH v20.1.8B =====
 
-
-  // ===== VERSION_INFO (single source of truth) =====
-  const VERSION_INFO = {
-    NUM: "20.2.2",
-    REV: "A",
-    BUILD: "2026-01-24_2030_settingsbtn-fix",
-    get FULL() { return "v" + this.NUM + this.REV; }
-  };
-
-  // Apply version to title/badge (UI element already exists; just update text)
-  try {
-    document.title = "Smart Price " + VERSION_INFO.NUM + VERSION_INFO.REV;
-    const vb = document.querySelector('.v-badge');
-    if(vb) vb.textContent = VERSION_INFO.NUM + VERSION_INFO.REV;
-  } catch(e) {}
-
-  // ===== SETTINGS BUTTON ONCLICK HARDENING =====
-  // Some environments lose global lookup for inline onclick. Force-export stable entrypoints.
-  (function ensureOnclickGlobals(){
-    const expose = (name, fn) => {
-      try {
-        if(typeof fn === 'function') {
-          // Do not overwrite existing special handlers (e.g., window.openInviteModal is real modal).
-          if(typeof window[name] !== 'function') window[name] = fn;
-        }
-      } catch(e) {}
-    };
-
-    // Export all functions referenced by onclick in settingsModal.
-    expose('startMigration', startMigration);
-    expose('openWebSimple', openWebSimple);
-    // NOTE: Do NOT expose 'openInviteModal' here (window.openInviteModal is the real modal function).
-    // The inline onclick calls openInviteModal('friend'), which resolves to the shim function declaration.
-    // We keep that shim as-is and ensure the real window.openInviteModal exists elsewhere in the code.
-    expose('openAdminGate', openAdminGate);
-    expose('exportBackup', exportBackup);
-    expose('importBackup', importBackup);
-    expose('closeSettings', closeSettings);
-    expose('openWebDirect', openWebDirect);
-    expose('closeWebModal', closeWebModal);
-    expose('enterAdmin', enterAdmin);
-    expose('closeAdminGate', closeAdminGate);
-    expose('saveProxyUrl', saveProxyUrl);
-    expose('clearProxyUrl', clearProxyUrl);
-    expose('copyText', copyText);
-    expose('openUrlFromBox', openUrlFromBox);
-    expose('openDiagnostics', openDiagnostics);
-    expose('installPWA', installPWA);
-    expose('closeAdmin', closeAdmin);
-
-    // Add safe wrappers for common failures so buttons don't feel "dead".
-    const wrap = (name) => {
-      try {
-        const orig = window[name];
-        if(typeof orig !== 'function') return;
-        window[name] = function(...args){
-          try {
-            return orig.apply(this, args);
-          } catch(err) {
-            try {
-              if(typeof showToast === 'function') showToast('操作に失敗しました: ' + name, 5000);
-            } catch(_e) {}
-            try {
-              if(window.__debugLog) window.__debugLog.push({t:Date.now(), type:'ERR', name, msg:String(err)});
-            } catch(_e) {}
-          }
-        };
-      } catch(e) {}
-    };
-    ['startMigration','openWebSimple','openAdminGate','exportBackup','importBackup','closeSettings','openWebDirect','enterAdmin','saveProxyUrl','clearProxyUrl','openDiagnostics','installPWA','closeAdmin'].forEach(wrap);
-  })();
-
 </script>
 
 </div>
@@ -6480,6 +6375,109 @@ async function runDiagGps(){
   </div>
 </div>
 <!-- ===== /Diagnostics Modal ===== -->
+
+
+<!--
+PATCH: SETTINGS BUTTON GLOBAL FIX (NO UI CHANGE)
+VERSION: v20.2.3A
+DATE(JST): 2026-01-24 20:30 JST
+BUILD_PARAM: ?b=2026-01-24_2030_settingsbtnfix2
+AUTHOR: Yui
+CHANGES:
+- 設定モーダル内ボタン（ブラウザで開く／友人紹介／家族共有／管理）のonclickが確実に動くように、必要関数をwindowへ公開
+- openWebSimple が未定義でも動くようにフォールバック実装
+-->
+<script>
+(function(){
+  'use strict';
+  // --- safe helpers ---
+  function _toast(msg){
+    try{ if(typeof showToast==='function') return showToast(msg, 4000); }catch(e){}
+    try{ console.log('[toast]', msg); }catch(e){}
+  }
+  function _byId(id){ try{ return document.getElementById(id); }catch(e){ return null; } }
+
+  // --- Ensure Settings-related globals exist ---
+  // 1) Web modal
+  if(typeof window.openWebSimple !== 'function') {
+    window.openWebSimple = function() {
+      try {
+        if(typeof openWebModal === 'function') return openWebModal();
+        const m = _byId('webModal');
+        if(m) m.style.display = 'flex';
+      } catch(e) {
+        _toast('ブラウザ画面を開けません');
+      }
+    };
+  }
+  if(typeof window.closeWebModal !== 'function') {
+    window.closeWebModal = function() {
+      try {
+        if(typeof closeWebModal === 'function') return closeWebModal();
+        const m = _byId('webModal');
+        if(m) m.style.display = 'none';
+      } catch(e) {}
+    };
+  }
+  if(typeof window.openWebDirect !== 'function') {
+    window.openWebDirect = function() {
+      try {
+        if(typeof buildUrl === 'function') {
+          const url = buildUrl(false);
+          window.open(url, '_blank');
+        }
+      } catch(e) {}
+      try { window.closeWebModal(); } catch(e) {}
+    };
+  }
+
+  // 2) Invite modal (friend/family)
+  if(typeof window.openInviteModal !== 'function') {
+    window.openInviteModal = function(kind) {
+      try {
+        const modal = _byId('inviteModal');
+        if(!modal) return _toast('紹介画面を開けません');
+        modal.style.display = 'flex';
+        try { window.__inviteKind = kind || 'friend'; } catch(e) {}
+        // 既存の描画関数があれば呼ぶ
+        try { if(typeof renderInviteModal==='function') renderInviteModal(kind); } catch(e) {}
+        try { if(typeof updateInviteView==='function') updateInviteView(kind); } catch(e) {}
+      } catch(e) {
+        _toast('紹介画面エラー');
+      }
+    };
+  }
+  if(typeof window.closeInviteModal !== 'function') {
+    window.closeInviteModal = function() {
+      try {
+        const modal = _byId('inviteModal');
+        if(modal) modal.style.display = 'none';
+      } catch(e) {}
+    };
+  }
+  if(typeof window.shareInvite !== 'function') {
+    window.shareInvite = function() {
+      try {
+        if(typeof shareInvite==='function') return shareInvite();
+      } catch(e) {}
+      _toast('共有機能が利用できません');
+    };
+  }
+
+  // 3) Admin gate
+  if(typeof window.openAdminGate !== 'function') {
+    window.openAdminGate = function() {
+      try {
+        if(typeof openAdminGate==='function') return openAdminGate();
+        const m = _byId('adminGateModal');
+        if(m) m.style.display = 'flex';
+      } catch(e) {
+        _toast('管理画面を開けません');
+      }
+    };
+  }
+})();
+</script>
 
 </body>
 </html>
