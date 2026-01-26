@@ -1,7 +1,7 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.7B
+  VERSION: v20.2.8B
   FULL_VERSION: v20.2.7B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix3-v20.2.7B
@@ -387,9 +387,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.2.7",
+  NUM: "20.2.8",
   REV: "B",
-  BUILD: "2026-01-24_2359_settingsbtnfix3-v20.2.7B",
+  BUILD: "2026-01-25_0011_settingsbtnbind-v20.2.8B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -409,7 +409,7 @@ document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
 // ===== /VERSION SSOT =====
  // デバッグ用（詳細）
-    const BUILD_ID = "2026-01-25_0005_settingsbtnfix3-v20.2.7B"; // ヘッダーと一致させる
+    const BUILD_ID = VERSION_INFO.BUILD; // ヘッダーと一致させる
 
     // ===== Proxy URL (Admin only) =====
     const PROXY_URL_LS_KEY = "sp_proxy_exec_url";
@@ -6536,5 +6536,41 @@ async function runDiagGps(){
 </div>
 <!-- ===== /Diagnostics Modal ===== -->
 
+
+
+<!-- ===== PATCH v20.2.8B-settingsbtnbind (2026-01-25 00:11 JST) =====
+- Fix: settings bottom buttons (open in browser / invite friend / invite family / admin) not responding
+- Force-bind real handler functions onto window so inline onclick always resolves
+- No UI changes
+===== -->
+<script>
+(function(){
+  try{
+    var bind = function(name, fn) {
+      try { if (typeof fn === 'function') window[name] = fn; } catch(e){}
+    };
+    // Settings bottom buttons
+    bind('openWebModal', (typeof openWebModal === 'function') ? openWebModal : null);
+    bind('closeWebModal', (typeof closeWebModal === 'function') ? closeWebModal : null);
+    bind('openWebDirect', (typeof openWebDirect === 'function') ? openWebDirect : null);
+
+    bind('openInviteModal', (typeof openInviteModal === 'function') ? openInviteModal : null);
+    bind('closeInviteModal', (typeof closeInviteModal === 'function') ? closeInviteModal : null);
+    bind('shareInvite', (typeof shareInvite === 'function') ? shareInvite : null);
+
+    bind('openAdminGate', (typeof openAdminGate === 'function') ? openAdminGate : null);
+    bind('closeAdminGate', (typeof closeAdminGate === 'function') ? closeAdminGate : null);
+    bind('enterAdmin', (typeof enterAdmin === 'function') ? enterAdmin : null);
+
+    // Compat: old name unlockAdmin -> openAdminGate
+    if (typeof window.unlockAdmin !== 'function') {
+      window.unlockAdmin = function() {
+        try { if (typeof window.openAdminGate === 'function') return window.openAdminGate(); } catch(e){}
+      };
+    }
+  } catch(e) {}
+})();
+</script>
+<!-- ===== /PATCH v20.2.8B-settingsbtnbind ===== -->
 </body>
 </html>
