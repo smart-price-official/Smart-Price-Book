@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.3.3B
-  FULL_VERSION: v20.3.3B [VERLOCK SSOT]
+  VERSION: v20.3.4B
+  FULL_VERSION: v20.3.4B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-25_0037_gpsfast3-v20.3.3B
+BUILD_PARAM: ?b=2026-01-26_2330_verfix-v20.3.4B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -27,7 +27,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.2.7</title>
+  <title>Smart Price 20.3.4</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -387,13 +387,13 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.3.3",
+  NUM: "20.3.4",
   REV: "B",
-  BUILD: "2026-01-25_0037_gpsfast3-v20.3.3B",
+  BUILD: "2026-01-26_2330_verfix-v20.3.4B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
-const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.2.7B
+const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.3.4B
 
 function applyVersionUI(){
   try {
@@ -6346,7 +6346,7 @@ async function runDiagGps(){
 // ===== /PATCH v20.1.8B =====
 
 
-/* ===== PATCH v20.2.5B-webmodalfix (2026-01-24 22:34 JST) =====
+/* ===== PATCH v20.3.4B-hotfix (2026-01-24 22:34 JST) =====
    - 設定→「ブラウザで開く」: openWebModalへ統一
    - webModal内ボタン（開く/戻る）が効かない端末対策：onclick用関数を必ずwindowへ露出
    - UIは変更しない（挙動のみ復旧）
@@ -6403,9 +6403,9 @@ async function runDiagGps(){
   };
 
 })();
-/* ===== /PATCH v20.2.5B-webmodalfix ===== */
+/* ===== /PATCH v20.3.4B-hotfix ===== */
 
-/* ===== PATCH v20.2.7B-settingsbtnfix3 (2026-01-25 00:01 JST) =====
+/* ===== PATCH v20.3.4B-hotfix (2026-01-25 00:01 JST) =====
 - 設定内の下段ボタン（ブラウザで開く/友人紹介/家族共有/管理）が反応しない端末を最終対策
 - 原因の「window未露出」や「DOM再生成でonclickが死ぬ」を両方吸収（UI変更なし）
 - 既存実装があればそれを優先し、無ければ安全なフォールバックを提供
@@ -6500,7 +6500,7 @@ async function runDiagGps(){
     setTimeout(function(){ try{ wireSettingsButtons(); }catch(e){} }, 50);
   }catch(e){}
 })();
-/* ===== /PATCH v20.2.7B-settingsbtnfix3 ===== */
+/* ===== /PATCH v20.3.4B-hotfix ===== */
 
 
 
@@ -7001,7 +7001,7 @@ async function runDiagGps(){
 })();
  /* ===== /PATCH v20.3.2B-settings-directshare-admin-gpsfast ===== */
 
-/* ===== PATCH v20.3.3B-gpsfast3-settings-directshare-adminfix (2026-01-25 00:37 JST) =====
+/* ===== PATCH v20.3.4B-gpsfast3-settings-directshare-adminfix (2026-01-25 00:37 JST) =====
 - GPS初回ONの体感速度改善: 直近キャッシュのストア候補を即表示→裏で再取得、結果が来たら即反映
 - 設定→ブラウザで開く: モーダルを出さず直接別タブで開く（openWebModalも直開きに退避）
 - 友人紹介/家族共有: shareInvite('line'/'mail'/'copy') を実装し、LINE/メールが確実に動く
@@ -7187,7 +7187,201 @@ async function runDiagGps(){
 
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.3B-gpsfast3-settings-directshare-adminfix ===== */
+/* ===== /PATCH v20.3.4B-gpsfast3-settings-directshare-adminfix ===== */
+
+
+/* ===== PATCH v20.3.4B-hotfix (JST 2026-01-26 23:24) =====
+- store-list: クリック委任で「未設定/ストア名」が必ず選べるよう復旧（再描画で配線が消えない）
+- 設定: ブラウザで開く=直接別タブ（モーダル無し）
+- 招待: LINE/メール/コピーの配線を確実化（モーダル内ボタンの onclick を上書き）
+- 管理: パス入力→入る が反応する／誤入力はトースト表示／文言「合言葉」→「パスワード」
+- UI変更なし（配線と挙動のみ）
+===== */
+(function(){
+  try{
+    // ---- Store list: event delegation (prevents "クリックできない" / 再描画で死ぬ問題)
+    function _sp2034_handleStoreTap(target){
+      if(!target) return;
+      const tag = (target.closest) ? target.closest('.store-tag') : null;
+      if(!tag) return;
+      if(tag.classList.contains('gps-btn')) return;
+
+      const name = (tag.textContent||'').trim();
+      if(!name) return;
+
+      if(name === '未設定'){
+        if(window.curStore === '未設定'){
+          window.curStore = '';
+          window.curStoreId = '';
+          try{ if(window.db && db.config){ db.config.lastStoreId=''; db.config.lastStoreName=''; } }catch(e){}
+          try{ const ind=document.getElementById('curStoreIndicator'); if(ind) ind.innerText=''; }catch(e){}
+        } else {
+          window.curStore = '未設定';
+          window.curStoreId = '';
+          try{ if(window.db && db.config){ db.config.lastStoreId=''; db.config.lastStoreName='未設定'; } }catch(e){}
+          try{ const ind=document.getElementById('curStoreIndicator'); if(ind) ind.innerText=`【 未設定 】で保存します`; }catch(e){}
+        }
+      } else {
+        window.curStore = name;
+        try{ if(window.db && db.config){ db.config.lastStoreName = name; } }catch(e){}
+        try{ const ind=document.getElementById('curStoreIndicator'); if(ind) ind.innerText=`【 ${name} 】で保存します`; }catch(e){}
+      }
+
+      try{ if(typeof saveDb==='function') saveDb(); }catch(e){}
+      try{ if(typeof renderStoreList==='function') renderStoreList(); }catch(e){}
+    }
+
+    function _sp2034_wireStoreDelegation(){
+      const list = document.getElementById('store-list');
+      if(!list) return;
+      if(list.__sp2034_delegated) return;
+      list.__sp2034_delegated = true;
+      list.addEventListener('click', function(ev){ _sp2034_handleStoreTap(ev.target); }, { passive:true });
+    }
+
+    // ---- Invite share
+    async function _sp2034_shareInvite(mode){
+      try{
+        const txt = (document.getElementById('inviteCopyText')||{}).textContent || '';
+        if(!txt) return;
+        const m = String(mode||'').toLowerCase();
+
+        if(m === 'line'){
+          const lineUrl = 'https://line.me/R/msg/text/?' + encodeURIComponent(txt);
+          window.open(lineUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
+        if(m === 'mail'){
+          const mailUrl = 'mailto:?body=' + encodeURIComponent(txt);
+          window.location.href = mailUrl;
+          return;
+        }
+        if(m === 'copy'){
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(txt);
+            try{ if(typeof showToast==='function') showToast('コピーしました', 1500); }catch(e){}
+          }
+          return;
+        }
+      }catch(e){}
+    }
+    window.shareInvite = _sp2034_shareInvite;
+
+    function _sp2034_wireInviteButtons(){
+      const m = document.getElementById('inviteModal');
+      if(!m) return;
+      const els = Array.from(m.querySelectorAll('button, a'));
+      const byText = (t)=>els.find(b=> (b.textContent||'').trim()===t);
+
+      const bLine = byText('LINE');
+      if(bLine) bLine.onclick = ()=>_sp2034_shareInvite('line');
+
+      const bMail = byText('メール');
+      if(bMail) bMail.onclick = ()=>_sp2034_shareInvite('mail');
+
+      const bCopy = byText('コピー');
+      if(bCopy) bCopy.onclick = ()=>_sp2034_shareInvite('copy');
+
+      const bBack = byText('戻る');
+      if(bBack) bBack.onclick = ()=>{ try{ if(typeof closeInviteModal==='function') closeInviteModal(); }catch(e){ const mm=document.getElementById('inviteModal'); if(mm) mm.style.display='none'; } };
+    }
+
+    // openInviteModalの後に配線し直す
+    const _sp2034_openInvite_orig = window.openInviteModal;
+    window.openInviteModal = function(kind){
+      let r;
+      try{ if(typeof _sp2034_openInvite_orig === 'function') r = _sp2034_openInvite_orig(kind); }catch(e){}
+      setTimeout(_sp2034_wireInviteButtons, 0);
+      return r;
+    };
+
+    // ---- Settings: Browser open direct + ensure buttons wired
+    function _sp2034_openWebDirect(){
+      try{ if(typeof openWebDirect==='function') return openWebDirect(); }catch(e){}
+      try{ const url = (typeof buildUrl==='function') ? buildUrl(false) : window.location.href; window.open(url, '_blank', 'noopener,noreferrer'); }catch(e){}
+    }
+    window.openWebModal = _sp2034_openWebDirect; // モーダル経由を潰す
+
+    function _sp2034_wireSettingsButtons(){
+      const m = document.getElementById('settingsModal');
+      if(!m) return;
+      const btns = Array.from(m.querySelectorAll('button'));
+      const byText = (t)=>btns.find(b=> (b.textContent||'').trim()===t);
+
+      const bWeb = byText('ブラウザで開く');
+      if(bWeb) bWeb.onclick = ()=>_sp2034_openWebDirect();
+
+      const bInvite = byText('友人紹介');
+      if(bInvite) bInvite.onclick = ()=>{ try{ window.openInviteModal('friend'); }catch(e){} };
+
+      const bFamily = byText('家族共有');
+      if(bFamily) bFamily.onclick = ()=>{ try{ window.openInviteModal('family'); }catch(e){} };
+
+      const bAdmin = byText('管理');
+      if(bAdmin) bAdmin.onclick = ()=>{ try{ if(typeof window.openAdminGate==='function') window.openAdminGate(); }catch(e){} };
+    }
+
+    const _sp2034_openSettings_orig = window.openSettings;
+    window.openSettings = function(){
+      let r;
+      try{ if(typeof _sp2034_openSettings_orig === 'function') r = _sp2034_openSettings_orig(); }catch(e){}
+      setTimeout(_sp2034_wireSettingsButtons, 0);
+      return r;
+    };
+
+    // ---- Admin gate: password enter works + toast + wording fix
+    function _sp2034_enterAdmin(){
+      const inp = document.getElementById('adminPassInput');
+      const pass = (inp && inp.value) ? String(inp.value) : '';
+      if(pass !== '55533557'){
+        try{ if(typeof showToast==='function') showToast('パスワードが違います', 2000); }catch(e){}
+        return;
+      }
+      try{ if(typeof closeAdminGate==='function') closeAdminGate(); }catch(e){ const m=document.getElementById('adminGateModal'); if(m) m.style.display='none'; }
+      try{ if(typeof openAdmin==='function') openAdmin(); }catch(e){}
+    }
+    window.enterAdmin = _sp2034_enterAdmin;
+    window.unlockAdmin = _sp2034_enterAdmin;
+
+    function _sp2034_wireAdminGateButtons(){
+      const m = document.getElementById('adminGateModal');
+      if(!m) return;
+
+      const btns = Array.from(m.querySelectorAll('button'));
+      const byText = (t)=>btns.find(b=> (b.textContent||'').trim()===t);
+
+      const bEnter = byText('入る');
+      if(bEnter) bEnter.onclick = _sp2034_enterAdmin;
+
+      const bBack = byText('戻る');
+      if(bBack) bBack.onclick = ()=>{ try{ if(typeof closeAdminGate==='function') closeAdminGate(); }catch(e){ m.style.display='none'; } };
+
+      // 文言だけ置換（UI追加なし）
+      try{
+        m.querySelectorAll('*').forEach(el=>{
+          if(el.childNodes && el.childNodes.length===1 && el.childNodes[0].nodeType===3){
+            const t = el.textContent || '';
+            if(t.indexOf('合言葉')>=0) el.textContent = t.replace(/合言葉/g, 'パスワード');
+          }
+        });
+      }catch(e){}
+    }
+
+    const _sp2034_openAdminGate_orig = window.openAdminGate;
+    window.openAdminGate = function(){
+      let r;
+      try{ if(typeof _sp2034_openAdminGate_orig === 'function') r = _sp2034_openAdminGate_orig(); }catch(e){}
+      setTimeout(_sp2034_wireAdminGateButtons, 0);
+      return r;
+    };
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      _sp2034_wireStoreDelegation();
+      setTimeout(()=>{ _sp2034_wireInviteButtons(); _sp2034_wireAdminGateButtons(); }, 200);
+    });
+  }catch(e){}
+})();
+/* ===== /PATCH v20.3.4B-hotfix ===== */
 
 </script>
 
