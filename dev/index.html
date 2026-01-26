@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.3.5B
-  FULL_VERSION: v20.3.5B [VERLOCK SSOT]
+  VERSION: v20.3.8B
+  VERSION_INFO.FULL: v20.3.8B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-26_2335_settingsinviteadminfix-v20.3.5B
+BUILD_PARAM: ?b=2026-01-27_0016_verlock-v20.3.8B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -387,23 +387,27 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.3.5",
+  NUM: "20.3.8",
   REV: "B",
-  BUILD: "2026-01-26_2335_settingsinviteadminfix-v20.3.5B",
-  get FULL() { return `${this.NUM}${this.REV}`; }
+  BUILD: "2026-01-27_0016_verlock-v20.3.8B",
+  get FULL(){ return `${this.NUM}${this.REV}`; },
+  get TITLE(){ return `Smart Price ${this.FULL}`; }
 };
-const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
-const FULL_VERSION = VERSION_INFO.FULL; // 例: 20.3.4B
+const BUILD_ID = VERSION_INFO.BUILD; // 以後、手書き禁止（ここが正本）
 
 function applyVersionUI(){
-  try {
-    // タイトル/ヘッダ表示を統一（手書き禁止）
-    document.title = (typeof isDebug === "function" && isDebug())
-      ? `Smart Price ${APP_VERSION} / ${VERSION_INFO.BUILD}`
-      : `Smart Price ${APP_VERSION}`;
+  try{
+    const isDbg = (typeof isDebug === "function" && isDebug());
+    document.title = isDbg ? `${VERSION_INFO.TITLE} / ${VERSION_INFO.BUILD}` : VERSION_INFO.TITLE;
+
+    // ヘッダ内のバージョンバッジ（表示）
     const badge = document.getElementById("version-badge");
-    if (badge) badge.textContent = APP_VERSION;
-  } catch(e) {}
+    if(badge) badge.textContent = VERSION_INFO.FULL;
+
+    // もし古い表記が残っていても、強制的に上書きしてズレを潰す
+    const els = document.querySelectorAll("[data-version], .version-text, #appVersionText");
+    els.forEach(el => { try{ el.textContent = VERSION_INFO.FULL; }catch(e){} });
+  }catch(e){}
 }
 document.addEventListener("DOMContentLoaded", applyVersionUI);
 // ===== /VERSION SSOT =====
@@ -712,7 +716,7 @@ function lastHistoryForMe(history) {
   const STORE_MASTER_MODE = "EMBEDDED"; // "EMBEDDED" (B) -> "FIREBASE" (A) later
 
   // B運用: 埋め込みストアマスター（表示名はここが唯一の正解）
-  const STORE_MASTER_EMBEDDED = {}; // v20.1.9B: 生活圏の固定リストは廃止（GPS/実績から自動作成）
+  const STORE_MASTER_EMBEDDED = {}; // v(legacy): 生活圏の固定リストは廃止（GPS/実績から自動作成）
 // 旧プリセットは使用しない（互換のため空に固定）
   const CITY_STORE_PRESET = {};
 
@@ -732,12 +736,12 @@ function lastHistoryForMe(history) {
   }
   
 function getStoreMasterByCity(city){
-  // v20.1.9B: 固定の市別ストア辞書は使わない（誤差が大きく、ユーザー体験が悪い）
+  // v(legacy): 固定の市別ストア辞書は使わない（誤差が大きく、ユーザー体験が悪い）
   return [];
 }
 
 function buildStoreOptions(city){
-  // v20.1.9B: ストア候補は「GPSで拾った店名」＋「自分の購入実績からの店名」だけ
+  // v(legacy): ストア候補は「GPSで拾った店名」＋「自分の購入実績からの店名」だけ
   const opts = [];
   const seen = new Set();
 
@@ -1434,22 +1438,8 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
   }
 
   window.onload = async () => {
-    // ✅ P0: ヘッダーバージョン表示とdocument.titleをFULL_VERSIONから統一
-    try {
-      const versionBadge = document.getElementById('version-badge');
-      if (versionBadge) {
-        versionBadge.textContent = APP_VERSION;
-      }
-      
-      // document.titleを更新（debug=1の時だけBUILD_IDも併記）
-      if (isDebug()) {
-        document.title = `Smart Price ${APP_VERSION} / ${BUILD_ID}`;
-      } else {
-        document.title = `Smart Price ${APP_VERSION}`;
-      }
-    } catch(e) {
-      if (isDebug()) console.warn('[onload] version update error:', e);
-    }
+    // ✅ P0: バージョン表示はSSOTで統一
+    try{ applyVersionUI(); }catch(e){}
 
     // ✅ 起動時の黒画面対策：即座に表示を確実にする
     try {
@@ -1515,7 +1505,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         // ✅ P0: debug=1のときだけスキャンガイド枠を表示
         document.body.setAttribute('data-debug', '1');
         setTimeout(() => {
-          showToast(`DEBUG:${FULL_VERSION} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
+          showToast(`DEBUG:${VERSION_INFO.FULL} / ${BUILD_ID} / Firebase:${isFirebaseReady?'ON':'OFF'}`, 4000);
         }, 300);
       } else {
         document.body.removeAttribute('data-debug');
@@ -3917,7 +3907,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         const json = await res.json();
         try{ window.__lastStoresFetch.raw = json; }catch(_e){}
 
-        // v20.1.9B: 返り値の形ゆれを許容（ok/stores以外でも拾う）
+        // v(legacy): 返り値の形ゆれを許容（ok/stores以外でも拾う）
         const list = (() => {
           if (Array.isArray(json)) return json;
           if (!json) return [];
@@ -5335,7 +5325,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
       if(!u) {
         showToast("ローカル保存完了", 3000);
-        // v20.3.5B: 画面推移しない（設定画面のまま）
+        // v(legacy): 画面推移しない（設定画面のまま）
         return;
         return;
       }
@@ -5386,7 +5376,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       await syncFirebase(); // ✅ マージ方式
 
       showToast("同期成功！", 3000);
-      // v20.3.5B: 画面推移しない（設定画面のまま）
+      // v(legacy): 画面推移しない（設定画面のまま）
       // closeSettings(); showHome();
 
 
@@ -5597,7 +5587,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
       
       // 3. バックアップデータを作成
       const backup = {
-        version: APP_VERSION,
+        version: VERSION_INFO.FULL,
         buildId: BUILD_ID,
         exportDate: new Date().toISOString(),
         data: data,
@@ -5868,7 +5858,7 @@ function openDiagnostics(){
 
 
 
-// ===== PATCH v20.0.1 (force-blank hard fix: openSettings fill / mergeDb / city chips / store list / openWeb alias) =====
+// ===== PATCH (legacy) (force-blank hard fix: openSettings fill / mergeDb / city chips / store list / openWeb alias) =====
 (function(){
   // force-blank flag
   window.getForceBlank = function(){
@@ -5905,11 +5895,9 @@ function openDiagnostics(){
     try{
       // store list: forceBlankでも候補表示は維持（GPS/実績）
       if(typeof renderStoreList==='function') renderStoreList();
-    }catch(e){} };
-        list.appendChild(span);
-      }
-    }catch(e){}
-  }
+    }catch(e){} }
+
+
 
   function forceBlankNow(){
     window.setForceBlank(true);
@@ -6036,7 +6024,7 @@ function openDiagnostics(){
 // ===== /PATCH =====
 
 
-// ===== PATCH v20.0.2 [GLOBAL FN FIX + OPENWEB FALLBACK] =====
+// ===== PATCH (legacy) [GLOBAL FN FIX + OPENWEB FALLBACK] =====
 (function(){
   try {
     // 管理合言葉が通ったら true（既存 enterAdmin を安全に拡張）
@@ -6119,12 +6107,12 @@ function openDiagnostics(){
 
   } catch(e) {}
 })();
-// ===== /PATCH v20.0.2 =====
+// ===== /PATCH (legacy) =====
 
 
 
 
-// ===== PATCH v20.0.4 (ghostkill: forceBlank wins + startMigration explicit + mergeConfig override + city watcher hardened) =====
+// ===== PATCH (legacy) (ghostkill: forceBlank wins + startMigration explicit + mergeConfig override + city watcher hardened) =====
 (function(){
   // --- helpers ---
   function q(id){ return document.getElementById(id); }
@@ -6239,9 +6227,9 @@ function openDiagnostics(){
   }
 
 })();
-// ===== /PATCH v20.0.4 =====
+// ===== /PATCH (legacy) =====
 
-// ===== PATCH v20.1.8B: Diagnostics Modal (GPS→Store candidates) =====
+// ===== PATCH (legacy): Diagnostics Modal (GPS→Store candidates) =====
 function __diagEscapeHtml(s){
   return String(s||'').replace(/[&<>"]/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));
 }
@@ -6346,10 +6334,10 @@ async function runDiagGps(){
     }
   }, { once:true });
 })();
-// ===== /PATCH v20.1.8B =====
+// ===== /PATCH (legacy) =====
 
 
-/* ===== PATCH v20.3.4B-hotfix (2026-01-24 22:34 JST) =====
+/* ===== PATCH (legacy)hotfix (2026-01-24 22:34 JST) =====
    - 設定→「ブラウザで開く」: openWebModalへ統一
    - webModal内ボタン（開く/戻る）が効かない端末対策：onclick用関数を必ずwindowへ露出
    - UIは変更しない（挙動のみ復旧）
@@ -6406,9 +6394,9 @@ async function runDiagGps(){
   };
 
 })();
-/* ===== /PATCH v20.3.4B-hotfix ===== */
+/* ===== /PATCH (legacy)hotfix ===== */
 
-/* ===== PATCH v20.3.4B-hotfix (2026-01-25 00:01 JST) =====
+/* ===== PATCH (legacy)hotfix (2026-01-25 00:01 JST) =====
 - 設定内の下段ボタン（ブラウザで開く/友人紹介/家族共有/管理）が反応しない端末を最終対策
 - 原因の「window未露出」や「DOM再生成でonclickが死ぬ」を両方吸収（UI変更なし）
 - 既存実装があればそれを優先し、無ければ安全なフォールバックを提供
@@ -6503,7 +6491,7 @@ async function runDiagGps(){
     setTimeout(function(){ try{ wireSettingsButtons(); }catch(e){} }, 50);
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.4B-hotfix ===== */
+/* ===== /PATCH (legacy)hotfix ===== */
 
 
 
@@ -6586,7 +6574,7 @@ async function runDiagGps(){
 
 
 
-<!-- ===== PATCH v20.2.9B-initfix (2026-01-25 00:25 JST) =====
+<!-- ===== PATCH (legacy)initfix (2026-01-25 00:25 JST) =====
 - Fix: 起動時の既定ストアを「未設定」にしない（未設定OFFで開始）
 - Fix: GPS 初回ONでストア候補が出ないことがある → 1回だけ条件変更して自動リトライ
 - Fix: 設定の下段ボタン（ブラウザ/友人紹介/家族共有/管理）が環境によって無反応 → windowへ実体を強制バインド（no-op上書き禁止）
@@ -6670,10 +6658,10 @@ async function runDiagGps(){
   }catch(e){}
 })();
 </script>
-<!-- ===== /PATCH v20.2.9B-initfix ===== -->
+<!-- ===== /PATCH (legacy)initfix ===== -->
 
 <script>
-/* ===== PATCH v20.3.2B-gpsfirst-back-admin (2026-01-25 00:15 JST) =====
+/* ===== PATCH (legacy)gpsfirst-back-admin (2026-01-25 00:15 JST) =====
 - 起動直後: GPS 1回目ONでストア名が出ない問題を「空結果なら1回だけ再取得」して安定化
 - 設定: 戻るボタン（closeWebModal/closeInviteModal）の実体を必ず有効化
 - 管理: unlockAdmin() を openAdminGate() に確実に接続
@@ -6772,7 +6760,7 @@ async function runDiagGps(){
 })();
 
 
-/* ===== PATCH v20.3.2B-gps1st-back-adminfix (2026-01-25 00:28 JST) =====
+/* ===== PATCH (legacy)gps1st-back-adminfix (2026-01-25 00:28 JST) =====
 - GPS 初回ONでストア候補が出ない場合：1回だけ自動リトライ
 - 設定モーダルの「戻る」系ボタン（ブラウザ/友人紹介/家族共有）の close 系を window に確実固定
 - 管理ボタン（unlockAdmin）を openAdminGate/enterAdmin に確実接続
@@ -6832,12 +6820,12 @@ async function runDiagGps(){
     setTimeout(wireSettingsButtons, 0);
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.2B-gps1st-back-adminfix ===== */
+/* ===== /PATCH (legacy)gps1st-back-adminfix ===== */
 
 </script>
 
 <script>
-/* ===== PATCH v20.3.2B-settings-directshare-admin-gpsfast (2026-01-25 00:35 JST) =====
+/* ===== PATCH (legacy)settings-directshare-admin-gpsfast (2026-01-25 00:35 JST) =====
 - GPS: 初回ON後の「同期完了→ストア表示」が遅い件を短縮（空のときだけ最小待ちで再取得）
 - 設定: 「ブラウザで開く」はモーダルを出さず“直接開く”
 - 友人紹介/家族共有: LINE/メール送信ボタンを実装（shareInvite(mode)）
@@ -7002,9 +6990,9 @@ async function runDiagGps(){
   }), 120);
 
 })();
- /* ===== /PATCH v20.3.2B-settings-directshare-admin-gpsfast ===== */
+ /* ===== /PATCH (legacy)settings-directshare-admin-gpsfast ===== */
 
-/* ===== PATCH v20.3.4B-gpsfast3-settings-directshare-adminfix (2026-01-25 00:37 JST) =====
+/* ===== PATCH (legacy)gpsfast3-settings-directshare-adminfix (2026-01-25 00:37 JST) =====
 - GPS初回ONの体感速度改善: 直近キャッシュのストア候補を即表示→裏で再取得、結果が来たら即反映
 - 設定→ブラウザで開く: モーダルを出さず直接別タブで開く（openWebModalも直開きに退避）
 - 友人紹介/家族共有: shareInvite('line'/'mail'/'copy') を実装し、LINE/メールが確実に動く
@@ -7190,10 +7178,10 @@ async function runDiagGps(){
 
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.4B-gpsfast3-settings-directshare-adminfix ===== */
+/* ===== /PATCH (legacy)gpsfast3-settings-directshare-adminfix ===== */
 
 
-/* ===== PATCH v20.3.4B-hotfix (JST 2026-01-26 23:24) =====
+/* ===== PATCH (legacy)hotfix (JST 2026-01-26 23:24) =====
 - store-list: クリック委任で「未設定/ストア名」が必ず選べるよう復旧（再描画で配線が消えない）
 - 設定: ブラウザで開く=直接別タブ（モーダル無し）
 - 招待: LINE/メール/コピーの配線を確実化（モーダル内ボタンの onclick を上書き）
@@ -7384,14 +7372,14 @@ async function runDiagGps(){
     });
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.4B-hotfix ===== */
+/* ===== /PATCH (legacy)hotfix ===== */
 
 </script>
 
 
-<!-- ===== /PATCH v20.3.2B-gpsfirst-back-admin ===== -->
+<!-- ===== /PATCH (legacy)gpsfirst-back-admin ===== -->
 
-<!-- ===== PATCH v20.3.5B-settingsinviteadminfix (2026-01-26 23:35 JST) =====
+<!-- ===== PATCH (legacy)settingsinviteadminfix (2026-01-26 23:35 JST) =====
 - 設定「保存/同期」後にホームへ戻らない（トーストのみ）
 - ストアタグ：再描画に強いクリック委任で「未設定/ストア名が選べない」を防ぐ
 - 友人紹介/家族共有：送る文の見本を必ず表示し、LINE/メール/コピーが必ず動く
@@ -7583,7 +7571,112 @@ ${link}`;
   }catch(e){}
 })();
 </script>
-<!-- ===== /PATCH v20.3.5B-settingsinviteadminfix ===== -->
+<!-- ===== /PATCH (legacy)settingsinviteadminfix ===== -->
+
+
+<!-- ===== PATCH (legacy)fix-syntax-toast-ver (JST 2026-01-27 00:16) =====
+- 設定「設定保存と同期」：ホームへ戻らない（設定モーダルを維持、トーストのみ）
+- 管理：パスOKで設定を閉じて管理画面を前面表示（戻ってしまう問題を解消）
+- 招待：LINE送信が開けない端末向けにフォールバック（window.open失敗時は location.href）
+- UI変更なし（配線と遷移のみ）
+===== -->
+<script>
+(function(){
+  try{
+    // ---- (A) 同期後にホームへ遷移しない：startMigration 中だけ closeSettings / showHome を無効化
+    if(typeof window.startMigration === 'function' && !window.__sp2036_syncwrap){
+      window.__sp2036_syncwrap = true;
+
+      const _origCloseSettings = window.closeSettings;
+      const _origShowHome = window.showHome;
+
+      // ガード付きに差し替え（同期中だけ無効化）
+      window.closeSettings = function(){
+        try{ if(window.__sp2036_noNav) return; }catch(e){}
+        try{ if(typeof _origCloseSettings === 'function') return _origCloseSettings.apply(this, arguments); }catch(e){}
+      };
+      window.showHome = function(){
+        try{ if(window.__sp2036_noNav) return; }catch(e){}
+        try{ if(typeof _origShowHome === 'function') return _origShowHome.apply(this, arguments); }catch(e){}
+      };
+
+      const _origStart = window.startMigration;
+      window.startMigration = async function(){
+        window.__sp2036_noNav = true;
+        try{
+          const r = await _origStart.apply(this, arguments);
+          // 同期完了後：設定画面に留める
+          try{
+            const sm = document.getElementById('settingsModal');
+            if(sm) sm.style.display = 'flex';
+          }catch(e){}
+          try{ if(typeof showToast==='function') showToast('同期しました', 2000); }catch(e){}
+          return r;
+        } finally {
+          // 余韻で他処理が走るので少し遅らせて解除
+          setTimeout(()=>{ try{ window.__sp2036_noNav=false; }catch(e){} }, 300);
+        }
+      };
+    }
+
+    // ---- (B) 管理：パスOKで「設定が前面に残る」問題を解消（設定を閉じて管理を最前面へ）
+    function _sp2036_openAdminFront(){
+      try{
+        const settings = document.getElementById('settingsModal');
+        if(settings) settings.style.display = 'none';
+      }catch(e){}
+      try{
+        const am = document.getElementById('adminModal');
+        if(am) am.style.zIndex = 99999;
+      }catch(e){}
+      try{ if(typeof openAdmin==='function') return openAdmin(); }catch(e){}
+      try{
+        // fallback: diagModal
+        const dm = document.getElementById('diagModal');
+        if(dm){ dm.style.zIndex = 99999; dm.style.display='flex'; }
+      }catch(e){}
+    }
+
+    function _sp2036_adminEnter(){
+      try{
+        const inp = document.getElementById('adminPassInput');
+        const pass = (inp && inp.value) ? String(inp.value) : '';
+        const okPass = '55533557';
+        if(pass !== okPass){
+          try{ if(typeof showToast==='function') showToast('パスワードが違います', 2000); }catch(e){}
+          return;
+        }
+        try{ if(typeof closeAdminGate==='function') closeAdminGate(); }catch(e){ const gm=document.getElementById('adminGateModal'); if(gm) gm.style.display='none'; }
+        _sp2036_openAdminFront();
+      }catch(e){}
+    }
+
+    // enterAdmin/unlockAdmin を最終的にこれへ固定
+    window.enterAdmin = _sp2036_adminEnter;
+    window.unlockAdmin = _sp2036_adminEnter;
+
+    // ---- (C) 招待：LINE送信フォールバック（open失敗時は location.href）
+    const _origShare = window.shareInvite;
+    window.shareInvite = async function(mode){
+      const m = String(mode||'').toLowerCase();
+      if(m === 'line'){
+        try{
+          const txt = (document.getElementById('inviteCopyText')||{}).textContent || '';
+          if(!txt) return;
+          const lineUrl = 'https://line.me/R/msg/text/?' + encodeURIComponent(txt);
+          const w = window.open(lineUrl, '_blank', 'noopener,noreferrer');
+          if(!w) location.href = lineUrl;
+          return;
+        }catch(e){}
+      }
+      // それ以外は既存へ
+      try{ if(typeof _origShare === 'function') return _origShare.apply(this, arguments); }catch(e){}
+    };
+
+  }catch(e){}
+})();
+</script>
+<!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 </body>
 </html>
