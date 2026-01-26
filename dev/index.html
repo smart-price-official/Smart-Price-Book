@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.8B
-  FULL_VERSION: v20.2.7B [VERLOCK SSOT]
+  VERSION: v20.2.9B
+  FULL_VERSION: v20.2.9B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix3-v20.2.7B
 DEBUG_PARAM: &debug=1
@@ -387,9 +387,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.2.8",
+  NUM: "20.2.9",
   REV: "B",
-  BUILD: "2026-01-25_0011_settingsbtnbind-v20.2.8B",
+  BUILD: "2026-01-25_0025_initfix-v20.2.9B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -1352,7 +1352,7 @@ function buildStoreOptions(city){
 
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
-  let curBarcode = null, curStore = "未設定", curStoreId = "";
+  let curBarcode = null, curStore = "", curStoreId = "";
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -3121,19 +3121,30 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   function toggleGps() {
     if(!isGpsOn) {
-      isGpsOn = true; lastGpsTime = "…"; renderStoreList(); 
+      isGpsOn = true; lastGpsTime = "…"; 
+      // 起動直後の既定は「未設定を自動選択しない」
+      if(curStore === '未設定') curStore = '';
+      renderStoreList(); 
       showToast("GPS取得中…", 3000);
-      
+
       if (!navigator.geolocation) {
         showToast("GPS機能が利用できません", 5000);
         isGpsOn = false; renderStoreList();
         return;
       }
 
-      navigator.geolocation.getCurrentPosition(async (pos) => {
+      const tryGet = (opts, onOk, onNg) => {
+        try {
+          navigator.geolocation.getCurrentPosition(onOk, onNg, opts);
+        } catch(e) {
+          onNg({ code: 0, message: String(e) });
+        }
+      };
+
+      const onSuccess = async (pos) => {
         curPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         const d = new Date(); lastGpsTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
-        
+
         // ✅ GPS取得成功後、近隣店舗を取得してリストを更新
         try {
           const nearbyStores = await fetchNearbyStores();
@@ -3144,21 +3155,36 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         } catch(e) {
           if (isDebug()) console.warn('[GPS] fetchNearbyStores failed:', e);
         }
-        
+
         renderStoreList();
-        
+
         const msg = isDebug() 
           ? `GPS取得成功（${curPos.lat.toFixed(4)}, ${curPos.lng.toFixed(4)}）` 
           : "GPS取得成功";
         showToast(msg, 2000);
-      }, (err) => {
-        const errMsg = err.code === 1 ? "位置情報の取得が拒否されました" :
-                      err.code === 2 ? "位置情報が取得できませんでした" :
-                      err.code === 3 ? "位置情報の取得がタイムアウトしました" :
-                      `GPSエラー: ${err.message}`;
+      };
+
+      let retried = false;
+      const onError = (err) => {
+        // 1回だけ条件を変えてリトライ（起動直後の取りこぼし対策）
+        if(!retried && (err && (err.code === 2 || err.code === 3))) {
+          retried = true;
+          if (isDebug()) console.warn('[GPS] retry once:', err);
+          tryGet({ enableHighAccuracy: false, timeout: 20000, maximumAge: 0 }, onSuccess, onError2);
+          return;
+        }
+        onError2(err);
+      };
+      const onError2 = (err) => {
+        const errMsg = err && err.code === 1 ? "位置情報の取得が拒否されました" :
+                      err && err.code === 2 ? "位置情報が取得できませんでした" :
+                      err && err.code === 3 ? "位置情報の取得がタイムアウトしました" :
+                      `GPSエラー: ${(err && err.message)?err.message:''}`;
         showToast(errMsg, 8000);
         isGpsOn = false; curPos = null; lastGpsTime = ""; renderStoreList();
-      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+      };
+
+      tryGet({ enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }, onSuccess, onError);
     } else {
       isGpsOn = false; curPos = null; lastGpsTime = ""; 
       window.nearbyStoreNames = []; // GPS OFF時は近隣店舗候補もクリア
@@ -6538,39 +6564,90 @@ async function runDiagGps(){
 
 
 
-<!-- ===== PATCH v20.2.8B-settingsbtnbind (2026-01-25 00:11 JST) =====
-- Fix: settings bottom buttons (open in browser / invite friend / invite family / admin) not responding
-- Force-bind real handler functions onto window so inline onclick always resolves
-- No UI changes
+<!-- ===== PATCH v20.2.9B-initfix (2026-01-25 00:25 JST) =====
+- Fix: 起動時の既定ストアを「未設定」にしない（未設定OFFで開始）
+- Fix: GPS 初回ONでストア候補が出ないことがある → 1回だけ条件変更して自動リトライ
+- Fix: 設定の下段ボタン（ブラウザ/友人紹介/家族共有/管理）が環境によって無反応 → windowへ実体を強制バインド（no-op上書き禁止）
+- UI変更なし
 ===== -->
 <script>
 (function(){
   try{
-    var bind = function(name, fn) {
-      try { if (typeof fn === 'function') window[name] = fn; } catch(e){}
+    // 1) 起動時：未設定を勝手にONにしない
+    try{ if (typeof curStore !== 'undefined' && curStore === '未設定') curStore = ''; }catch(e){}
+    try{
+      // 以前の保存が「未設定」でも、起動時はOFF（ユーザーが押した時だけON）
+      const s = localStorage.getItem('lastStoreName');
+      if(s === '未設定') localStorage.setItem('lastStoreName', '');
+    }catch(e){}
+
+    // 2) inline onclick の“配線”を必ず生かす（空関数で上書きしない）
+    var forceBind = function(name, fn){
+      try{
+        if(typeof fn === 'function') window[name] = fn;
+      }catch(e){}
     };
-    // Settings bottom buttons
-    bind('openWebModal', (typeof openWebModal === 'function') ? openWebModal : null);
-    bind('closeWebModal', (typeof closeWebModal === 'function') ? closeWebModal : null);
-    bind('openWebDirect', (typeof openWebDirect === 'function') ? openWebDirect : null);
 
-    bind('openInviteModal', (typeof openInviteModal === 'function') ? openInviteModal : null);
-    bind('closeInviteModal', (typeof closeInviteModal === 'function') ? closeInviteModal : null);
-    bind('shareInvite', (typeof shareInvite === 'function') ? shareInvite : null);
+    // settings
+    forceBind('openSettings', (typeof openSettings==='function')?openSettings:null);
+    forceBind('closeSettings', (typeof closeSettings==='function')?closeSettings:null);
+    forceBind('startMigration', (typeof startMigration==='function')?startMigration:null);
 
-    bind('openAdminGate', (typeof openAdminGate === 'function') ? openAdminGate : null);
-    bind('closeAdminGate', (typeof closeAdminGate === 'function') ? closeAdminGate : null);
-    bind('enterAdmin', (typeof enterAdmin === 'function') ? enterAdmin : null);
+    // web modal
+    forceBind('openWebModal', (typeof openWebModal==='function')?openWebModal:null);
+    forceBind('closeWebModal', (typeof closeWebModal==='function')?closeWebModal:null);
+    forceBind('openWebDirect', (typeof openWebDirect==='function')?openWebDirect:null);
 
-    // Compat: old name unlockAdmin -> openAdminGate
-    if (typeof window.unlockAdmin !== 'function') {
-      window.unlockAdmin = function() {
-        try { if (typeof window.openAdminGate === 'function') return window.openAdminGate(); } catch(e){}
+    // invite
+    if(typeof openInviteModal === 'function'){
+      window.openInviteModal = openInviteModal;
+    } else {
+      // フォールバック：最低限モーダルを開く
+      window.openInviteModal = function(kind){
+        try{
+          const m = document.getElementById('inviteModal');
+          if(!m) return;
+          const t = document.getElementById('inviteTitle');
+          if(t) t.innerText = (kind==='family'?'家族共有':'友人紹介');
+          m.style.display='flex';
+        }catch(e){}
       };
     }
-  } catch(e) {}
+    forceBind('closeInviteModal', (typeof closeInviteModal==='function')?closeInviteModal:null);
+    forceBind('shareInvite', (typeof shareInvite==='function')?shareInvite:null);
+
+    // admin
+    forceBind('openAdminGate', (typeof openAdminGate==='function')?openAdminGate:null);
+    forceBind('closeAdminGate', (typeof closeAdminGate==='function')?closeAdminGate:null);
+    forceBind('enterAdmin', (typeof enterAdmin==='function')?enterAdmin:null);
+    // Gate内ボタンは unlockAdmin() を呼ぶので、確実に enterAdmin に接続
+    window.unlockAdmin = function(){
+      try{
+        if(typeof window.enterAdmin === 'function') return window.enterAdmin();
+        if(typeof enterAdmin === 'function') return enterAdmin();
+      }catch(e){}
+    };
+
+    // 最後に：設定が開いたタイミングでも配線をかけ直す（再描画対策）
+    try{
+      const _os = window.openSettings;
+      if(typeof _os === 'function'){
+        window.openSettings = function(){
+          const r = _os.apply(this, arguments);
+          setTimeout(function(){
+            try{
+              forceBind('openWebModal', (typeof openWebModal==='function')?openWebModal:null);
+              if(typeof openInviteModal==='function') window.openInviteModal=openInviteModal;
+              forceBind('openAdminGate', (typeof openAdminGate==='function')?openAdminGate:null);
+            }catch(e){}
+          }, 0);
+          return r;
+        };
+      }
+    }catch(e){}
+  }catch(e){}
 })();
 </script>
-<!-- ===== /PATCH v20.2.8B-settingsbtnbind ===== -->
+<!-- ===== /PATCH v20.2.9B-initfix ===== -->
 </body>
 </html>
