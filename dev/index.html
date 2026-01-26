@@ -1,10 +1,10 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.3.2B
-  FULL_VERSION: v20.3.2B [VERLOCK SSOT]
+  VERSION: v20.3.3B
+  FULL_VERSION: v20.3.3B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix3-v20.2.7B
+BUILD_PARAM: ?b=2026-01-25_0037_gpsfast3-v20.3.3B
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -322,9 +322,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">管理</h5>
     <div class="hint mb-3">
-      合言葉を入力してください。
+      パスワードを入力してください。
     </div>
-    <input type="password" id="adminPassInput" class="form-control bg-dark text-white border-secondary mb-3" placeholder="合言葉">
+    <input type="password" id="adminPassInput" class="form-control bg-dark text-white border-secondary mb-3" placeholder="パスワード">
     <div class="d-flex gap-2 mb-3">
       <button class="btn btn-warning w-100 py-2 fw-bold" onclick="enterAdmin()">入る</button>
     </div>
@@ -387,9 +387,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.3.2",
+  NUM: "20.3.3",
   REV: "B",
-  BUILD: "2026-01-25_0035_settings-directshare-admin-gpsfast-v20.3.2B",
+  BUILD: "2026-01-25_0037_gpsfast3-v20.3.3B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -7000,6 +7000,195 @@ async function runDiagGps(){
 
 })();
  /* ===== /PATCH v20.3.2B-settings-directshare-admin-gpsfast ===== */
+
+/* ===== PATCH v20.3.3B-gpsfast3-settings-directshare-adminfix (2026-01-25 00:37 JST) =====
+- GPS初回ONの体感速度改善: 直近キャッシュのストア候補を即表示→裏で再取得、結果が来たら即反映
+- 設定→ブラウザで開く: モーダルを出さず直接別タブで開く（openWebModalも直開きに退避）
+- 友人紹介/家族共有: shareInvite('line'/'mail'/'copy') を実装し、LINE/メールが確実に動く
+- 管理: enterAdminの無反応を潰す（誤パスはトースト表示）＋設定「管理」ボタンは必ずゲートを開く
+- UIの見た目は維持（文言「合言葉」→「パスワード」は管理ゲートのみ）
+===== */
+(function(){
+  try{
+    // ---- 0) 近隣ストア候補のキャッシュ（体感速度改善） ----
+    const NEARBY_CACHE_KEY = 'SP_NEARBY_CACHE_V1';
+    function loadNearbyCache(){
+      try{
+        const raw = localStorage.getItem(NEARBY_CACHE_KEY);
+        if(!raw) return null;
+        const obj = JSON.parse(raw);
+        if(!obj || !Array.isArray(obj.names) || !obj.ts) return null;
+        // 6時間以内なら即表示に使う
+        if(Date.now() - obj.ts > 6*60*60*1000) return null;
+        return obj.names.filter(Boolean);
+      }catch(e){ return null; }
+    }
+    function saveNearbyCache(names){
+      try{
+        if(!Array.isArray(names) || names.length===0) return;
+        localStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), names: names.slice(0,80) }));
+      }catch(e){}
+    }
+
+    // fetchNearbyStores を「結果が来たら即反映 + キャッシュ保存」する薄いラッパー
+    async function fetchNearbyStoresAndApply(){
+      try{
+        const arr = await (window.fetchNearbyStores ? window.fetchNearbyStores() : (typeof fetchNearbyStores==='function' ? fetchNearbyStores() : []));
+        if(Array.isArray(arr) && arr.length>0){
+          window.nearbyStoreNames = arr;
+          saveNearbyCache(arr);
+          if(typeof renderStoreList==='function') renderStoreList();
+        }
+        return arr;
+      }catch(e){ return []; }
+    }
+
+    // ---- 1) GPS初回ONを速く感じさせる ----
+    // toggleGps 内部の実装を壊さず、GPS ON時に「キャッシュ即表示→裏で再取得」を追加
+    if(typeof window.toggleGps === 'function' && !window.__gpsfast3_patched){
+      window.__gpsfast3_patched = true;
+      const _tg = window.toggleGps;
+      window.toggleGps = function(){
+        const wasOn = (typeof window.isGpsOn !== 'undefined') ? window.isGpsOn : false;
+        // 実行前にキャッシュを即反映（これだけで体感がかなり良くなる）
+        if(!wasOn){
+          const cached = loadNearbyCache();
+          if(cached && cached.length>0){
+            window.nearbyStoreNames = cached;
+            try{ if(typeof renderStoreList==='function') renderStoreList(); }catch(e){}
+          }
+        }
+        const ret = _tg.apply(this, arguments);
+
+        // GPSをONにした直後、短い待ちで2回まで再取得（OFF→ON不要にする）
+        try{
+          if(!wasOn){
+            // 既に別パッチが走っていても、ここは“空のときだけ”動く
+            let tries = 0;
+            const kick = async () => {
+              tries++;
+              const names = Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : [];
+              if(names.length>0) return;
+              await fetchNearbyStoresAndApply();
+              const names2 = Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : [];
+              if(names2.length===0 && tries<3) {
+                setTimeout(kick, tries===1 ? 250 : 600);
+              }
+            };
+            setTimeout(kick, 120);
+          }
+        }catch(e){}
+        return ret;
+      };
+    }
+
+    // ---- 2) 設定→ブラウザで開く：モーダル無しで直開き ----
+    function openInNewTab(url){
+      try{ window.open(url, '_blank', 'noopener,noreferrer'); }catch(e){}
+    }
+    function buildNormalUrlSafe(){
+      try{
+        if(typeof buildUrl==='function') return buildUrl(false);
+      }catch(e){}
+      try{ return location.href; }catch(e){ return ''; }
+    }
+    // openWebModal 自体も「直開き」に退避（設定ボタンが何を呼んでもOKにする）
+    window.openWebModal = function(){
+      const url = buildNormalUrlSafe();
+      if(url) openInNewTab(url);
+    };
+    // モーダル内の「開く」ボタンも保険で直開き
+    window.openWebDirect = function(){
+      const url = buildNormalUrlSafe();
+      if(url) openInNewTab(url);
+      try{ if(typeof closeWebModal==='function') closeWebModal(); }catch(e){}
+    };
+
+    // ---- 3) 友人紹介/家族共有：LINE/メール/コピーを確実に ----
+    window.shareInvite = async function(mode){
+      try{
+        const txt = (document.getElementById('inviteCopyText')||{}).textContent || '';
+        if(!txt) return;
+        const m = String(mode||'').toLowerCase();
+
+        if(m==='line'){
+          // モバイル向け: line.me のテキスト送信
+          const lineUrl = 'https://line.me/R/msg/text/?' + encodeURIComponent(txt);
+          openInNewTab(lineUrl);
+          return;
+        }
+        if(m==='mail'){
+          const mailUrl = 'mailto:?body=' + encodeURIComponent(txt);
+          location.href = mailUrl;
+          return;
+        }
+        // copy (既定)
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(txt);
+          try{ if(typeof showToast==='function') showToast('コピーしました', 2000); }catch(e){}
+          return;
+        }
+        // clipboardが無い場合は share へフォールバック
+        if(navigator.share){
+          await navigator.share({ text: txt });
+          return;
+        }
+      }catch(e){}
+    };
+
+    // ---- 4) 設定モーダルのボタン配線（ブラウザ直開き＋管理ゲート） ----
+    function wireSettingsButtons_v2033(){
+      const modal = document.getElementById('settingsModal');
+      if(!modal) return;
+      const btns = Array.from(modal.querySelectorAll('button'));
+      const pick = (label) => btns.find(b => (b.textContent||'').trim() === label);
+
+      const bWeb = pick('ブラウザで開く');
+      if(bWeb) bWeb.onclick = function(){
+        try{ const url = buildNormalUrlSafe(); if(url) openInNewTab(url); }catch(e){}
+        try{ if(typeof closeSettings==='function') closeSettings(); }catch(e){}
+      };
+
+      const bAdmin = pick('管理');
+      if(bAdmin) bAdmin.onclick = function(){
+        try{ if(typeof openAdminGate==='function') openAdminGate(); }catch(e){}
+      };
+    }
+    try{ wireSettingsButtons_v2033(); }catch(e){}
+    if(typeof window.openSettings === 'function' && !window.__openSettings_wire2033){
+      window.__openSettings_wire2033 = true;
+      const _os = window.openSettings;
+      window.openSettings = function(){
+        try{ _os(); }catch(e){}
+        try{ wireSettingsButtons_v2033(); }catch(e){}
+      };
+    }
+
+    // ---- 5) 管理: enterAdminが無反応に見えるのを改善（誤パスはトースト） ----
+    if(typeof window.enterAdmin === 'function' && !window.__enterAdmin_patched2033){
+      window.__enterAdmin_patched2033 = true;
+      const _ea = window.enterAdmin;
+      window.enterAdmin = function(){
+        try{
+          const inp = document.getElementById('adminPassInput');
+          const pass = (inp && inp.value) ? String(inp.value) : '';
+          const stored = (()=>{ try{ return String(localStorage.getItem('ADMIN_PASS')||''); }catch(e){ return ''; } })();
+          const okPass = stored || '55533557';
+          if(pass !== okPass){
+            try{ if(typeof showToast==='function') showToast('パスワードが違います', 2000); }catch(e){}
+            return;
+          }
+        }catch(e){}
+        return _ea.apply(this, arguments);
+      };
+    }
+    // 互換：unlockAdmin は必ずゲートを開く
+    window.unlockAdmin = function(){ try{ if(typeof openAdminGate==='function') openAdminGate(); }catch(e){} };
+
+  }catch(e){}
+})();
+/* ===== /PATCH v20.3.3B-gpsfast3-settings-directshare-adminfix ===== */
+
 </script>
 
 
