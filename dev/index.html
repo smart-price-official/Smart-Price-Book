@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.2.9B
-  FULL_VERSION: v20.2.9B [VERLOCK SSOT]
+  VERSION: v20.3.0B
+  FULL_VERSION: v20.3.0B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix3-v20.2.7B
 DEBUG_PARAM: &debug=1
@@ -387,9 +387,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.2.9",
+  NUM: "20.3.1",
   REV: "B",
-  BUILD: "2026-01-25_0025_initfix-v20.2.9B",
+  BUILD: "2026-01-25_0028_gps1st-back-adminfix-v20.3.1B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -3157,6 +3157,25 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
         }
 
         renderStoreList();
+
+        // ✅ 初回GPS ONでストアが0件のことがあるため、1回だけ自動リトライ
+        try{
+          if(!window.gpsFirstRetryDone){
+            const names = Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : [];
+            if(names.length === 0){
+              window.gpsFirstRetryDone = true;
+              setTimeout(async ()=>{
+                try{
+                  const retryStores = await fetchNearbyStores();
+                  if(Array.isArray(retryStores) && retryStores.length>0){
+                    window.nearbyStoreNames = retryStores;
+                  }
+                }catch(e){}
+                try{ renderStoreList(); }catch(e){}
+              }, 1000);
+            }
+          }
+        }catch(e){}
 
         const msg = isDebug() 
           ? `GPS取得成功（${curPos.lat.toFixed(4)}, ${curPos.lng.toFixed(4)}）` 
@@ -6649,5 +6668,170 @@ async function runDiagGps(){
 })();
 </script>
 <!-- ===== /PATCH v20.2.9B-initfix ===== -->
+
+<script>
+/* ===== PATCH v20.3.0B-gpsfirst-back-admin (2026-01-25 00:15 JST) =====
+- 起動直後: GPS 1回目ONでストア名が出ない問題を「空結果なら1回だけ再取得」して安定化
+- 設定: 戻るボタン（closeWebModal/closeInviteModal）の実体を必ず有効化
+- 管理: unlockAdmin() を openAdminGate() に確実に接続
+- UI変更なし（配線と再取得のみ）
+===== */
+(function(){
+  try {
+    if (typeof applyVersionUI === 'function') applyVersionUI();
+  } catch(e) {}
+
+  function _spShow(id, on){
+    try {
+      var el = document.getElementById(id);
+      if(!el) return false;
+      el.style.display = on ? 'flex' : 'none';
+      return true;
+    } catch(e) { return false; }
+  }
+
+  // Back (web modal)
+  try {
+    if (typeof window.closeWebModal !== 'function') {
+      window.closeWebModal = function(){ _spShow('webModal', false); };
+    }
+    if (typeof window.openWebModal !== 'function' && typeof openWebModal === 'function') {
+      window.openWebModal = openWebModal;
+    }
+    if (typeof window.openWebDirect !== 'function' && typeof openWebDirect === 'function') {
+      window.openWebDirect = openWebDirect;
+    }
+  } catch(e) {}
+
+  // Back (invite modal)
+  try {
+    if (typeof window.closeInviteModal !== 'function') {
+      window.closeInviteModal = function(){ _spShow('inviteModal', false); };
+    }
+    if (typeof window.openInviteModal !== 'function' && typeof openInviteModal === 'function') {
+      window.openInviteModal = openInviteModal;
+    }
+    if (typeof window.shareInvite !== 'function' && typeof shareInvite === 'function') {
+      window.shareInvite = shareInvite;
+    }
+  } catch(e) {}
+
+  // Admin (onclick="unlockAdmin()")
+  try {
+    if (typeof window.unlockAdmin !== 'function') {
+      window.unlockAdmin = function(){
+        try {
+          if (typeof openAdminGate === 'function') return openAdminGate();
+          if (typeof window.openAdminGate === 'function') return window.openAdminGate();
+          _spShow('adminGateModal', true);
+        } catch(e) {}
+      };
+    }
+    if (typeof window.openAdminGate !== 'function' && typeof openAdminGate === 'function') window.openAdminGate = openAdminGate;
+    if (typeof window.closeAdminGate !== 'function' && typeof closeAdminGate === 'function') window.closeAdminGate = closeAdminGate;
+    if (typeof window.enterAdmin !== 'function' && typeof enterAdmin === 'function') window.enterAdmin = enterAdmin;
+  } catch(e) {}
+
+  // GPS first ON: if no stores, retry fetch once
+  try {
+    if (typeof window.toggleGps === 'function' && typeof window.__toggleGpsPatched2030 === 'undefined') {
+      window.__toggleGpsPatched2030 = true;
+      var _origToggleGps = window.toggleGps;
+      window.toggleGps = function(){
+        var wasOn = false;
+        try { wasOn = (typeof isGpsOn !== 'undefined') ? !!isGpsOn : false; } catch(e){}
+        var r = _origToggleGps.apply(this, arguments);
+
+        try {
+          if (!wasOn && (typeof isGpsOn !== 'undefined') && isGpsOn) {
+            setTimeout(function(){
+              (async function(){
+                try {
+                  var near = Array.isArray(window.nearbyStoreNames) ? window.nearbyStoreNames : [];
+                  var cnt = 0;
+                  for (var i=0;i<near.length;i++) if (near[i]) cnt++;
+                  if (cnt === 0 && typeof fetchNearbyStores === 'function') {
+                    var got = await fetchNearbyStores();
+                    if (got && got.length) window.nearbyStoreNames = got;
+                    if (typeof renderStoreList === 'function') renderStoreList();
+                  }
+                } catch(e) {}
+              })();
+            }, 900);
+          }
+        } catch(e) {}
+
+        return r;
+      };
+    }
+  } catch(e) {}
+
+})();
+
+
+/* ===== PATCH v20.3.1B-gps1st-back-adminfix (2026-01-25 00:28 JST) =====
+- GPS 初回ONでストア候補が出ない場合：1回だけ自動リトライ
+- 設定モーダルの「戻る」系ボタン（ブラウザ/友人紹介/家族共有）の close 系を window に確実固定
+- 管理ボタン（unlockAdmin）を openAdminGate/enterAdmin に確実接続
+- UI変更なし（配線のみ）
+===== */
+(function(){
+  try{
+    // --- close 系（戻る）を確実に実体化 ---
+    window.closeWebModal = function(){
+      try{ const m=document.getElementById('webModal'); if(m) m.style.display='none'; }catch(e){}
+    };
+    window.closeInviteModal = function(){
+      try{ const m=document.getElementById('inviteModal'); if(m) m.style.display='none'; }catch(e){}
+    };
+    window.closeAdminGate = function(){
+      try{ const m=document.getElementById('adminGateModal'); if(m) m.style.display='none'; }catch(e){}
+    };
+
+    // --- 管理ボタン名の互換：unlockAdmin() → openAdminGate()（なければenterAdmin） ---
+    window.unlockAdmin = function(){
+      try{ if(typeof window.openAdminGate==='function') return window.openAdminGate(); }catch(e){}
+      try{ if(typeof window.enterAdmin==='function') return window.enterAdmin(); }catch(e){}
+    };
+
+    // --- 設定モーダル内ボタンを“文字”で配線（環境差でonclickが死ぬのを回避） ---
+    const wireSettingsButtons = function(){
+      try{
+        const modal = document.getElementById('settingsModal');
+        if(!modal) return;
+        const btns = Array.from(modal.querySelectorAll('button, .btn, .setting-btn'));
+        const findByText = (t)=> btns.find(b=> (b.textContent||'').trim()===t);
+        const bWeb = findByText('ブラウザで開く');
+        const bInv = findByText('友人紹介');
+        const bFam = findByText('家族共有');
+        const bAdm = findByText('管理');
+
+        if(bWeb) bWeb.onclick = function(){ try{ if(typeof window.openWebModal==='function') window.openWebModal(); }catch(e){} };
+        if(bInv) bInv.onclick = function(){ try{ if(typeof window.openInviteModal==='function') window.openInviteModal('friend'); }catch(e){} };
+        if(bFam) bFam.onclick = function(){ try{ if(typeof window.openInviteModal==='function') window.openInviteModal('family'); }catch(e){} };
+        if(bAdm) bAdm.onclick = function(){ try{ window.unlockAdmin(); }catch(e){} };
+      }catch(e){}
+    };
+
+    // openSettings のたびに配線し直す（innerHTML再描画でも復活）
+    if(typeof window.openSettings==='function' && !window.openSettings.__wired){
+      const orig = window.openSettings;
+      const wrapped = function(){
+        const r = orig.apply(this, arguments);
+        setTimeout(wireSettingsButtons, 0);
+        return r;
+      };
+      wrapped.__wired = true;
+      window.openSettings = wrapped;
+    }
+
+    // 起動時にも1回だけ（念のため）
+    setTimeout(wireSettingsButtons, 0);
+  }catch(e){}
+})();
+/* ===== /PATCH v20.3.1B-gps1st-back-adminfix ===== */
+
+</script>
+<!-- ===== /PATCH v20.3.0B-gpsfirst-back-admin ===== -->
 </body>
 </html>
