@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.3.0B
-  FULL_VERSION: v20.3.0B [VERLOCK SSOT]
+  VERSION: v20.3.2B
+  FULL_VERSION: v20.3.2B [VERLOCK SSOT]
   - P0: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: ?b=2026-01-24_2359_settingsbtnfix3-v20.2.7B
 DEBUG_PARAM: &debug=1
@@ -387,9 +387,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.3.1",
+  NUM: "20.3.2",
   REV: "B",
-  BUILD: "2026-01-25_0028_gps1st-back-adminfix-v20.3.1B",
+  BUILD: "2026-01-25_0035_settings-directshare-admin-gpsfast-v20.3.2B",
   get FULL() { return `${this.NUM}${this.REV}`; }
 };
 const APP_VERSION = VERSION_INFO.NUM;   // 画面表示用（数字のみ）
@@ -6670,7 +6670,7 @@ async function runDiagGps(){
 <!-- ===== /PATCH v20.2.9B-initfix ===== -->
 
 <script>
-/* ===== PATCH v20.3.0B-gpsfirst-back-admin (2026-01-25 00:15 JST) =====
+/* ===== PATCH v20.3.2B-gpsfirst-back-admin (2026-01-25 00:15 JST) =====
 - 起動直後: GPS 1回目ONでストア名が出ない問題を「空結果なら1回だけ再取得」して安定化
 - 設定: 戻るボタン（closeWebModal/closeInviteModal）の実体を必ず有効化
 - 管理: unlockAdmin() を openAdminGate() に確実に接続
@@ -6769,7 +6769,7 @@ async function runDiagGps(){
 })();
 
 
-/* ===== PATCH v20.3.1B-gps1st-back-adminfix (2026-01-25 00:28 JST) =====
+/* ===== PATCH v20.3.2B-gps1st-back-adminfix (2026-01-25 00:28 JST) =====
 - GPS 初回ONでストア候補が出ない場合：1回だけ自動リトライ
 - 設定モーダルの「戻る」系ボタン（ブラウザ/友人紹介/家族共有）の close 系を window に確実固定
 - 管理ボタン（unlockAdmin）を openAdminGate/enterAdmin に確実接続
@@ -6829,9 +6829,180 @@ async function runDiagGps(){
     setTimeout(wireSettingsButtons, 0);
   }catch(e){}
 })();
-/* ===== /PATCH v20.3.1B-gps1st-back-adminfix ===== */
+/* ===== /PATCH v20.3.2B-gps1st-back-adminfix ===== */
 
 </script>
-<!-- ===== /PATCH v20.3.0B-gpsfirst-back-admin ===== -->
+
+<script>
+/* ===== PATCH v20.3.2B-settings-directshare-admin-gpsfast (2026-01-25 00:35 JST) =====
+- GPS: 初回ON後の「同期完了→ストア表示」が遅い件を短縮（空のときだけ最小待ちで再取得）
+- 設定: 「ブラウザで開く」はモーダルを出さず“直接開く”
+- 友人紹介/家族共有: LINE/メール送信ボタンを実装（shareInvite(mode)）
+- 戻る: closeInviteModal / closeAdminGate / closeWebModal を確実に動作させる
+- 管理: 設定→管理 で adminGateModal を必ず開く（unlockAdmin も同じ挙動）
+- UI変更なし（内部配線のみ）
+===== */
+(function(){
+  'use strict';
+
+  function $(id){ return document.getElementById(id); }
+  function safe(fn){ try{ return fn(); }catch(e){} }
+  function showToastSafe(msg, ms){
+    if(typeof window.showToast === 'function') return safe(()=>window.showToast(msg, ms||2000));
+  }
+
+  // 1) GPS first ON: faster + only-when-empty retry
+  (function(){
+    if(typeof window.toggleGps !== 'function') return;
+
+    if(!window.__gpsToggleWrapped){
+      window.__gpsToggleWrapped = true;
+      const orig = window.toggleGps;
+
+      window.toggleGps = async function(){
+        const ret = safe(()=>orig());
+
+        const gpsBtn = document.querySelector('.store-tag.gps-btn');
+        const isOn = gpsBtn ? gpsBtn.classList.contains('on') : (window.isGpsOn===true);
+
+        if(isOn){
+          if(typeof window.renderStoreList === 'function') safe(()=>window.renderStoreList());
+
+          // 空のときだけ再取得（短い待ちで最大2回）
+          if(!window.__gpsFirstRetryDone){
+            window.__gpsFirstRetryDone = true;
+
+            const tryRetry = async () => {
+              const names = window.nearbyStoreNames;
+              const empty = !names || !Array.isArray(names) || names.length===0;
+              if(!empty) return;
+
+              if(typeof window.fetchNearbyStores === 'function'){ try{ await window.fetchNearbyStores(); }catch(e){} }
+              if(typeof window.renderStoreList === 'function') safe(()=>window.renderStoreList());
+            };
+
+            setTimeout(()=>safe(()=>tryRetry()), 250);
+            setTimeout(()=>safe(()=>tryRetry()), 600);
+          }
+        }
+        return ret;
+      };
+    }
+  })();
+
+  // 2) Modal close functions: always work
+  window.closeInviteModal = function(){ safe(()=>{ const m=$('inviteModal'); if(m) m.style.display='none'; }); };
+  window.closeAdminGate  = function(){ safe(()=>{ const m=$('adminGateModal'); if(m) m.style.display='none'; }); };
+  if(typeof window.closeWebModal !== 'function'){
+    window.closeWebModal = function(){ safe(()=>{ const m=$('webModal'); if(m) m.style.display='none'; }); };
+  }
+
+  // 3) ShareInvite: LINE / Mail / Copy
+  window.shareInvite = async function(mode){
+    try{
+      const txt = ( $('inviteCopyText') ? $('inviteCopyText').textContent : '' ) || '';
+      if(!txt){ showToastSafe('共有する内容がありません', 1800); return; }
+
+      if(mode === 'line'){
+        const lineUrl = 'https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(txt);
+        window.open(lineUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if(mode === 'mail'){
+        const mailUrl = 'mailto:?body=' + encodeURIComponent(txt);
+        window.location.href = mailUrl;
+        return;
+      }
+
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(txt);
+        showToastSafe('コピーしました', 1800);
+      }else{
+        showToastSafe('コピー機能が使えません', 1800);
+      }
+    }catch(e){}
+  };
+
+  // 4) Settings buttons wiring (direct open / admin)
+  function buildUrlSafe(){
+    if(typeof window.buildUrl === 'function'){ try{ return window.buildUrl(false); }catch(e){} }
+    return location.href;
+  }
+
+  function wireSettingsButtons(){
+    const modal = $('settingsModal');
+    if(!modal) return;
+
+    const btns = Array.from(modal.querySelectorAll('button'));
+    const findBtn = (label)=>btns.find(b => ((b.textContent||'').trim() === label));
+
+    const bWeb = findBtn('ブラウザで開く');
+    if(bWeb && !bWeb.dataset.wired){
+      bWeb.dataset.wired = '1';
+      bWeb.onclick = function(){
+        safe(()=>{ const url = buildUrlSafe(); window.open(url, '_blank', 'noopener,noreferrer'); });
+      };
+    }
+
+    const bAdmin = findBtn('管理');
+    if(bAdmin && !bAdmin.dataset.wired){
+      bAdmin.dataset.wired = '1';
+      bAdmin.onclick = function(){
+        safe(()=>{
+          const gate = $('adminGateModal');
+          if(gate){
+            gate.style.display = 'flex';
+            const pass = $('adminPassInput'); if(pass) pass.value = '';
+          }else if(typeof window.openAdminGate === 'function'){
+            window.openAdminGate();
+          }else if(typeof window.enterAdmin === 'function'){
+            window.enterAdmin();
+          }
+        });
+      };
+    }
+  }
+
+  const origOpenSettings = window.openSettings;
+  if(typeof origOpenSettings === 'function' && !window.__openSettingsWrapped){
+    window.__openSettingsWrapped = true;
+    window.openSettings = function(){
+      const r = safe(()=>origOpenSettings());
+      setTimeout(()=>safe(()=>wireSettingsButtons()), 50);
+      setTimeout(()=>safe(()=>wireSettingsButtons()), 200);
+      return r;
+    };
+  }else{
+    setTimeout(()=>safe(()=>wireSettingsButtons()), 300);
+  }
+
+  window.unlockAdmin = function(){
+    safe(()=>{
+      const gate = $('adminGateModal');
+      if(gate){
+        gate.style.display='flex';
+        const pass = $('adminPassInput'); if(pass) pass.value='';
+      }else if(typeof window.openAdminGate === 'function'){
+        window.openAdminGate();
+      }else if(typeof window.enterAdmin === 'function'){
+        window.enterAdmin();
+      }
+    });
+  };
+
+  setTimeout(()=>safe(()=>{
+    const backBtn = document.querySelector('#inviteModal button[onclick*="closeInviteModal"]');
+    if(backBtn && !backBtn.dataset.wired){
+      backBtn.dataset.wired='1';
+      backBtn.onclick = window.closeInviteModal;
+    }
+  }), 120);
+
+})();
+ /* ===== /PATCH v20.3.2B-settings-directshare-admin-gpsfast ===== */
+</script>
+
+
+<!-- ===== /PATCH v20.3.2B-gpsfirst-back-admin ===== -->
 </body>
 </html>
