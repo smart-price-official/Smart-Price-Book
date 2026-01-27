@@ -7827,75 +7827,165 @@ ${link}`;
 <!-- ===== /PATCH v20.4.2B-recover-storebar ===== -->
 
 
-/* ===== PATCH v20.4.2B-storetap-early (2026-01-27) =====
-   - ensure version SSOT shows 20.4.2B
-   - render store bar immediately
-   - force store bar above overlays for tap
-*/
+<script>
+/* =========================================================
+   APP: Smart Price
+   VERSION: v20.4.3B [VERLOCK SSOT]
+   DATE(JST): 2026-01-27 09:43
+   TITLE: Recover store bar tap + VERLOCK SSOT + remove stray PATCH text
+   CHANGES:
+   - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
+   - Fix: force version SSOT to v20.4.3B in VERSION_INFO / title / badge
+   - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
+   - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
+   BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
+   DEBUG_PARAM: &debug=1
+   POLICY: UI unchanged (internal-only)
+   AUTHOR: Yui
+========================================================== */
 (function(){
-  try{
-    // 1) force VERSION badge refresh (SSOT)
-    if(typeof VERSION_INFO==='object' && VERSION_INFO && VERSION_INFO.FULL) {
-      VERSION_INFO.FULL = '20.4.2B [VERLOCK SSOT]';
-      VERSION_INFO.VER = '20.4.2B';
+  'use strict';
+  var SSOT_VER = '20.4.3B';
+  // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
+  try {
+    if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
+      window.VERSION_INFO.FULL = SSOT_VER + 'B [VERLOCK SSOT]'.replace('BB','B');
+      window.VERSION_INFO.VER  = SSOT_VER + 'B'.replace('BB','B');
+    } else {
+      window.VERSION_INFO = { FULL: SSOT_VER + 'B [VERLOCK SSOT]'.replace('BB','B'), VER: SSOT_VER + 'B'.replace('BB','B') };
     }
-    if(typeof document!=='undefined') {
-      // update title text if app uses it later
-      if(document.title && document.title.indexOf('Smart Price')===0) {
-        document.title = 'Smart Price 20.4.2B';
-      }
-    }
-  }catch(_e){}
+  } catch(e) {}
 
-  function _sp_forceRenderStoreBar(){
-    try{
-      if(typeof renderStoreList==='function') renderStoreList();
-      // make sure store-list is tappable even if some overlay exists
+  try {
+    if (typeof document !== 'undefined') {
+      // title
+      if (document.title && document.title.indexOf('Smart Price') === 0) {
+        document.title = 'Smart Price ' + (SSOT_VER + 'B').replace('BB','B');
+      }
+      // badge text (try common selectors)
+      var candidates = [
+        document.getElementById('versionBadge'),
+        document.querySelector('.version-badge'),
+        document.querySelector('[data-role="version-badge"]')
+      ];
+      candidates.forEach(function(el){
+        try { if(el) el.textContent = (SSOT_VER + 'B').replace('BB','B'); } catch(_e){}
+      });
+    }
+  } catch(e) {}
+
+  // ---- 2) Force store bar render ASAP ----
+  function _sp_forceStoreBarRender(){
+    try {
+      if (typeof window.renderStoreList === 'function') {
+        window.renderStoreList();
+      }
+    } catch(e) {}
+    try {
       var area = document.querySelector('.store-area');
-      if(area) {
-        area.style.zIndex = '50';
+      if (area) {
+        area.style.zIndex = '60';
         area.style.pointerEvents = 'auto';
       }
       var list = document.getElementById('store-list');
-      if(list) {
+      if (list) {
         list.style.pointerEvents = 'auto';
       }
-      // re-bind onclick safely (in case delegation patch broke)
-      if(list) {
-        Array.from(list.querySelectorAll('.store-tag')).forEach(function(el){
-          if(el.__sp_onclick_fixed) return;
-          el.__sp_onclick_fixed = true;
-          el.addEventListener('click', function(ev){
-            try{
-              var t = ev.target;
-              var tag = (t && t.closest) ? t.closest('.store-tag') : null;
-              if(!tag) return;
-              if(tag.classList.contains('gps-btn')){ if(typeof toggleGps==='function') toggleGps(); return; }
-              if(tag.classList.contains('add-store')){ if(typeof openStoreEditor==='function') openStoreEditor(); return; }
-              var name = (tag.textContent||'').trim();
-              if(!name) return;
-              if(typeof curStore!=='undefined') curStore = name;
-              try{ if(typeof db!=='undefined' && db && db.config) db.config.lastStoreName = name; }catch(_e){}
-              try{ if(typeof saveDb==='function') saveDb(); }catch(_e){}
-              try{ if(typeof showToast==='function') showToast('保存先：' + name, 1200); }catch(_e){}
-              // active mark
-              try{ Array.from(list.querySelectorAll('.store-tag')).forEach(function(s){ s.classList.remove('active'); }); tag.classList.add('active'); }catch(_e){}
-            }catch(_e){}
-          }, {passive:true});
-        });
-      }
-    }catch(_e){}
+    } catch(e) {}
+    _sp_killTapShieldOverStoreBar();
+    _sp_rebindStoreChips();
   }
 
-  if(document.readyState==='loading') {
-    document.addEventListener('DOMContentLoaded', function(){ _sp_forceRenderStoreBar(); });
-  } else {
-    _sp_forceRenderStoreBar();
+  // ---- 3) If an invisible overlay is sitting above store bar, disable pointer-events ----
+  function _sp_killTapShieldOverStoreBar(){
+    try {
+      var topBand = { top:0, left:0, right: window.innerWidth || 9999, bottom: 160 };
+      var whitelistIds = {
+        settingsModal:1, inviteModal:1, adminGateModal:1, adminModal:1, diagModal:1
+      };
+      var nodes = Array.from(document.body.querySelectorAll('*'));
+      for (var i=0;i<nodes.length;i++) {
+        var el = nodes[i];
+        if (!el || el === document.body) continue;
+        if (el.id && whitelistIds[el.id]) continue;
+        if (el.closest && el.closest('#settingsModal,#inviteModal,#adminGateModal,#adminModal,#diagModal')) continue;
+
+        var cs = window.getComputedStyle(el);
+        if (!cs) continue;
+        if (cs.pointerEvents === 'none') continue;
+        var z = parseInt(cs.zIndex, 10);
+        if (!isFinite(z)) z = 0;
+        if (z < 40) continue;
+        if (cs.position !== 'fixed' && cs.position !== 'absolute') continue;
+
+        var r = el.getBoundingClientRect();
+        if (r.bottom < topBand.top || r.top > topBand.bottom) continue;
+        if (r.right < topBand.left || r.left > topBand.right) continue;
+
+        var large = (r.width >= (window.innerWidth*0.9) && r.height >= 120);
+        var transparent = (parseFloat(cs.opacity || '1') <= 0.05) || (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent');
+        if (large || transparent) {
+          try { el.style.pointerEvents = 'none'; } catch(_e){}
+        }
+      }
+    } catch(e) {}
   }
-  // also after first paint
-  setTimeout(_sp_forceRenderStoreBar, 30);
-  setTimeout(_sp_forceRenderStoreBar, 300);
+
+  // ---- 4) Rebind store chips click to ensure tap works even if delegation was broken ----
+  function _sp_rebindStoreChips(){
+    try {
+      var list = document.getElementById('store-list');
+      if (!list) return;
+      var chips = Array.from(list.querySelectorAll('.store-tag'));
+      chips.forEach(function(chip){
+        try {
+          if (chip.classList.contains('gps-btn')) return;
+          if (chip.classList.contains('add-store')) return;
+          if (chip.__sp_onclick_fixed) return;
+          chip.__sp_onclick_fixed = true;
+          chip.addEventListener('click', function(ev){
+            try { ev.preventDefault(); ev.stopPropagation(); } catch(_e){}
+            var name = (chip.textContent || '').trim();
+            if (!name) return;
+            try { window.curStore = name; } catch(_e){}
+            try {
+              var ind = document.getElementById('curStoreIndicator');
+              if (ind) ind.innerText = '【 ' + name + ' 】で保存します';
+            } catch(_e){}
+            try {
+              chips.forEach(function(s){ try{ s.classList.remove('active'); }catch(_e){} });
+              chip.classList.add('active');
+            } catch(_e){}
+            try {
+              if (typeof window.db !== 'undefined' && window.db && window.db.config) {
+                window.db.config.lastStoreName = name;
+              }
+            } catch(_e){}
+            try { if (typeof window.saveDb === 'function') window.saveDb(); } catch(_e){}
+          }, {passive:false});
+        } catch(e) {}
+      });
+    } catch(e) {}
+  }
+
+  function boot(){
+    _sp_forceStoreBarRender();
+    setTimeout(_sp_forceStoreBarRender, 20);
+    setTimeout(_sp_forceStoreBarRender, 200);
+    setTimeout(_sp_forceStoreBarRender, 800);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){
+      boot();
+      requestAnimationFrame(boot);
+    });
+  } else {
+    boot();
+    requestAnimationFrame(boot);
+  }
 })();
+</script>
 
 </body>
 </html>
