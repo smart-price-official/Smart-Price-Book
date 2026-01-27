@@ -1,9 +1,9 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.4.8B [VERLOCK SSOT]
-  VERSION_INFO.FULL: v20.4.8B [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: '?b=2026-01-27_0030_verlock-v20.4.8B'
+  VERSION: v20.4.9B [VERLOCK SSOT]
+  VERSION_INFO.FULL: v20.4.9B [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
+BUILD_PARAM: '?b=2026-01-27_0030_verlock-v20.4.9B'
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -26,7 +26,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price 20.4.8B</title>
+  <title>Smart Price 20.4.9B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -178,7 +178,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 
-/* --- v20.4.8B HOTFIX: store-bar tap unblocked + early paint --- */
+/* --- v20.4.9B HOTFIX: store-bar tap unblocked + early paint --- */
 .store-area{ position:relative; z-index:50; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 #store-list .store-tag{ pointer-events:auto; }
@@ -186,7 +186,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 </style>
 
 <style id="sp-2044-fix-storetap">
-/* v20.4.8B: ensure store bar is tappable */
+/* v20.4.9B: ensure store bar is tappable */
 .store-area{ position:relative; z-index:60; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 .store-tag{ pointer-events:auto; }
@@ -196,7 +196,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.4.8B</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.4.9B</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -389,7 +389,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <div id="toast" class="toast-msg"></div>
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
-<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+<div id="debug-error-display" style="display:none; position:fixed; top:calc(env(safe-area-inset-top, 0px) + 74px); left:50%; transform:translateX(-50%); right:auto; background:rgba(255,0,0,0.90); color:#fff; padding:8px 12px; border-radius:8px; font-size:0.75rem; z-index:5001; max-width:calc(100vw - 24px); word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000; pointer-events:none;"></div>
 
 <!-- SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -402,7 +402,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 const VERSION_INFO = {
   NUM: "20.4.6",
   REV: "B",
-  BUILD: "2026-01-27_1705_verlock-v20.4.8B",
+  BUILD: "2026-01-27_1705_verlock-v20.4.9B",
   get FULL(){ return `${this.NUM}${this.REV}`; },
   get TITLE(){ return `Smart Price ${this.FULL}`; }
 };
@@ -1598,7 +1598,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     if (isScannerError) {
       ms = Math.max(ms || 0, 15000); // 最低15秒
     } else if (isDebug()) {
-      ms = Math.max(ms || 0, 10000);
+      ms = Math.max(ms || 0, 20000); // debug時はスクショ用に長め
     }
     
     // ✅ P0修正: 連続エラー時は上書きで消えない（最後の1件は必ず15秒残る）
@@ -1610,7 +1610,7 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     }
     
     t.innerText = msg;
-    // v20.4.8B: 設定モーダル表示中はトーストが下段ボタンに被らないよう上側へ逃がす
+    // v20.4.9B: 設定モーダル表示中はトーストが下段ボタンに被らないよう上側へ逃がす
     try{
       const m = document.getElementById('settingsModal');
       const isSettingsOpen = !!(m && (m.style.display==='flex' || m.style.display==='block'));
@@ -7720,7 +7720,7 @@ ${link}`;
 <!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 
-<!-- ===== PATCH v20.4.8B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
+<!-- ===== PATCH v20.4.9B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
 - 画面上部の「GPS / 未設定 / ストア一覧」が表示されない端末の復旧（UI追加なし・欠落時のみ再生成）
 - renderStoreList を安全化（例外で全滅しない）
 - 初期化直後にストアバーを確実に描画（2回トライ）
@@ -7731,7 +7731,7 @@ ${link}`;
 
   // ---- SSOT: version/badge/title を一本化（表示ズレ防止）----
   try {
-    var __SSOT_VER = 'v20.4.8B';
+    var __SSOT_VER = 'v20.4.9B';
     window.__SMARTPRICE_VERSION_SSOT = __SSOT_VER;
     try { document.title = 'Smart Price ' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
     // 画面バッジ（既存要素がある場合のみ）
@@ -7849,18 +7849,18 @@ ${link}`;
   }
 })();
 </script>
-<!-- ===== /PATCH v20.4.8B-recover-storebar ===== -->
+<!-- ===== /PATCH v20.4.9B-recover-storebar ===== -->
 
 
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.8B [VERLOCK SSOT]
+   VERSION: v20.4.9B [VERLOCK SSOT]
    DATE(JST): 2026-01-27 09:43
    TITLE: Recover store bar tap + VERLOCK SSOT + remove stray PATCH text
    CHANGES:
    - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
-   - Fix: force version SSOT to v20.4.8B in VERSION_INFO / title / badge
+   - Fix: force version SSOT to v20.4.9B in VERSION_INFO / title / badge
    - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
    - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
    BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
@@ -7870,7 +7870,7 @@ ${link}`;
 ========================================================== */
 (function(){
   'use strict';
-  var SSOT_VER = '20.4.8B';
+  var SSOT_VER = '20.4.9B';
   // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
@@ -7923,41 +7923,71 @@ ${link}`;
 
   // ---- 3) If an invisible overlay is sitting above store bar, disable pointer-events ----
   function _sp_killTapShieldOverStoreBar(){
+    // 目的：ストアバー（GPS/未設定/ストア候補）のタップが効かないとき、
+    // 透明レイヤー等が被っている可能性があるので、上に被っている要素だけ pointer-events:none にする。
+    // UIは変えない（debug=1でも表示を増やさない）
     try {
-      var topBand = { top:0, left:0, right: window.innerWidth || 9999, bottom: 160 };
-      var whitelistIds = {
-        settingsModal:1, inviteModal:1, adminGateModal:1, adminModal:1, diagModal:1,
-      
-        'store-area': true,
-        'store-list': true,
-        'curStoreIndicator': true,
-        'gpsBtn': true,
-        'storeBar': true};
+      var storeList = document.getElementById('store-list');
+      if(!storeList) return;
+
+      var storeRect = storeList.getBoundingClientRect();
+      // ストアバー周辺の少し上も含める（タップが吸われることがある）
+      var bandTop = Math.max(0, storeRect.top - 10);
+      var bandBottom = Math.min(window.innerHeight || 9999, storeRect.bottom + 10);
+
       var nodes = Array.from(document.body.querySelectorAll('*'));
       for (var i=0;i<nodes.length;i++) {
         var el = nodes[i];
         if (!el || el === document.body) continue;
-        if (el.id && whitelistIds[el.id]) continue;
+
+        // ストアバー自身/子孫は絶対に触らない（ここを触ると「表示は出るが押せない」になる）
+        try {
+          if (el === storeList) continue;
+          if (el.closest && el.closest('#store-list')) continue;
+          if (el.closest && el.closest('.store-area')) continue;
+          if (el.classList && (el.classList.contains('store-tag') || el.classList.contains('store-list'))) continue;
+        } catch(_e){}
+
+        // モーダル類は除外（操作に影響するので触らない）
         if (el.closest && el.closest('#settingsModal,#inviteModal,#adminGateModal,#adminModal,#diagModal')) continue;
-        if (el.closest && el.closest('.store-area,.store-strip,#store-list')) continue;
 
-        var cs = window.getComputedStyle(el);
-        if (!cs) continue;
-        if (cs.pointerEvents === 'none') continue;
-        var z = parseInt(cs.zIndex, 10);
-        if (!isFinite(z)) z = 0;
-        if (z < 40) continue;
-        if (cs.position !== 'fixed' && cs.position !== 'absolute') continue;
+        var r;
+        try { r = el.getBoundingClientRect(); } catch(_e){ continue; }
+        if(!r) continue;
 
-        var r = el.getBoundingClientRect();
-        if (r.bottom < topBand.top || r.top > topBand.bottom) continue;
-        if (r.right < topBand.left || r.left > topBand.right) continue;
+        // ストアバー帯と重なるか
+        var overlaps = !(r.bottom < bandTop || r.top > bandBottom || r.right < storeRect.left || r.left > storeRect.right);
+        if(!overlaps) continue;
 
-        var large = (r.width >= (window.innerWidth*0.9) && r.height >= 120);
-        var transparent = (parseFloat(cs.opacity || '1') <= 0.05) || (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent');
-        if (large || transparent) {
-          try { el.style.pointerEvents = 'none'; } catch(_e){}
-        }
+        var st = window.getComputedStyle(el);
+        if(!st) continue;
+
+        // 明らかに上に被さる可能性が高いものだけ対象（fixed/absolute/sticky）
+        var pos = st.position;
+        if(pos !== 'fixed' && pos !== 'absolute' && pos !== 'sticky') continue;
+
+        // 既に無効化済みならスキップ
+        if(st.pointerEvents === 'none') continue;
+
+        // 透明でもタップを奪うことがあるので、背景色や透明度は条件にしない
+        // ただし、z-indexが低いものは触らない（誤爆防止）
+        var zi = 0;
+        try { zi = parseInt(st.zIndex, 10); if(isNaN(zi)) zi = 0; } catch(_e){ zi = 0; }
+        if(zi < 1000) continue; // header(1000)相当より下は基本触らない
+
+        // ここだけ無効化
+        el.style.pointerEvents = 'none';
+
+        // debug=1時だけ、内部ログに残す（UI表示は増やさない）
+        try{
+          if(isDebug()){
+            console.log('[TapShield] pointer-events none:', {tag: el.tagName, id: el.id, className: el.className, zIndex: zi});
+          }
+        }catch(_e){}
+      }
+    } catch(e) {}
+  }
+
       }
     } catch(e) {}
   }
@@ -8019,16 +8049,16 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.8B-fix-storetap-gps (2026-01-27) ===== -->
+<!-- ===== PATCH v20.4.9B-fix-storetap-gps (2026-01-27) ===== -->
 <script>
 (function(){
   try{
     if(typeof VERSION_INFO==='object' && VERSION_INFO){
-      VERSION_INFO.VER = '20.4.8B';
-      VERSION_INFO.FULL = '20.4.8B [VERLOCK SSOT]';
+      VERSION_INFO.VER = '20.4.9B';
+      VERSION_INFO.FULL = '20.4.9B [VERLOCK SSOT]';
     }
     if(document && document.title && document.title.indexOf('Smart Price')===0){
-      document.title = 'Smart Price 20.4.8B';
+      document.title = 'Smart Price 20.4.9B';
     }
   }catch(_e){}
 
@@ -8059,13 +8089,13 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.8B-verlock-storebar-gps (2026-01-27 JST) ===== -->
+<!-- ===== PATCH v20.4.9B-verlock-storebar-gps (2026-01-27 JST) ===== -->
 <script>
 (function(){
   'use strict';
   // SSOT
-  var SP_VER = '20.4.8B';
-  var SP_VER_FULL = '20.4.8B [VERLOCK SSOT]';
+  var SP_VER = '20.4.9B';
+  var SP_VER_FULL = '20.4.9B [VERLOCK SSOT]';
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
       window.VERSION_INFO.VER = SP_VER;
