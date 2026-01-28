@@ -1,9 +1,9 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.4.18B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
-  VERSION_INFO.FULL: v20.4.18B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: '?b=2026-01-28_0033_idb-ssot-api'
+  VERSION: v20.4.17B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
+  VERSION_INFO.FULL: v20.4.17B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
+BUILD_PARAM: '?b=2026-01-27_2323_hotfix-settings-scanpos'
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -1824,40 +1824,15 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   function saveLocalOnly() {
     try {
-      // SSOT保存（IDBが正本、localStorageはミラー）
-      spSaveDbSSOT();
+      localStorage.setItem('smart_price_db', JSON.stringify(db));
       return true;
     } catch (e) {
       try{ window.__lastStoresFetch = window.__lastStoresFetch || {}; window.__lastStoresFetch.err = String(e && e.message ? e.message : e); }catch(_e){}
-      // ここは非常時：localStorageが壊れている等
+
       if (!isQuotaError(e)) {
         showToast("端末保存に失敗しました", 10000);
         return false;
       }
-      // 互換：容量不足時は軽量化してミラーだけでも残す
-      const slim = makeSlimDb(db);
-      try {
-        localStorage.setItem('smart_price_db', JSON.stringify(slim));
-        db = slim;
-        // IDBへも軽量版を後追い
-        spIdbSetDb(db);
-        showToast("端末容量が厳しいので軽量保存に切替えました", 8000);
-        return true;
-      } catch (e2) {
-        try {
-          localStorage.removeItem('smart_price_db');
-          localStorage.setItem('smart_price_db', JSON.stringify(slim));
-          db = slim;
-          spIdbSetDb(db);
-          showToast("容量逼迫のため古いローカルを整理して保存しました", 8000);
-          return true;
-        } catch (e3) {
-          showToast("端末容量が限界で保存できません", 10000);
-          return false;
-        }
-      }
-    }
-  }
       const slim = makeSlimDb(db);
       try {
         localStorage.setItem('smart_price_db', JSON.stringify(slim));
@@ -1879,262 +1854,18 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     }
   }
 
-  
-  // ====== SSOT: IndexedDB（端末DB） ======
-  // 方針：IndexedDBが正本。localStorageは互換・非常時のミラー。
-  const SP_IDB_NAME = 'smartprice-db';
-  const SP_IDB_VER = 1;
-  const SP_IDB_STORE = 'kv'; // { k: 'db', v: <db object>, savedAtMs }
-  const SP_IDB_KEY = 'db';
-
-  function spNowMs(){ return Date.now(); }
-
-  function spGetDeviceTz(){
-    try{
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      return tz || 'Asia/Tokyo';
-    }catch(e){
-      return 'Asia/Tokyo';
-    }
-  }
-
-  function spIsoUtc(ms){
-    try{ return new Date(ms).toISOString(); }catch(e){ return ''; }
-  }
-
-  function spRand4(){
-    try{
-      const a = new Uint8Array(2);
-      crypto.getRandomValues(a);
-      return Array.from(a).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,4);
-    }catch(e){
-      return Math.random().toString(16).slice(2,6).padEnd(4,'0').slice(0,4);
-    }
-  }
-
-  function spYmdHms(ms){
-    const d = new Date(ms);
-    const z = (n)=>String(n).padStart(2,'0');
-    return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds());
-  }
-
-  function spMakeItemId(jan, deviceTimeMs){
-    const t = spYmdHms(deviceTimeMs);
-    return String(jan||'') + '_' + t + '_' + spRand4();
-  }
-
-  function spOpenIdb(){
-    return new Promise((resolve, reject)=>{
-      try{
-        const req = indexedDB.open(SP_IDB_NAME, SP_IDB_VER);
-        req.onupgradeneeded = (ev)=>{
-          const dbx = req.result;
-          if(!dbx.objectStoreNames.contains(SP_IDB_STORE)){
-            dbx.createObjectStore(SP_IDB_STORE, { keyPath: 'k' });
-          }
-        };
-        req.onsuccess = ()=> resolve(req.result);
-        req.onerror = ()=> reject(req.error || new Error('IDB open failed'));
-      }catch(e){ reject(e); }
-    });
-  }
-
-  async function spIdbGetDb(){
-    try{
-      const dbx = await spOpenIdb();
-      return await new Promise((resolve)=>{
-        const tx = dbx.transaction(SP_IDB_STORE, 'readonly');
-        const st = tx.objectStore(SP_IDB_STORE);
-        const req = st.get(SP_IDB_KEY);
-        req.onsuccess = ()=> {
-          const rec = req.result;
-          resolve(rec && rec.v ? rec.v : null);
-        };
-        req.onerror = ()=> resolve(null);
-      });
-    }catch(e){
-      return null;
-    }
-  }
-
-  async function spIdbSetDb(dbObj){
-    try{
-      const dbx = await spOpenIdb();
-      await new Promise((resolve, reject)=>{
-        const tx = dbx.transaction(SP_IDB_STORE, 'readwrite');
-        const st = tx.objectStore(SP_IDB_STORE);
-        const req = st.put({ k: SP_IDB_KEY, v: dbObj, savedAtMs: spNowMs() });
-        req.onsuccess = ()=> resolve(true);
-        req.onerror = ()=> reject(req.error || new Error('IDB put failed'));
-      });
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
-
-  // 端末DB（IDB）を正としてロード。無ければlocalStorageから移行。
-  async function spLoadDbSSOT(){
-    // 1) IDB
-    const fromIdb = await spIdbGetDb();
-    if(fromIdb && typeof fromIdb === 'object'){
-      try{ db = normalizeDb(fromIdb); }catch(e){ db = normalizeDb({}); }
-      try{ localStorage.setItem('smart_price_db', JSON.stringify(db)); }catch(_e){}
-      return true;
-    }
-
-    // 2) localStorage（旧）→ IDBへ移行
-    try{
-      const saved = localStorage.getItem('smart_price_db');
-      if(saved){
-        const o = JSON.parse(saved);
-        db = normalizeDb(o);
-        await spIdbSetDb(db);
-        return true;
-      }
-    }catch(e){}
-
-    // 3) どちらも無い
-    db = normalizeDb({});
-    try{ await spIdbSetDb(db); }catch(e){}
-    return false;
-  }
-
-  // 端末DBへ保存（IDBが正本）。localStorageはミラー。
-  function spSaveDbSSOT(){
-    try{ localStorage.setItem('smart_price_db', JSON.stringify(db)); }catch(_e){}
-    // IDBは非同期（UIブロックしない）
-    spIdbSetDb(db).then(ok=>{
-      try{
-        if(!ok && isDebug()) console.warn('[SSOT] IDB save failed');
-      }catch(_e){}
-    });
-  }
-
-  // 公開：最小API（他AI/将来の分割で使えるように）
-  async function addItem(jan, price, storeName=null, storeId=null, lat=null, lng=null){
-    const deviceTimeMs = spNowMs();
-    const itemId = spMakeItemId(jan, deviceTimeMs);
-
-    // db構造（既存互換）
-    const j = String(jan||'');
-    const p = (db.products && db.products[j]) ? db.products[j] : { history: [] };
-    if(!Array.isArray(p.history)) p.history = [];
-
-    const entry = {
-      itemId,
-      jan: j,
-      price: Number(price||0),
-      storeId: String(storeId||''),
-      store: storeName ? String(storeName) : null,
-      deviceTimeMs,
-      deviceTz: spGetDeviceTz(),
-      deviceIsoUtc: spIsoUtc(deviceTimeMs),
-      syncState: 'pending',
-      ts: deviceTimeMs // 互換：既存はtsで並ぶことがある
-    };
-    if(lat!=null && lng!=null){ entry.lat = lat; entry.lng = lng; }
-
-    p.history.push(entry);
-    db.products[j] = p;
-    db = normalizeDb(db);
-
-    // SSOT保存（端末）
-    spSaveDbSSOT();
-
-    // Firebase後追い（既存関数があれば）
-    try{ if(typeof syncFirebasePut==='function') syncFirebasePut(); }catch(e){
-      // 失敗しても端末正本なのでOK。同期状態は次回でよい。
-    }
-
-    return { ok:true, itemId, deviceTimeMs };
-  }
-
-  async function listItems(){
-    // 端末正本（db）からフラット化して返す
-    const out = [];
-    try{
-      const keys = Object.keys(db.products||{});
-      keys.forEach(j=>{
-        const p = db.products[j];
-        const h = p && Array.isArray(p.history) ? p.history : [];
-        h.forEach(ent=>{
-          if(ent && ent.deleted) return;
-          out.push(ent);
-        });
-      });
-    }catch(e){}
-    out.sort((a,b)=> (b.deviceTimeMs||b.ts||0) - (a.deviceTimeMs||a.ts||0));
-    return out;
-  }
-
-  async function updateItem(itemId, patch){
-    if(!itemId) return { ok:false };
-    let updated = false;
-    const now = spNowMs();
-    try{
-      const keys = Object.keys(db.products||{});
-      keys.forEach(j=>{
-        const p = db.products[j];
-        const h = p && Array.isArray(p.history) ? p.history : null;
-        if(!h) return;
-        for(let i=0;i<h.length;i++){
-          const ent = h[i];
-          if(ent && ent.itemId === itemId){
-            Object.assign(ent, patch||{});
-            ent.updatedDeviceTimeMs = now;
-            ent.syncState = 'pending';
-            if(ent.deviceTimeMs==null){ ent.deviceTimeMs = ent.ts || now; }
-            if(ent.deviceTz==null){ ent.deviceTz = spGetDeviceTz(); }
-            if(ent.deviceIsoUtc==null){ ent.deviceIsoUtc = spIsoUtc(ent.deviceTimeMs); }
-            updated = true;
-            break;
-          }
-        }
-      });
-    }catch(e){}
-    if(updated){
-      spSaveDbSSOT();
-      try{ if(typeof syncFirebasePut==='function') syncFirebasePut(); }catch(e){}
-    }
-    return { ok:updated };
-  }
-
-  async function softDeleteItem(itemId){
-    return updateItem(itemId, { deleted:true, deletedDeviceTimeMs: spNowMs() });
-  }
-
-  try{
-    window.SP_API = { addItem, listItems, updateItem, softDeleteItem, spLoadDbSSOT, spSaveDbSSOT };
-  }catch(e){}
-
-function loadLocal() {
-    // SSOT: IndexedDBを正としてロード（無ければlocalStorageから移行）
-    // ※UI初期化の前に呼ばれるので、ここでは非同期を吸収する
-    // 1) まず旧互換で即時にlocalStorageを読む（画面を止めない）
+  function loadLocal() {
     try {
       const saved = localStorage.getItem('smart_price_db');
       if (saved) db = JSON.parse(saved);
       db = normalizeDb(db);
+      const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
+      const el = document.getElementById(taxModeId);
+      if (el) el.checked = true;
     } catch(e) {
       db = normalizeDb({});
+      showToast("ローカル読込に失敗（クラウド同期で復旧します）", 8000);
     }
-
-    // 2) 裏でIDBを正としてロードし直し、反映できたら再描画
-    spLoadDbSSOT().then(()=>{
-      try{
-        const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
-        const el = document.getElementById(taxModeId);
-        if (el) el.checked = true;
-      }catch(_e){}
-      try{
-        if(typeof renderHistory==='function') renderHistory();
-      }catch(_e){}
-      try{
-        if(typeof updateHomeStats==='function') updateHomeStats();
-      }catch(_e){}
-    });
-  }
   }
 
   async function fetchWithTimeout(resource, options = {}, timeout = 12000) {
@@ -3427,9 +3158,7 @@ function loadLocal() {
             console.log('[StoreTaxMode] Saved:', curStore, '→', db.config.storeTaxModes[curStore]);
           }
         }
-        const __deviceTimeMs = Date.now();
-        const __itemId = spMakeItemId(curBarcode, __deviceTimeMs);
-        const entry = { itemId: __itemId, jan: String(curBarcode||''), price: finalP, storeId: (curStoreId||""), store: (curStore||null), deviceTimeMs: __deviceTimeMs, deviceTz: spGetDeviceTz(), deviceIsoUtc: spIsoUtc(__deviceTimeMs), syncState: 'pending', ts: __deviceTimeMs, userId: currentUserId };
+        const entry = { price: finalP, storeId: (curStoreId||""), store: curStore, ts: Date.now(), userId: currentUserId };
         if(curPos) { entry.lat = curPos.lat; entry.lng = curPos.lng; }
         p.history.push(entry);
         showToast("保存完了", 2000);
