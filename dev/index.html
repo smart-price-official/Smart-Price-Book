@@ -1,9 +1,9 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.4.26B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
-  VERSION_INFO.FULL: v20.4.26B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
-BUILD_PARAM: '?b=2026-01-27_2323_hotfix-settings-scanpos'
+  VERSION: v20.4.27B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
+  VERSION_INFO.FULL: v20.4.27B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
+BUILD_PARAM: '?b=2026-01-28_2258_toast-scope-stack'
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -26,7 +26,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.4.26B</title>
+  <title>Smart Price v20.4.27B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -186,7 +186,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 
-/* --- v20.4.26B HOTFIX: store-bar tap unblocked + early paint --- */
+/* --- v20.4.27B HOTFIX: store-bar tap unblocked + early paint --- */
 .store-area{ position:relative; z-index:50; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 #store-list .store-tag{ pointer-events:auto; }
@@ -194,7 +194,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 </style>
 
 <style id="sp-2044-fix-storetap">
-/* v20.4.26B: ensure store bar is tappable */
+/* v20.4.27B: ensure store bar is tappable */
 .store-area{ position:relative; z-index:60; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 .store-tag{ pointer-events:auto; }
@@ -204,7 +204,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.4.16B</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">20.4.27B</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -408,7 +408,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "20.4.26",
+  NUM: "20.4.27B",
   REV: "B",
   BUILD: "2026-01-28_2311_hotfix-debugline2",
   get FULL(){ return `${this.NUM}${this.REV}`; },
@@ -1618,84 +1618,147 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
     }
   }
 
-  // ✅ P0修正: スキャン起動エラートースト表示時間を延長（最低12秒、推奨15秒）
-  let lastToastTimeout = null;
-  let lastToastElement = null;
-  
-  function showToast(message, ms = 3000, type = 'info') {
-    try {
-      // --- DEBUG時はスクショ優先で長め ---
-      const debug = (typeof isDebug === 'function') ? !!isDebug() : (new URLSearchParams(location.search).get('debug') === '1');
-      if (debug) {
-        const minNormal = 12000; // 12秒
-        const minError  = 30000; // 30秒
-        ms = Math.max(ms || 0, (type === 'error') ? minError : minNormal);
-      }
-
-      // 既存のトーストは置き換え（連打で積み上がらない）
-      const old = document.getElementById('spToast');
-      if (old) old.remove();
-
-      const toast = document.createElement('div');
-      toast.id = 'spToast';
-      toast.className = 'sp-toast sp-toast-' + (type || 'info');
-
-      // 画面の「左右中央」：上部中央に固定（設定ボタンを塞がない幅）
-      toast.style.position = 'fixed';
-      toast.style.left = '50%';
-      toast.style.top = '86px';
-      toast.style.transform = 'translateX(-50%)';
-      toast.style.zIndex = '99999';
-      toast.style.maxWidth = '82vw';
-      toast.style.minWidth = '240px';
-      toast.style.padding = '12px 14px';
-      toast.style.borderRadius = '12px';
-      toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.35)';
-      toast.style.fontSize = '14px';
-      toast.style.lineHeight = '1.35';
-      toast.style.whiteSpace = 'pre-wrap';
-      toast.style.wordBreak = 'break-word';
-      toast.style.cursor = 'pointer';
-      toast.style.userSelect = 'text';
-
-      if (type === 'error') {
-        toast.style.background = '#d32f2f';
-        toast.style.color = '#fff';
-      } else if (type === 'warn') {
-        toast.style.background = '#ff9800';
-        toast.style.color = '#111';
-      } else {
-        toast.style.background = 'rgba(30,30,30,0.92)';
-        toast.style.color = '#fff';
-      }
-
-      // 内容が長い時はスクロールできるように
-      toast.style.maxHeight = debug ? '42vh' : '28vh';
-      toast.style.overflow = 'auto';
-
-      toast.textContent = String(message ?? '');
-
-      // タップで閉じる（スクショ撮ったらすぐ消せる）
-      toast.addEventListener('click', () => {
-        toast.remove();
-      });
-
-      document.body.appendChild(toast);
-
-      // 自動クローズ
-      if (ms > 0) {
-        setTimeout(() => {
-          try { toast.remove(); } catch (e) {}
-        }, ms);
-      }
-    } catch (e) {
-      // トースト自体が死んでもアプリは落とさない
-      try { console.error('[showToast] failed', e); } catch (_e) {}
-    }
+  // ✅ P0修正: トースト（画面ごと／複数同時表示）
+// - 画面切替後に別画面へ残らない（mainView / formView / 各Modalにスコープ）
+// - 後から出るトーストが前を消さない（縦に積む）
+// - debug=1 はスクショ優先で長め表示
+function getActiveToastHost(){
+  // 1) 表示中のModalが最優先
+  const modalIds = ['adminGateModal','adminModal','diagModal','dialogModal','inviteModal','settingsModal','webModal'];
+  for(const id of modalIds){
+    const el = document.getElementById(id);
+    if(!el) continue;
+    const shown = (el.classList && el.classList.contains('show')) || (el.style && el.style.display && el.style.display !== 'none');
+    const ariaHidden = (el.getAttribute && el.getAttribute('aria-hidden') === 'true');
+    if(shown && !ariaHidden) return el;
   }
+  // 2) フォーム画面
+  const fv = document.getElementById('formView');
+  if(fv && fv.style && fv.style.display !== 'none') return fv;
+  // 3) ホーム画面
+  const mv = document.getElementById('mainView');
+  if(mv) return mv;
+  return document.body;
+}
 
+function clearToasts(){
+  try{
+    document.querySelectorAll('.sp-toast-stack').forEach(el=>el.remove());
+  }catch(e){}
+}
 
-  function isQuotaError(e) {
+function ensureToastStack(host){
+  try{
+    const hostId = host && host.id ? host.id : 'body';
+    const stackId = 'spToastStack_' + hostId;
+    let stack = document.getElementById(stackId);
+    if(stack) return stack;
+
+    stack = document.createElement('div');
+    stack.id = stackId;
+    stack.className = 'sp-toast-stack';
+
+    // 画面の左右中央：上部中央（設定ボタンを塞ぎにくい位置）
+    stack.style.position = 'fixed';
+    stack.style.left = '50%';
+    stack.style.top = '86px';
+    stack.style.transform = 'translateX(-50%)';
+    stack.style.zIndex = '99999';
+    stack.style.maxWidth = '82vw';
+    stack.style.minWidth = '240px';
+
+    // 縦に積む（新しいトーストは下へ）
+    stack.style.display = 'flex';
+    stack.style.flexDirection = 'column';
+    stack.style.gap = '8px';
+
+    document.body.appendChild(stack);
+    return stack;
+  }catch(e){
+    return null;
+  }
+}
+
+function showToast(message, ms = 3000, type = 'info') {
+  try {
+    const debug = (typeof isDebug === 'function') ? !!isDebug() : (new URLSearchParams(location.search).get('debug') === '1');
+    if (debug) {
+      const minNormal = 12000; // 12秒
+      const minError  = 30000; // 30秒
+      ms = Math.max(ms || 0, (type === 'error') ? minError : minNormal);
+    }
+
+    const host = getActiveToastHost();
+    const stack = ensureToastStack(host);
+    if(!stack) return;
+
+    // 積みすぎ防止（最大5件）
+    while(stack.children.length >= 5){
+      try{ stack.children[0].remove(); }catch(e){}
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'sp-toast sp-toast-' + (type || 'info');
+
+    toast.style.padding = '12px 14px';
+    toast.style.borderRadius = '12px';
+    toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.35)';
+    toast.style.fontSize = '14px';
+    toast.style.lineHeight = '1.35';
+    toast.style.whiteSpace = 'pre-wrap';
+    toast.style.wordBreak = 'break-word';
+    toast.style.cursor = 'pointer';
+    toast.style.userSelect = 'text';
+
+    if (type === 'error') {
+      toast.style.background = '#d32f2f';
+      toast.style.color = '#fff';
+    } else if (type === 'warn') {
+      toast.style.background = '#ff9800';
+      toast.style.color = '#111';
+    } else {
+      toast.style.background = 'rgba(30,30,30,0.92)';
+      toast.style.color = '#fff';
+    }
+
+    toast.style.maxHeight = debug ? '42vh' : '28vh';
+    toast.style.overflow = 'auto';
+
+    toast.textContent = String(message ?? '');
+
+    // タップで閉じる
+    toast.addEventListener('click', () => {
+      try{ toast.remove(); }catch(e){}
+      // 0件ならコンテナも消す
+      try{
+        if(stack && stack.children && stack.children.length === 0) stack.remove();
+      }catch(e){}
+    });
+
+    stack.appendChild(toast);
+
+    if (ms > 0) {
+      setTimeout(() => {
+        try{ toast.remove(); }catch(e){}
+        try{
+          if(stack && stack.children && stack.children.length === 0) stack.remove();
+        }catch(e){}
+      }, ms);
+    }
+  } catch (e) {
+    try { console.error('[showToast] failed', e); } catch (_e) {}
+  }
+}
+
+// 画面切替時に「別画面へトーストが残る」を根絶（UIはそのまま）
+(function(){
+  try{
+    const _openForm = (typeof openForm === 'function') ? openForm : null;
+    // openFormは後で定義されるので、ここではshowHomeにフックする方式は使わない
+  }catch(e){}
+})();
+
+function isQuotaError(e) {
     if (!e) return false;
     return (
       e.name === 'QuotaExceededError' ||
@@ -2658,6 +2721,8 @@ let isGpsOn = false, curPos = null, lastGpsTime = "";
 
   // ========= Form =========
   async function openForm(code) {
+    try{ clearToasts(); }catch(e){}
+
     const calcArea = document.getElementById('calcOptionArea');
     const saveBtn = document.getElementById('saveBtn');
     const delBtn = document.getElementById('delHistBtn');
@@ -7818,7 +7883,7 @@ ${link}`;
 <!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 
-<!-- ===== PATCH v20.4.26B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
+<!-- ===== PATCH v20.4.27B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
 - 画面上部の「GPS / 未設定 / ストア一覧」が表示されない端末の復旧（UI追加なし・欠落時のみ再生成）
 - renderStoreList を安全化（例外で全滅しない）
 - 初期化直後にストアバーを確実に描画（2回トライ）
@@ -7829,7 +7894,7 @@ ${link}`;
 
   // ---- SSOT: version/badge/title を一本化（表示ズレ防止）----
   try {
-    var __SSOT_VER='v20.4.26B';
+    var __SSOT_VER='v20.4.27B';
     window.__SMARTPRICE_VERSION_SSOT = __SSOT_VER;
     try { document.title = 'Smart Price ' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
     // 画面バッジ（既存要素がある場合のみ）
@@ -7947,18 +8012,18 @@ ${link}`;
   }
 })();
 </script>
-<!-- ===== /PATCH v20.4.26B-recover-storebar ===== -->
+<!-- ===== /PATCH v20.4.27B-recover-storebar ===== -->
 
 
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.26B [VERLOCK SSOT]
+   VERSION: v20.4.27B [VERLOCK SSOT]
    DATE(JST): 2026-01-27 09:43
    TITLE: Debugトーストのスクショ対応＋GPS/ボタン全滅の回避（VERLOCK SSOT）
    CHANGES:
    - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
-   - Fix: force version SSOT to v20.4.26B in VERSION_INFO / title / badge
+   - Fix: force version SSOT to v20.4.27B in VERSION_INFO / title / badge
    - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
    - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
    BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
@@ -7968,7 +8033,7 @@ ${link}`;
 ========================================================== */
 (function(){
   'use strict';
-  var SSOT_VER = 'v20.4.26B';
+  var SSOT_VER = 'v20.4.27B';
   // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
@@ -8143,16 +8208,16 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.26B-fix-storetap-gps (2026-01-27) ===== -->
+<!-- ===== PATCH v20.4.27B-fix-storetap-gps (2026-01-27) ===== -->
 <script>
 (function(){
   try{
     if(typeof VERSION_INFO==='object' && VERSION_INFO){
-      VERSION_INFO.VER = 'v20.4.26B';
-      VERSION_INFO.FULL = 'v20.4.26B [VERLOCK SSOT]';
+      VERSION_INFO.VER = 'v20.4.27B';
+      VERSION_INFO.FULL = 'v20.4.27B [VERLOCK SSOT]';
     }
     if(document && document.title && document.title.indexOf('Smart Price')===0){
-      document.title = 'Smart Price v20.4.26B';
+      document.title = 'Smart Price v20.4.27B';
     }
   }catch(_e){}
 
@@ -8183,13 +8248,13 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.26B-verlock-storebar-gps (2026-01-27 JST) ===== -->
+<!-- ===== PATCH v20.4.27B-verlock-storebar-gps (2026-01-27 JST) ===== -->
 <script>
 (function(){
   'use strict';
   // SSOT
-  var SP_VER = 'v20.4.26B';
-  var SP_VER_FULL = 'v20.4.26B [VERLOCK SSOT]';
+  var SP_VER = 'v20.4.27B';
+  var SP_VER_FULL = 'v20.4.27B [VERLOCK SSOT]';
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
       window.VERSION_INFO.VER = SP_VER;
@@ -8359,7 +8424,7 @@ try { if (typeof openVeggieMenu === 'function') window.openVeggieMenu = openVegg
 /*
   APP: Smart Price
   MODULE: SSOT IndexedDB API (isolated)
-  VERSION: v20.4.26B [VERLOCK SSOT]
+  VERSION: v20.4.27B [VERLOCK SSOT]
   DATE(JST): 2026-01-28
   POLICY: Core UI must not depend on this module. Failure must not break buttons.
 */
