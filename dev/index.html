@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-  VERSION: v20.4.24B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
-  VERSION_INFO.FULL: v20.4.24B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
+  VERSION: v20.4.25B_hotfix_settings_scanpos_verlock [VERLOCK SSOT] [VERLOCK SSOT]
+  VERSION_INFO.FULL: v20.4.25B [VERLOCK SSOT]: settingsボタン復活＋スキャン窓位置を上げる [VERLOCK SSOT]: openForm新規商品のYahoo自動補完を停止（DB_ONLY時）
 BUILD_PARAM: '?b=2026-01-27_2323_hotfix-settings-scanpos'
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
@@ -26,7 +26,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.4.24B</title>
+  <title>Smart Price v20.4.25B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -186,7 +186,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 
-/* --- v20.4.24B HOTFIX: store-bar tap unblocked + early paint --- */
+/* --- v20.4.25B HOTFIX: store-bar tap unblocked + early paint --- */
 .store-area{ position:relative; z-index:50; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 #store-list .store-tag{ pointer-events:auto; }
@@ -194,7 +194,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 </style>
 
 <style id="sp-2044-fix-storetap">
-/* v20.4.24B: ensure store bar is tappable */
+/* v20.4.25B: ensure store bar is tappable */
 .store-area{ position:relative; z-index:60; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 .store-tag{ pointer-events:auto; }
@@ -204,7 +204,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.24B</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.25B</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -408,7 +408,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "v20.4.24B",
+  NUM: "v20.4.25B",
   REV: "B",
   BUILD: "2026-01-28_2102_hotfix-verlock23",
   get FULL(){ return `${this.NUM}${this.REV}`; },
@@ -632,13 +632,17 @@ function lastHistoryForMe(history) {
     }
     
     function setLastError(msg) {
-      const errorDisplay = document.getElementById('debug-error-display');
-      if (errorDisplay) {
-        errorDisplay.textContent = msg;
-        // 初期は表示しない（赤い横線対策）
-    errorDisplay.style.display = 'none';
-      }
+    if (!isDebug()) return;
+    const el = document.getElementById('debug-error-display');
+    if (!el) return;
+    if (!msg) {
+      el.textContent = '';
+      el.style.display = 'none';
+      return;
     }
+    el.textContent = String(msg);
+    el.style.display = 'block';
+  }
 
     window.addEventListener('error', (e) => {
       // ✅ P0: 「Script error.」の詳細情報を取得（CORSエラーの場合でも可能な限り詳細を表示）
@@ -7816,7 +7820,7 @@ ${link}`;
 <!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 
-<!-- ===== PATCH v20.4.24B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
+<!-- ===== PATCH v20.4.25B-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
 - 画面上部の「GPS / 未設定 / ストア一覧」が表示されない端末の復旧（UI追加なし・欠落時のみ再生成）
 - renderStoreList を安全化（例外で全滅しない）
 - 初期化直後にストアバーを確実に描画（2回トライ）
@@ -7827,7 +7831,7 @@ ${link}`;
 
   // ---- SSOT: version/badge/title を一本化（表示ズレ防止）----
   try {
-    var __SSOT_VER = 'v20.4.24B';
+    var __SSOT_VER = 'v20.4.25B';
     window.__SMARTPRICE_VERSION_SSOT = __SSOT_VER;
     try { document.title = 'Smart Price ' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
     // 画面バッジ（既存要素がある場合のみ）
@@ -7945,18 +7949,18 @@ ${link}`;
   }
 })();
 </script>
-<!-- ===== /PATCH v20.4.24B-recover-storebar ===== -->
+<!-- ===== /PATCH v20.4.25B-recover-storebar ===== -->
 
 
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.24B [VERLOCK SSOT]
+   VERSION: v20.4.25B [VERLOCK SSOT]
    DATE(JST): 2026-01-27 09:43
    TITLE: Debugトーストのスクショ対応＋GPS/ボタン全滅の回避（VERLOCK SSOT）
    CHANGES:
    - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
-   - Fix: force version SSOT to v20.4.24B in VERSION_INFO / title / badge
+   - Fix: force version SSOT to v20.4.25B in VERSION_INFO / title / badge
    - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
    - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
    BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
@@ -7966,7 +7970,7 @@ ${link}`;
 ========================================================== */
 (function(){
   'use strict';
-  var SSOT_VER = 'v20.4.24B';
+  var SSOT_VER = 'v20.4.25B';
   // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
@@ -8141,16 +8145,16 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.24B-fix-storetap-gps (2026-01-27) ===== -->
+<!-- ===== PATCH v20.4.25B-fix-storetap-gps (2026-01-27) ===== -->
 <script>
 (function(){
   try{
     if(typeof VERSION_INFO==='object' && VERSION_INFO){
-      VERSION_INFO.VER = 'v20.4.24B';
-      VERSION_INFO.FULL = 'v20.4.24B [VERLOCK SSOT]';
+      VERSION_INFO.VER = 'v20.4.25B';
+      VERSION_INFO.FULL = 'v20.4.25B [VERLOCK SSOT]';
     }
     if(document && document.title && document.title.indexOf('Smart Price')===0){
-      document.title = 'Smart Price v20.4.24B';
+      document.title = 'Smart Price v20.4.25B';
     }
   }catch(_e){}
 
@@ -8181,13 +8185,13 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.24B-verlock-storebar-gps (2026-01-27 JST) ===== -->
+<!-- ===== PATCH v20.4.25B-verlock-storebar-gps (2026-01-27 JST) ===== -->
 <script>
 (function(){
   'use strict';
   // SSOT
-  var SP_VER = 'v20.4.24B';
-  var SP_VER_FULL = 'v20.4.24B [VERLOCK SSOT]';
+  var SP_VER = 'v20.4.25B';
+  var SP_VER_FULL = 'v20.4.25B [VERLOCK SSOT]';
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
       window.VERSION_INFO.VER = SP_VER;
@@ -8357,7 +8361,7 @@ try { if (typeof openVeggieMenu === 'function') window.openVeggieMenu = openVegg
 /*
   APP: Smart Price
   MODULE: SSOT IndexedDB API (isolated)
-  VERSION: v20.4.24B [VERLOCK SSOT]
+  VERSION: v20.4.25B [VERLOCK SSOT]
   DATE(JST): 2026-01-28
   POLICY: Core UI must not depend on this module. Failure must not break buttons.
 */
