@@ -1,22 +1,19 @@
 <!--
   APP: Smart Price
   FILE: dev/index.html
-  VERSION: v20.4.38CH_hotfix_toast_settings_clear_scanframepos_verlock [VERLOCK SSOT]
-  DATE(JST): 2026-01-29 15:36:00 JST
+  VERSION: v20.4.39CH_hotfix_setfix_catoptional_historyfix_verlock [VERLOCK SSOT]
+  DATE(JST): 2026-01-29 19:40:00 JST
   AUTHOR: YUI
-  TITLE: トーストのスコープ修正（設定で残らない）＋スキャン枠下表示（被り防止）
+  TITLE: Set混入バグ修正＋カテゴリ任意化＋購入履歴が消える件の修正（UIそのまま）
   CHANGES:
-  - forceBlank が curStore=未設定 を強制していたため、ホームの「未設定」トグルとストア選択が常に潰れる不具合を修正（curStoreを触らない／customStoresを消さない）
-  - トースト：ホームでは「スキャン／手入力」ボタンの下に表示（動作確認がしやすい位置へ）
-  - トースト：幅と折り返しを強制（長いURLが画面を突き抜けない）
-  - トースト：カスタムダイアログ（手入力など）の開閉で全トーストを消去（画面が切り替わったら消える挙動に統一）
-  - showToast 旧呼び出し（showToast(msg, 5000)）互換を追加
-  BUILD: 2026-01-29_1148_hotfix-store-select-toast
-  BUILD_PARAM(b): ?b=2026-01-29_1148_hotfix-store-select-toast
-  DEBUG_PARAM: &debug=1
-  POLICY: VERLOCK SSOT / UI変更なし（内部実装のみ）
+  - 【FIX】normalizeDb/mergeConfig/mergeDb の Set 混入バグを修正（[object Set] 表示・データ欠落の原因）
+  - 【FIX】サブカテゴリ候補の保存で配列が二重化/Set化しないよう修正（db.config.categoryTree）
+  - 【FIX】カテゴリ未選択でも保存できるように戻す（従来挙動に合わせる）
+  - 【FIX】保存後に購入履歴に出ない（内部マージで落ちる）問題を解消
+  BUILD PARAM: ?b=2026-01-29_1940_setfix-catoptional-historyfix
+  DEBUG PARAM: &debug=1
+  POLICY: UI_FREEZE (NO UI CHANGES)
 -->
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -26,7 +23,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.4.38CH</title>
+  <title>Smart Price v20.4.39CH</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -186,7 +183,7 @@
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 
-/* --- v20.4.38CH HOTFIX: store-bar tap unblocked + early paint --- */
+/* --- v20.4.39CH HOTFIX: store-bar tap unblocked + early paint --- */
 .store-area{ position:relative; z-index:50; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 #store-list .store-tag{ pointer-events:auto; }
@@ -194,7 +191,7 @@
 </style>
 
 <style id="sp-2044-fix-storetap">
-/* v20.4.38CH: ensure store bar is tappable */
+/* v20.4.39CH: ensure store bar is tappable */
 .store-area{ position:relative; z-index:60; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 .store-tag{ pointer-events:auto; }
@@ -204,7 +201,7 @@
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.38CH</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.39CH</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -408,11 +405,11 @@
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "v20.4.38CH",
+  NUM: "v20.4.39CH",
   REV: "CH",
-  TAG: "hotfix_toast_scanpos_settingsmodal_scope_verlock",
-  DESC: "設定モーダルをトーストスコープに追加＋スキャン画面トースト位置をカメラ下へ（VERLOCK SSOT）",
-  BUILD: "2026-01-29_1533_toast-scanpos-settingsmodal-scope",
+  TAG: "hotfix_setfix_catoptional_historyfix_verlock",
+  DESC: "Set混入バグ修正（categoryTree/merge/normalize）＋カテゴリ未選択でも保存可＋購入履歴が落ちないよう修正（VERLOCK SSOT）",
+  BUILD: "2026-01-29_1935_setfix-catoptional-historyfix",
   get FULL(){ return `${this.NUM}${this.REV}`; },
   get TITLE(){ return `Smart Price ${this.FULL}`; }
 };
@@ -2198,9 +2195,9 @@ function isQuotaError(e) {
     if (!out.lastTax && lc.lastTax) out.lastTax = lc.lastTax;
 
     // homeCities/customStoresはユニオン
-    const hc = [new Set([(Array.isArray(out.homeCities)?out.homeCities:[]), (Array.isArray(lc.homeCities)?lc.homeCities:[])])].filter(Boolean).slice(0,5);
+    const hc = Array.from(new Set([...(Array.isArray(out.homeCities)?out.homeCities:[]), ...(Array.isArray(lc.homeCities)?lc.homeCities:[])].filter(Boolean))).slice(0,5);
     out.homeCities = hc;
-    const cs = [new Set([(Array.isArray(out.customStores)?out.customStores:[]), (Array.isArray(lc.customStores)?lc.customStores:[])])].filter(Boolean).slice(0,20);
+    const cs = Array.from(new Set([...(Array.isArray(out.customStores)?out.customStores:[]), ...(Array.isArray(lc.customStores)?lc.customStores:[])].filter(Boolean))).slice(0,20);
     out.customStores = cs;
 
     // categoryTreeは"欠けを補う"
@@ -2212,7 +2209,7 @@ function isQuotaError(e) {
         // サブカテゴリを補完
         const a = Array.isArray(out.categoryTree[cat]) ? out.categoryTree[cat] : [];
         const b = Array.isArray(ltree[cat]) ? ltree[cat] : [];
-        out.categoryTree[cat] = [new Set([a,b])];
+        out.categoryTree[cat] = Array.from(new Set([...(Array.isArray(a)?a:[a]), ...(Array.isArray(b)?b:[b])].flat().filter(Boolean)));
       }
     });
 
@@ -2224,7 +2221,7 @@ function isQuotaError(e) {
     const cd = normalizeDb(deepClone(cloudDb || {}));
 
     const merged = { products:{}, config:{} };
-    const keys = new Set([Object.keys(ld.products||{}), Object.keys(cd.products||{})]);
+    const keys = new Set([...(Object.keys(ld.products||{})), ...(Object.keys(cd.products||{}))]);
 
     keys.forEach(code => {
       merged.products[code] = mergeProduct(ld.products[code], cd.products[code]);
@@ -2466,13 +2463,13 @@ function isQuotaError(e) {
       // ✅ DEFAULT_CATEGORY_TREEから取得して、db.config.categoryTreeに保存
       list = DEFAULT_CATEGORY_TREE[cat];
       if (!db.config.categoryTree) db.config.categoryTree = {};
-      db.config.categoryTree[cat] = [list];
+      db.config.categoryTree[cat] = deepClone(list);
       saveLocalOnly(); // 保存して次回から使えるように
     } else {
       list = ["その他"];
     }
     
-    if (!list.includes("その他")) list = [list, "その他"];
+    if (!list.includes("その他")) list = [...list, "その他"];
 
     sub.style.display = 'block';
     sub.innerHTML = `<option value="__NONE__">サブカテゴリを選ぶ</option>` +
@@ -3257,26 +3254,24 @@ try{ clearToasts(); }catch(e){}
         return;
       }
 
-      const cat = document.getElementById('inputCategory').value;
-      if (cat === "__NONE__") {
-        showToast("カテゴリを選んでください", 4000);
-        if (saveBtn) saveBtn.disabled = false;
-        return;
-      }
+      const catSel = document.getElementById('inputCategory');
+      const cat = (catSel && catSel.value) ? String(catSel.value) : "__NONE__";
 
       const subSel = document.getElementById('inputSubCategory');
       const needsSub = (subSel && subSel.style.display !== 'none');
-      const sub = needsSub ? subSel.value : "__NONE__";
-      if (needsSub && sub === "__NONE__") {
-        showToast("サブカテゴリを選んでください", 4000);
-        if (saveBtn) saveBtn.disabled = false;
-        return;
-      }
+      const sub = (needsSub && subSel && subSel.value) ? String(subSel.value) : "__NONE__";
 
       const p = db.products[curBarcode] || { history: [] };
       p.name = document.getElementById('inputName').value || "名称なし";
-      p.category = cat;
-      p.subCategory = needsSub ? sub : "";
+
+      // カテゴリは「任意」（未選択でも保存OK）
+      if (cat === "__NONE__") {
+        p.category = "";
+        p.subCategory = "";
+      } else {
+        p.category = cat;
+        p.subCategory = (needsSub && sub !== "__NONE__") ? sub : "";
+      }
       p.maker = document.getElementById('inputMaker').value || "";
 
       // ✅ デバッグログ
@@ -8023,7 +8018,7 @@ ${link}`;
 <!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 
-<!-- ===== PATCH v20.4.38CH-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
+<!-- ===== PATCH v20.4.39CH-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
 - 画面上部の「GPS / 未設定 / ストア一覧」が表示されない端末の復旧（UI追加なし・欠落時のみ再生成）
 - renderStoreList を安全化（例外で全滅しない）
 - 初期化直後にストアバーを確実に描画（2回トライ）
@@ -8034,9 +8029,9 @@ ${link}`;
 
   // ---- SSOT: version/badge/title を一本化（表示ズレ防止）----
   try {
-    var __SSOT_VER = 'v20.4.38CH';
+    var __SSOT_VER = 'v20.4.39CH';
     window.__SMARTPRICE_VERSION_SSOT = __SSOT_VER;
-    try { document.title = 'Smart Price v20.4.38CH' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
+    try { document.title = 'Smart Price v20.4.39CH' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
     // 画面バッジ（既存要素がある場合のみ）
     try {
       var vb = document.querySelector('.version-badge, #versionBadge, [data-role="version-badge"]');
@@ -8152,18 +8147,18 @@ ${link}`;
   }
 })();
 </script>
-<!-- ===== /PATCH v20.4.38CH-recover-storebar ===== -->
+<!-- ===== /PATCH v20.4.39CH-recover-storebar ===== -->
 
 
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.38CH [VERLOCK SSOT]
+   VERSION: v20.4.39CH [VERLOCK SSOT]
    DATE(JST): 2026-01-27 09:43
    TITLE: Debugトーストのスクショ対応＋GPS/ボタン全滅の回避（VERLOCK SSOT）
    CHANGES:
    - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
-   - Fix: force version SSOT to v20.4.38CH in VERSION_INFO / title / badge
+   - Fix: force version SSOT to v20.4.39CH in VERSION_INFO / title / badge
    - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
    - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
    BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
@@ -8173,7 +8168,7 @@ ${link}`;
 ========================================================== */
 (function(){
   'use strict';
-  var SSOT_VER = 'v20.4.38CH';
+  var SSOT_VER = 'v20.4.39CH';
   // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
@@ -8188,7 +8183,7 @@ ${link}`;
     if (typeof document !== 'undefined') {
       // title
       if (document.title && document.title.indexOf('Smart Price') === 0) {
-        document.title = 'Smart Price v20.4.38CH' + (SSOT_VER + 'B').replace('BB','B');
+        document.title = 'Smart Price v20.4.39CH' + (SSOT_VER + 'B').replace('BB','B');
       }
       // badge text (try common selectors)
       var candidates = [
@@ -8359,16 +8354,16 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.38CH-fix-storetap-gps (2026-01-27) ===== -->
+<!-- ===== PATCH v20.4.39CH-fix-storetap-gps (2026-01-27) ===== -->
 <script>
 (function(){
   try{
     if(typeof VERSION_INFO==='object' && VERSION_INFO){
-      VERSION_INFO.VER = 'v20.4.38CH';
-      VERSION_INFO.FULL = 'v20.4.38CH [VERLOCK SSOT]';
+      VERSION_INFO.VER = 'v20.4.39CH';
+      VERSION_INFO.FULL = 'v20.4.39CH [VERLOCK SSOT]';
     }
     if(document && document.title && document.title.indexOf('Smart Price')===0){
-      document.title = 'Smart Price v20.4.38CH';
+      document.title = 'Smart Price v20.4.39CH';
     }
   }catch(_e){}
 
@@ -8399,13 +8394,13 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.38CH-verlock-storebar-gps (2026-01-27 JST) ===== -->
+<!-- ===== PATCH v20.4.30B-verlock-storebar-gps (2026-01-27 JST) ===== -->
 <script>
 (function(){
   'use strict';
   // SSOT
-  var SP_VER = 'v20.4.38CH';
-  var SP_VER_FULL = 'v20.4.38CH [VERLOCK SSOT]';
+  var SP_VER = 'v20.4.39CH';
+  var SP_VER_FULL = 'v20.4.39CH [VERLOCK SSOT]';
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
       window.VERSION_INFO.VER = SP_VER;
@@ -8423,7 +8418,7 @@ ${link}`;
       var pills = Array.from(document.querySelectorAll('header span, header div, .header span, .app-header span, .topbar span'))
         .filter(function(n){ return (n.textContent||'').trim().match(/^\d+\.\d+\.\d+[A-Za-z]?$/) || (n.textContent||'').trim().match(/^v?\d+\.\d+\.\d+/); });
       pills.forEach(function(p){ _sp_setText(p, SP_VER); });
-      if (document.title && document.title.indexOf('Smart Price')===0) document.title = 'Smart Price v20.4.38CH' + SP_VER;
+      if (document.title && document.title.indexOf('Smart Price')===0) document.title = 'Smart Price v20.4.39CH' + SP_VER;
     } catch(e) {}
   }
 
@@ -8575,7 +8570,7 @@ try { if (typeof openVeggieMenu === 'function') window.openVeggieMenu = openVegg
 /*
   APP: Smart Price
   MODULE: SSOT IndexedDB API (isolated)
-  VERSION: v20.4.38CH [VERLOCK SSOT]
+  VERSION: v20.4.39CH [VERLOCK SSOT]
   DATE(JST): 2026-01-28
   POLICY: Core UI must not depend on this module. Failure must not break buttons.
 */
