@@ -1,10 +1,10 @@
 <!--
   APP: Smart Price
   FILE: dev/index.html
-  VERSION: v20.4.37CH_hotfix_toast_scanpos_settingsmodal_scope_verlock [VERLOCK SSOT]
-  DATE(JST): 2026-01-29 15:33:00 JST
+  VERSION: v20.4.38CH_hotfix_toast_settings_clear_scanframepos_verlock [VERLOCK SSOT]
+  DATE(JST): 2026-01-29 15:36:00 JST
   AUTHOR: YUI
-  TITLE: ストア選択の復旧／トーストの画面切替消去・表示位置・折り返し
+  TITLE: トーストのスコープ修正（設定で残らない）＋スキャン枠下表示（被り防止）
   CHANGES:
   - forceBlank が curStore=未設定 を強制していたため、ホームの「未設定」トグルとストア選択が常に潰れる不具合を修正（curStoreを触らない／customStoresを消さない）
   - トースト：ホームでは「スキャン／手入力」ボタンの下に表示（動作確認がしやすい位置へ）
@@ -26,7 +26,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.4.37CH</title>
+  <title>Smart Price v20.4.38CH</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -186,7 +186,7 @@
 #inviteModal #inviteCopyText{ color:#FFFFFF !important; font-size: 14px; line-height: 1.5; }
 
 
-/* --- v20.4.37CH HOTFIX: store-bar tap unblocked + early paint --- */
+/* --- v20.4.38CH HOTFIX: store-bar tap unblocked + early paint --- */
 .store-area{ position:relative; z-index:50; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 #store-list .store-tag{ pointer-events:auto; }
@@ -194,7 +194,7 @@
 </style>
 
 <style id="sp-2044-fix-storetap">
-/* v20.4.37CH: ensure store bar is tappable */
+/* v20.4.38CH: ensure store bar is tappable */
 .store-area{ position:relative; z-index:60; pointer-events:auto; }
 #store-list{ pointer-events:auto; }
 .store-tag{ pointer-events:auto; }
@@ -204,7 +204,7 @@
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.37CH</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.38CH</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -408,7 +408,7 @@
 <script>
     // ===== VERSION SSOT (SINGLE SOURCE OF TRUTH) =====
 const VERSION_INFO = {
-  NUM: "v20.4.37CH",
+  NUM: "v20.4.38CH",
   REV: "CH",
   TAG: "hotfix_toast_scanpos_settingsmodal_scope_verlock",
   DESC: "設定モーダルをトーストスコープに追加＋スキャン画面トースト位置をカメラ下へ（VERLOCK SSOT）",
@@ -1761,13 +1761,16 @@ function ensureToastContainer(scopeKey) {
       if(key === 'scan'){
         const cam = document.getElementById('camera-area');
         if(cam){
-          const r = cam.getBoundingClientRect();
-          let top = Math.round(r.bottom + 10);
-          if(!isFinite(top)) top = 120;
+          // ✅ 読み取り枠（scan-frame）の下にトーストを出す（枠に被せない）
+          const frame = cam.querySelector && cam.querySelector('.scan-frame');
+          const target = frame || cam;
+          const r = target.getBoundingClientRect();
+          let top = Math.round(r.bottom + 14);
+          if(!isFinite(top)) top = 140;
           // 画面上に寄りすぎるのを防ぐ
-          if(top < 86) top = 86;
-          // 画面外に出ないよう上限
-          const maxTop = Math.max(86, window.innerHeight - 80);
+          if(top < 120) top = 120;
+          // 画面外に出ないよう上限（下に余白を残す）
+          const maxTop = Math.max(120, window.innerHeight - 120);
           if(top > maxTop) top = maxTop;
           return top;
         }
@@ -5684,6 +5687,7 @@ document.getElementById('mainView').style.display='block';
       resetSyncBtn();
       const modal = document.getElementById('settingsModal');
       if(!modal) { showToast('設定画面を開けません', 8000); return; }
+      clearAllToasts();
       modal.style.display = 'flex';
       const urlInput = document.getElementById('fb-url-input');
       if(urlInput) urlInput.value = fbUrl;
@@ -5704,6 +5708,7 @@ document.getElementById('mainView').style.display='block';
   function closeSettings() {
     const modal = document.getElementById('settingsModal');
     if(modal) modal.style.display = 'none';
+    clearAllToasts();
   }
 
   function renderCityChips() {
@@ -8018,7 +8023,7 @@ ${link}`;
 <!-- ===== /PATCH (legacy)fix-syntax-toast-ver ===== -->
 
 
-<!-- ===== PATCH v20.4.37CH-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
+<!-- ===== PATCH v20.4.38CH-recover-storebar (BUILD 2026-01-27_0140_recover-storebar) =====
 - 画面上部の「GPS / 未設定 / ストア一覧」が表示されない端末の復旧（UI追加なし・欠落時のみ再生成）
 - renderStoreList を安全化（例外で全滅しない）
 - 初期化直後にストアバーを確実に描画（2回トライ）
@@ -8029,9 +8034,9 @@ ${link}`;
 
   // ---- SSOT: version/badge/title を一本化（表示ズレ防止）----
   try {
-    var __SSOT_VER = 'v20.4.37CH';
+    var __SSOT_VER = 'v20.4.38CH';
     window.__SMARTPRICE_VERSION_SSOT = __SSOT_VER;
-    try { document.title = 'Smart Price v20.4.37CH' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
+    try { document.title = 'Smart Price v20.4.38CH' + __SSOT_VER.replace(/^v/, ''); } catch(e) {}
     // 画面バッジ（既存要素がある場合のみ）
     try {
       var vb = document.querySelector('.version-badge, #versionBadge, [data-role="version-badge"]');
@@ -8147,18 +8152,18 @@ ${link}`;
   }
 })();
 </script>
-<!-- ===== /PATCH v20.4.37CH-recover-storebar ===== -->
+<!-- ===== /PATCH v20.4.38CH-recover-storebar ===== -->
 
 
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.37CH [VERLOCK SSOT]
+   VERSION: v20.4.38CH [VERLOCK SSOT]
    DATE(JST): 2026-01-27 09:43
    TITLE: Debugトーストのスクショ対応＋GPS/ボタン全滅の回避（VERLOCK SSOT）
    CHANGES:
    - Fix: previous PATCH JS was injected as plain text (removed + re-added as script)
-   - Fix: force version SSOT to v20.4.37CH in VERSION_INFO / title / badge
+   - Fix: force version SSOT to v20.4.38CH in VERSION_INFO / title / badge
    - Fix: store bar (GPS/未設定/候補) renders immediately and becomes tappable
    - Fix: disable invisible tap-shield overlays above store bar (safe whitelist)
    BUILD_PARAM(b): ?b=2026-01-27_0943_fix-tap-verlock
@@ -8168,7 +8173,7 @@ ${link}`;
 ========================================================== */
 (function(){
   'use strict';
-  var SSOT_VER = 'v20.4.37CH';
+  var SSOT_VER = 'v20.4.38CH';
   // ---- 1) VERLOCK SSOT (single source of truth at runtime) ----
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
@@ -8183,7 +8188,7 @@ ${link}`;
     if (typeof document !== 'undefined') {
       // title
       if (document.title && document.title.indexOf('Smart Price') === 0) {
-        document.title = 'Smart Price v20.4.37CH' + (SSOT_VER + 'B').replace('BB','B');
+        document.title = 'Smart Price v20.4.38CH' + (SSOT_VER + 'B').replace('BB','B');
       }
       // badge text (try common selectors)
       var candidates = [
@@ -8354,16 +8359,16 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.37CH-fix-storetap-gps (2026-01-27) ===== -->
+<!-- ===== PATCH v20.4.38CH-fix-storetap-gps (2026-01-27) ===== -->
 <script>
 (function(){
   try{
     if(typeof VERSION_INFO==='object' && VERSION_INFO){
-      VERSION_INFO.VER = 'v20.4.37CH';
-      VERSION_INFO.FULL = 'v20.4.37CH [VERLOCK SSOT]';
+      VERSION_INFO.VER = 'v20.4.38CH';
+      VERSION_INFO.FULL = 'v20.4.38CH [VERLOCK SSOT]';
     }
     if(document && document.title && document.title.indexOf('Smart Price')===0){
-      document.title = 'Smart Price v20.4.37CH';
+      document.title = 'Smart Price v20.4.38CH';
     }
   }catch(_e){}
 
@@ -8394,13 +8399,13 @@ ${link}`;
 </script>
 
 
-<!-- ===== PATCH v20.4.37CH-verlock-storebar-gps (2026-01-27 JST) ===== -->
+<!-- ===== PATCH v20.4.38CH-verlock-storebar-gps (2026-01-27 JST) ===== -->
 <script>
 (function(){
   'use strict';
   // SSOT
-  var SP_VER = 'v20.4.37CH';
-  var SP_VER_FULL = 'v20.4.37CH [VERLOCK SSOT]';
+  var SP_VER = 'v20.4.38CH';
+  var SP_VER_FULL = 'v20.4.38CH [VERLOCK SSOT]';
   try {
     if (typeof window.VERSION_INFO === 'object' && window.VERSION_INFO) {
       window.VERSION_INFO.VER = SP_VER;
@@ -8418,7 +8423,7 @@ ${link}`;
       var pills = Array.from(document.querySelectorAll('header span, header div, .header span, .app-header span, .topbar span'))
         .filter(function(n){ return (n.textContent||'').trim().match(/^\d+\.\d+\.\d+[A-Za-z]?$/) || (n.textContent||'').trim().match(/^v?\d+\.\d+\.\d+/); });
       pills.forEach(function(p){ _sp_setText(p, SP_VER); });
-      if (document.title && document.title.indexOf('Smart Price')===0) document.title = 'Smart Price v20.4.37CH' + SP_VER;
+      if (document.title && document.title.indexOf('Smart Price')===0) document.title = 'Smart Price v20.4.38CH' + SP_VER;
     } catch(e) {}
   }
 
@@ -8570,7 +8575,7 @@ try { if (typeof openVeggieMenu === 'function') window.openVeggieMenu = openVegg
 /*
   APP: Smart Price
   MODULE: SSOT IndexedDB API (isolated)
-  VERSION: v20.4.37CH [VERLOCK SSOT]
+  VERSION: v20.4.38CH [VERLOCK SSOT]
   DATE(JST): 2026-01-28
   POLICY: Core UI must not depend on this module. Failure must not break buttons.
 */
