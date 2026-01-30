@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Smart Price | Emergency Doctor | 2026-01-30_2250_emergency-01</title>
+
+  <!--
+  APP: Smart Price
+  TOOL: Emergency Doctor
+  VERSION: v1.0.0-emergency-01
+  DATE(JST): 2026-01-30 22:50 JST
+  BUILD: 2026-01-30_2250_emergency-01
+  PURPOSE: ボタン全滅/古い版固定/Service Workerループ等の緊急切り分け・復旧
+  PARAMS: ?b=2026-01-30_2250_emergency-01&debug=1
+  -->
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg1:#0b0c12;
+      --bg2:#0f1422;
+      --card:#151a28cc;
+      --card2:#121624cc;
+      --text:#e9eefc;
+      --muted:#a6b0d6;
+      --line:#2b3350;
+      --accent:#e54b4b;
+      --ok:#43d39e;
+      --warn:#ffd166;
+      --shadow: 0 20px 60px rgba(0,0,0,.45);
+      --r:16px;
+      --pad:16px;
+    }
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 15% 15%, #2a1430 0%, transparent 55%), radial-gradient(1000px 700px at 80% 20%, #0b2746 0%, transparent 55%), linear-gradient(180deg,var(--bg1),var(--bg2)); font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans JP", "Hiragino Sans", "Meiryo", sans-serif;}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;color:var(--text);}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+    .pill{font-size:12px;border:1px solid var(--line);padding:3px 10px;border-radius:999px;color:var(--muted);background:#0d1020cc}
+    .wrap{max-width:1100px;margin:0 auto;padding:0 16px 18px;}
+    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;}
+    @media (max-width: 920px){ .grid{grid-template-columns:1fr;} }
+    .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:var(--pad);color:var(--text);}
+    .title{font-size:14px;font-weight:700;margin:0 0 10px;display:flex;gap:10px;align-items:center}
+    .sub{font-size:12px;color:var(--muted);line-height:1.55}
+    .warnbox{border:1px solid rgba(255,209,102,.45); background:rgba(255,209,102,.08); border-radius:12px; padding:10px 12px; margin:10px 0;}
+    .okbox{border:1px solid rgba(67,211,158,.45); background:rgba(67,211,158,.08); border-radius:12px; padding:10px 12px; margin:10px 0;}
+    .btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    button{appearance:none;border:1px solid var(--line);background:#0f1426;color:var(--text);padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
+    button.primary{border-color:rgba(229,75,75,.6); background:linear-gradient(180deg, rgba(229,75,75,.25), rgba(229,75,75,.08));}
+    button.safe{border-color:rgba(67,211,158,.5); background:linear-gradient(180deg, rgba(67,211,158,.20), rgba(67,211,158,.06));}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .kv{display:grid;grid-template-columns:140px 1fr;gap:8px 10px;margin-top:10px;font-size:12px;color:var(--muted)}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", monospace; white-space:pre-wrap; word-break:break-word;}
+    .log{height:330px;overflow:auto;background:#0b0f1ecc;border:1px solid var(--line);border-radius:12px;padding:12px;color:#d7defa}
+    .tiny{font-size:11px;color:var(--muted)}
+    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:11px;color:var(--muted);background:#0d1020cc}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .dot{width:8px;height:8px;border-radius:50%}
+    .dot.ok{background:var(--ok)}
+    .dot.ng{background:var(--accent)}
+    a{color:#b8c4ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">
+      <span>🧯</span>
+      <span>Emergency Doctor</span>
+      <span class="pill">v1.0.0-emergency-01</span>
+    </div>
+    <div class="row">
+      <span class="chip"><span class="dot ok" id="dotNet"></span><span id="netTxt">ONLINE</span></span>
+      <span class="chip"><span class="dot ng" id="dotSw"></span><span id="swTxt">SW 未確認</span></span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <p class="title">まずはここ（1回だけ）</p>
+        <div class="warnbox sub">
+          「ボタン全滅」「古いバージョン固定」「Service Worker解除が何度も出る」など、
+          <b>“配信の仕組み（Service Worker/キャッシュ）”</b> が原因の可能性が高いです。<br/>
+          このページは<b>自動で掃除しません</b>。押したボタンだけ動きます。
+        </div>
+
+        <div class="btnrow">
+          <button class="safe" id="btnStatus">① 状態を見る（安全）</button>
+          <button class="primary" id="btnFix">② SW解除＋キャッシュ削除（このサイトだけ）→ 再読み込み</button>
+          <button id="btnPaths">③ 本体URLのフルパス表示</button>
+          <button id="btnCopy">④ いまの結果をコピー</button>
+        </div>
+
+        <div class="kv">
+          <div>DATE/JST</div><div id="kvDate" class="mono"></div>
+          <div>LOCATION</div><div id="kvLoc" class="mono"></div>
+          <div>b(build)</div><div id="kvB" class="mono"></div>
+          <div>debug</div><div id="kvDbg" class="mono"></div>
+          <div>UA（端末情報）</div><div id="kvUa" class="mono"></div>
+        </div>
+
+        <div style="margin-top:12px" class="tiny">
+          ※「Chromeのストレージ画面の <b>『すべてのデータを削除』</b>」はChrome全体に影響が出るので、基本は押しません。<br/>
+          このツールの②は <b>smart-price-official.github.io だけ</b> を掃除します。
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="title">ログ</div>
+          <div class="log mono" id="log"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="title">いま困ってる症状（チェック）</p>
+        <div class="sub">
+          ・URLを変えても古いバージョンが出る<br/>
+          ・診断ツールで「Service Worker：解除」が何回も出る<br/>
+          ・本体のボタンが全部反応しない（全滅）<br/>
+          ・一時的に動くがリロードで消える（履歴/設定）<br/>
+        </div>
+
+        <div class="okbox sub">
+          <b>このツールの狙い</b><br/>
+          ① いま何が支配しているか（SW/キャッシュ/ストレージ）を見える化<br/>
+          ② “このサイトだけ” を掃除して、正しい本体を取りに行かせる<br/>
+          ③ 本体に戻るためのフルパスURLを確実に出す
+        </div>
+
+        <div class="warnbox sub">
+          <b>注意（大事）</b><br/>
+          ②を押すと、Smart Priceの “この端末の保存（ローカル保存）” が消える可能性があります。<br/>
+          ただ、いまは「全滅」で使えない状態なので、<b>復旧優先</b>で進めます。
+        </div>
+
+        <div class="title">次に開くリンク（ここからも飛べます）</div>
+        <div class="sub">
+          <div class="mono" id="links"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id)=>document.getElementById(id);
+  const logEl = $('log');
+  const q = new URLSearchParams(location.search);
+  const b = q.get('b') || '2026-01-30_2250_emergency-01';
+  const debug = q.get('debug') || '0';
+  const t = q.get('t') || String(Date.now());
+
+  const ROOT = location.origin + '/Smart-Price-Book/';
+  const URL_DEV  = ROOT + 'dev/index.html?b=' + encodeURIComponent(b) + '&debug=' + encodeURIComponent(debug) + '&t=' + encodeURIComponent(t);
+  const URL_ROOT = ROOT + 'index.html?b=' + encodeURIComponent(b) + '&debug=' + encodeURIComponent(debug) + '&t=' + encodeURIComponent(t);
+  const URL_TOOL = ROOT + '_emergency/index.html?b=' + encodeURIComponent(b) + '&debug=' + encodeURIComponent(debug) + '&t=' + encodeURIComponent(t);
+
+  function println(s='') {
+    logEl.textContent += s + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function stampHeader() {
+    $('kvDate').textContent = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) + ' JST';
+    $('kvLoc').textContent = location.href;
+    $('kvB').textContent = b;
+    $('kvDbg').textContent = debug;
+    $('kvUa').textContent = navigator.userAgent;
+    $('links').innerHTML = [
+      '本体（dev）:  ' + URL_DEV,
+      '本体（root）: ' + URL_ROOT,
+      '診断（このツール）: ' + URL_TOOL,
+    ].map(s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;')).join('<br/>');
+  }
+
+  function setNet() {
+    const online = navigator.onLine;
+    $('dotNet').className = 'dot ' + (online ? 'ok' : 'ng');
+    $('netTxt').textContent = online ? 'ONLINE' : 'OFFLINE';
+  }
+
+  async function swSummary() {
+    const supported = 'serviceWorker' in navigator;
+    let controller = supported ? !!navigator.serviceWorker.controller : false;
+    let regs = 0;
+    let scopes = [];
+    if (supported) {
+      try {
+        const r = await navigator.serviceWorker.getRegistrations();
+        regs = r.length;
+        scopes = r.map(x => x.scope);
+      } catch(e) {}
+    }
+    $('dotSw').className = 'dot ' + ((supported && (controller || regs>0)) ? 'ok' : 'ng');
+    $('swTxt').textContent = supported ? ((controller||regs>0) ? 'SW あり' : 'SW なし') : 'SW 非対応';
+    return { supported, controller, regs, scopes };
+  }
+
+  async function listCaches() {
+    if (!('caches' in window)) return [];
+    try {
+      const keys = await caches.keys();
+      return keys;
+    } catch(e) {
+      return [];
+    }
+  }
+
+  async function listIDB() {
+    if (!('indexedDB' in window)) return [];
+    if (!indexedDB.databases) return [];
+    try {
+      const dbs = await indexedDB.databases();
+      return (dbs||[]).map(d=>d.name).filter(Boolean);
+    } catch(e) {
+      return [];
+    }
+  }
+
+  async function status() {
+    logEl.textContent = '';
+    println('=== Smart Price Emergency Doctor ===');
+    println('DATE(JST): ' + new Date().toLocaleString('ja-JP', { timeZone:'Asia/Tokyo' }) + ' JST');
+    println('b: ' + b + ' / debug: ' + debug);
+    println('URL: ' + location.href);
+    println('');
+    println('NETWORK: ' + (navigator.onLine ? 'ONLINE' : 'OFFLINE'));
+    println('');
+    const sw = await swSummary();
+    println('[Service Worker]');
+    println('supported: ' + sw.supported);
+    println('controller: ' + sw.controller);
+    println('registrations: ' + sw.regs);
+    if (sw.scopes.length) {
+      println('scopes:');
+      sw.scopes.forEach(s=>println('  - ' + s));
+    }
+    println('');
+    const cks = await listCaches();
+    println('[CacheStorage]');
+    println('keys: ' + cks.length);
+    cks.forEach(k=>println('  - ' + k));
+    println('');
+    println('[Storage]');
+    println('localStorage keys: ' + (localStorage ? localStorage.length : 0));
+    try {
+      const est = await navigator.storage.estimate();
+      if (est && typeof est.usage === 'number') {
+        println('storage usage: ' + Math.round(est.usage/1024/1024) + ' MB');
+        println('storage quota: ' + Math.round(est.quota/1024/1024) + ' MB');
+      }
+    } catch(e) {}
+    const dbs = await listIDB();
+    println('indexedDB dbs: ' + dbs.length + (dbs.length ? ' (' + dbs.join(', ') + ')' : ''));
+    println('');
+    println('=== FULL PATHS ===');
+    println('本体（dev）:');
+    println('  ' + URL_DEV);
+    println('本体（root）:');
+    println('  ' + URL_ROOT);
+    println('診断（このツール）:');
+    println('  ' + URL_TOOL);
+  }
+
+  async function wipeSiteOnly() {
+    // 1) SW unregister
+    const supported = 'serviceWorker' in navigator;
+    if (supported) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) {
+          try { await r.unregister(); } catch(e) {}
+        }
+        println('SW: unregister requested (' + regs.length + ')');
+      } catch(e) {
+        println('SW: unregister failed: ' + (e && e.message ? e.message : e));
+      }
+    } else {
+      println('SW: not supported');
+    }
+
+    // 2) caches delete (site only)
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        for (const k of keys) {
+          try { await caches.delete(k); } catch(e) {}
+        }
+        println('CacheStorage: deleted (' + keys.length + ')');
+      } catch(e) {
+        println('CacheStorage: delete failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    // 3) localStorage clear (site only)
+    try {
+      const n = localStorage.length;
+      localStorage.clear();
+      println('localStorage: cleared (' + n + ')');
+    } catch(e) {
+      println('localStorage: clear failed: ' + (e && e.message ? e.message : e));
+    }
+
+    // 4) sessionStorage clear (site only)
+    try {
+      const n = sessionStorage.length;
+      sessionStorage.clear();
+      println('sessionStorage: cleared (' + n + ')');
+    } catch(e) {
+      println('sessionStorage: clear failed: ' + (e && e.message ? e.message : e));
+    }
+
+    // 5) IndexedDB delete (best-effort)
+    const dbs = await listIDB();
+    if (dbs.length) {
+      let ok = 0;
+      for (const name of dbs) {
+        try {
+          await new Promise((res) => {
+            const req = indexedDB.deleteDatabase(name);
+            req.onsuccess = ()=>res(true);
+            req.onerror = ()=>res(false);
+            req.onblocked = ()=>res(false);
+          });
+          ok++;
+        } catch(e) {}
+      }
+      println('indexedDB: delete requested (' + ok + '/' + dbs.length + ')');
+    } else {
+      println('indexedDB: (none or unsupported)');
+    }
+
+    // 6) force reload (cache-bust)
+    println('');
+    println('→ 再読み込みします（キャッシュ無視）。');
+    setTimeout(() => {
+      const u = new URL(location.href);
+      u.searchParams.set('t', String(Date.now()));
+      location.replace(u.toString());
+    }, 600);
+  }
+
+  function showPaths() {
+    println('');
+    println('=== FULL PATHS ===');
+    println('本体（dev）:');
+    println('  ' + URL_DEV);
+    println('本体（root）:');
+    println('  ' + URL_ROOT);
+    println('診断（このツール）:');
+    println('  ' + URL_TOOL);
+  }
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(logEl.textContent);
+      println('');
+      println('（コピーしました）');
+    } catch(e) {
+      println('');
+      println('（コピーに失敗）手で選択してコピーしてね。');
+    }
+  }
+
+  // Wire
+  $('btnStatus').addEventListener('click', async ()=> {
+    stampHeader();
+    setNet();
+    await status();
+  });
+  $('btnFix').addEventListener('click', async ()=> {
+    stampHeader();
+    setNet();
+    logEl.textContent='';
+    println('※ 実行：SW解除＋キャッシュ削除（このサイトだけ）');
+    await wipeSiteOnly();
+  });
+  $('btnPaths').addEventListener('click', ()=> showPaths());
+  $('btnCopy').addEventListener('click', ()=> copyAll());
+
+  // init
+  stampHeader();
+  setNet();
+  window.addEventListener('online', setNet);
+  window.addEventListener('offline', setNet);
+  swSummary();
+})();
+</script>
+</body>
+</html>
