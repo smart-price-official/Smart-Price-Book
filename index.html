@@ -1,9 +1,9 @@
 <!--
   APP: Smart Price
   FILE: index.html / dev/index.html
-  VERSION: v20.4.45CL_hotfix_idb_async_load_toastnav_verlock_fixed [VERLOCK SSOT FIXED]
-  DATE(JST): 2026-01-31
-  AUTHOR: YUI / Claude
+  VERSION: v20.4.45CH_hotfix_idb_async_load_toastnav_verlock_fixed+asyncfix1 [VERLOCK SSOT FIXED]
+  DATE(JST): 2026-01-31 10:04
+  AUTHOR: YUI / CHaude
   TITLE: VERLOCK SSOT修正版（ボタン全滅問題を解消）
   CHANGES:
   - 【CRITICAL FIX】VERLOCK SSOT の強制バージョン上書き処理を無効化（ボタン全滅の原因を排除）
@@ -12,7 +12,7 @@
   - 【FIX】サブカテゴリ候補の保存で配列が二重化/Set化しないよう修正（db.config.categoryTree）
   - 【FIX】カテゴリ未選択でも保存できるように戻す（従来挙動に合わせる）
   - 【FIX】保存後に購入履歴に出ない（内部マージで落ちる）問題を解消
-  BUILD PARAM: ?b=2026-01-31_verlock_fixed
+  BUILD PARAM: ?b=2026-01-31_1004_asyncfix1
   DEBUG PARAM: &debug=1
   POLICY: UI_FREEZE (NO UI CHANGES)
   MODIFIED BY: Claude (Anthropic AI Assistant)
@@ -26,7 +26,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.4.45CL</title>
+  <title>Smart Price v20.4.45CH</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -204,7 +204,7 @@
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.4.45CH</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v--</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -4926,7 +4926,7 @@ document.getElementById('mainView').style.display='block';
     editingHistIdx = null;
   }
 
-  async function showVeggieMenu() {
+  async async function showVeggieMenu() {
     showToast('バーコードの下にある「13桁の数字」を入れてね', 6000);
 
     const raw = await customPrompt('商品コード（バーコード下の13桁）');
@@ -8368,7 +8368,7 @@ ${link}`;
 <script>
 /* =========================================================
    APP: Smart Price
-   VERSION: v20.4.45CL [VERLOCK SSOT FIXED]
+   VERSION: v20.4.45CH [VERLOCK SSOT FIXED]
    DATE(JST): 2026-01-31
    TITLE: VERLOCK SSOT修正版（ボタン全滅問題を解消）
    CHANGES:
@@ -8794,7 +8794,7 @@ try { if (typeof openVeggieMenu === 'function') window.openVeggieMenu = openVegg
 /*
   APP: Smart Price
   MODULE: SSOT IndexedDB API (isolated)
-  VERSION: v20.4.45CL [VERLOCK SSOT FIXED]
+  VERSION: v20.4.45Ch [VERLOCK SSOT FIXED]
   DATE(JST): 2026-01-31
   AUTHOR: Claude (Anthropic AI Assistant)
   POLICY: Core UI must not depend on this module. Failure must not break buttons.
