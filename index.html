@@ -1,60 +1,29 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.33
-FULL_VERSION: v19.9.33 [020109]
-DATE(JST): 2026-02-01 09:40 JST（正確な時刻）
-TITLE: P0 root起動復旧（config二段フォールバック＋rootにconfig配置＋VERSION最優先表示）
+VERSION: v19.9.34
+FULL_VERSION: v19.9.34 [021515]
+DATE(JST): 2026-02-02 15:15 JST（正確な時刻）
+TITLE: P1 トースト画面切替時自動消去（残存防止）
 HEAD_COMMIT: （GitHubにpush後に確定）
-BASE_COMMIT: db76a27（v19.9.32）
-BUILD_ID: 2026-02-01_0940_root-boot-v3
+BASE_COMMIT: ff952c6（v19.9.33）
+BUILD_ID: 2026-02-02_1515_toast-clear
 CHANGES:
-【P0: root起動復旧】
-- ✅ Smart-Price-Book/config.json を追加（dev/config.jsonと同一内容）
-- ✅ loadConfig() を二段フォールバック版に置き換え
-  - root: ./config.json → 失敗時 ./dev/config.json
-  - dev/emergency: 従来通り ./config.json
-- ✅ VERSION表示を DOMContentLoaded で最優先実行（loadConfigより先）
-- ✅ loadConfig()失敗時も全停止せず続行（空設定で動作）
-- ✅ BOOT PROBE v3 既存（VERSION_INFO/TITLE分離 + config二段フォールバック診断）
-CHANGES:
-【P0: 商品情報・画像取得改善】
-- ✅ LocalStorageキャッシュ優先（共有DB暫定実装）:
-  - JAN検索時、最初にLocalStorageキャッシュをチェック
-  - キャッシュヒット時は即座にフォーム反映（Web検索スキップ）
-  - キャッシュ有効期限: 7日間
-- ✅ 取得順の最適化:
-  1. LocalStorageキャッシュ（共有DB暫定）
-  2. Yahoo Shopping API
-  3. 楽天API
-  4. Open Food Facts API
-  5. 「見つかりませんでした」表示
-- ✅ データ構造拡張:
-  - imageRefType 追加（ec / off / user）
-  - areaId 追加（エリアID、将来の共有DB用）
-  - キャッシュ保存時に自動付与
-- ✅ 画像取得ルール（厳守）:
-  - EC画像はURL参照のみ（コピー保存禁止）
-  - ユーザー撮影画像のみローカル保存可能
-- ✅ 箱買い対応:
-  - 除外しない（既存のスコア方式を継続）
-  - 候補ゼロ化を防止
-【P1: 招待コードでエリア作成】
-- ✅ URL招待コード読み取り:
-  - ?invite=XXXX を起動時に読み取り
-  - ユーザープロファイル（uid, areaId, invitedBy）を自動作成・更新
-- ✅ LocalStorage保存:
-  - smartPrice_userProfile（uid, areaId, invitedBy, createdAt）
-  - smartPrice_jan_[JAN]（商品情報キャッシュ）
-- ✅ UI変更なし（内部処理のみ）
-【その他】
-- ✅ ユーティリティ関数追加:
-  - generateUid() - ランダムUID生成
-  - getUserProfile() / setUserProfile() - ユーザープロファイル管理
-  - parseInviteCode() - URL招待コード読み取り
-  - getJanCache() / setJanCache() - JANキャッシュ管理
+【P1: トースト画面切替時自動消去】
+- ✅ hideToast()関数を追加（トースト消去を一箇所に集約）
+- ✅ 画面切替関数でhideToast()を呼ぶ:
+  - showHome() - ホーム画面表示時
+  - openForm() - 登録画面表示時
+  - startScanner() - カメラ起動時
+  - stopScanner() - カメラ停止時
+- ✅ トースト表示時間の維持:
+  - debug=1時: 10秒以上（既存のまま）
+  - スキャナーエラー: 15秒（既存のまま）
+  - 通常時: 4秒（既存のまま）
+- ✅ UI変更なし（追加UI禁止）
+- ✅ 最小差分での実装
 AUTHOR: Rex
-BUILD_PARAM: ?b=2026-02-01_0940_root-boot-v3
+BUILD_PARAM: ?b=2026-02-02_1515_toast-clear
 DEBUG_PARAM: &debug=1
 POLICY: UI変更なし・スキャン周り一切触らない
 
@@ -77,7 +46,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.33</title>
+  <title>Smart Price v19.9.34</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -437,9 +406,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.33"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.33 [020109]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-01_0940_root-boot-v3"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.34"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.34 [021515]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-02_1515_toast-clear"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1502,6 +1471,17 @@ POLICY: UI変更なし・スキャン周り一切触らない
     }, ms);
   }
 
+  // ✅ P1修正: トースト消去を集約（画面切替時に呼ぶ）
+  function hideToast() {
+    const t = document.getElementById('toast');
+    if (t) t.style.opacity = 0;
+    if (lastToastTimeout) {
+      clearTimeout(lastToastTimeout);
+      lastToastTimeout = null;
+    }
+    lastToastElement = null;
+  }
+
   function isQuotaError(e) {
     if (!e) return false;
     return (
@@ -2425,6 +2405,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
   // ========= Form =========
   async function openForm(code) {
+    hideToast(); // ✅ P1: 画面切替時にトースト消去
     const calcArea = document.getElementById('calcOptionArea');
     const saveBtn = document.getElementById('saveBtn');
     const delBtn = document.getElementById('delHistBtn');
@@ -3772,6 +3753,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
     }
     
     isScanning = true;
+    hideToast(); // ✅ P1: 画面切替時にトースト消去
     document.getElementById('camera-area').style.display='block';
     // ✅ P0: トースト「カメラ起動中…」は表示しない（最低でも debug=1 の時だけに限定）
     if (isDebug()) {
@@ -4168,6 +4150,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   }
 
   async function stopScanner() {
+    hideToast(); // ✅ P1: 画面切替時にトースト消去
     if(scanner) {
       try { await scanner.stop(); } catch(e) {}
       finally { document.getElementById('camera-area').style.display='none'; isScanning = false; }
@@ -4177,6 +4160,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   }
 
   function showHome() {
+    hideToast(); // ✅ P1: 画面切替時にトースト消去
     document.getElementById('mainView').style.display='block';
     document.getElementById('formView').style.display='none';
     renderHistory();
