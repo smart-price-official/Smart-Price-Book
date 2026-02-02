@@ -1,191 +1,87 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <!--
-    APP: Smart Price
-    FILE: index.html (BOOT PROBE)
-    VERSION: v20.4.46_boot-probe-01
-    DATE(JST): 2026-02-01 08:35 JST
-    AUTHOR: Yui
-    TITLE: 起動確認（VERSION/BUILDを確実に表示）
-    CHANGES:
-      - Service Worker を debug=1 時だけ無効化（キャッシュ影響の切り分け）
-      - VERSION/BUILD を「HTML直書き + JS再描画」で二重に表示（JS停止も検知）
-      - UIは最小限（ヘッダー + 2ボタン）に留める
-    BUILD PARAM: ?b=2026-02-01_0835_boot-probe
-    DEBUG PARAM: &debug=1
-    POLICY: UI_FREEZE (DIAG ONLY / NO PRODUCT LOGIC)
-  -->
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#D50000" />
-  <title>Smart Price v20.4.46_boot-probe-01</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="5;url=https://smart-price-official.github.io/Smart-Price-Book/">
+  <title>Smart Price - 運用停止</title>
   <style>
-    html, body {
-      margin:0; padding:0; height:100%;
-      background:#0b0b0b; color:#eaeaea;
-      font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans JP", sans-serif;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'BIZ UDゴシック', 'Meiryo', sans-serif;
+      background: linear-gradient(135deg, #D50000, #9b0000);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
     }
-    header {
-      position: sticky; top:0; z-index: 1000;
-      background: linear-gradient(135deg,#D50000,#b00000);
-      padding: 10px 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.5);
-      display:flex; align-items:center; justify-content:space-between;
+    .container {
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
-    .brand {
-      display:flex; align-items:center; gap:10px; font-weight:700;
-      letter-spacing:.2px;
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #ff5252;
     }
-    .pill {
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.25);
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      white-space: nowrap;
-      max-width: 60vw;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .message {
+      font-size: 1.2rem;
+      line-height: 1.8;
+      margin-bottom: 30px;
     }
-    .gear {
-      width: 38px; height: 38px; border-radius: 8px;
-      border: 1px solid rgba(255,255,255,.35);
-      background: rgba(0,0,0,.15);
-      display:flex; align-items:center; justify-content:center;
-      font-size: 18px;
+    .link {
+      display: inline-block;
+      background: #ff5252;
+      color: #fff;
+      padding: 15px 30px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-top: 20px;
+      transition: background 0.3s;
     }
-    main {
-      display:flex; align-items:flex-start; justify-content:center;
-      padding: 34px 14px 14px;
+    .link:hover {
+      background: #d32f2f;
     }
-    .panel {
-      width: min(980px, 96vw);
-      margin-top: 10px;
+    .countdown {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #aaa;
     }
-    .btnrow {
-      display:flex; gap:18px; justify-content:center; align-items:center;
-      margin-top: 24px;
-    }
-    .bigbtn {
-      flex: 1;
-      min-width: 280px;
-      max-width: 460px;
-      height: 120px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.22);
-      background: #2b2f33;
-      color: #eaeaea;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap: 8px;
-      user-select:none;
-    }
-    .bigbtn.primary {
-      background: rgba(213,0,0,.75);
-      border-color: rgba(255,255,255,.18);
-    }
-    .bigbtn .icon {
-      font-size: 26px;
-      opacity:.95;
-    }
-    .bigbtn .label {
-      font-size: 16px;
-      letter-spacing:.2px;
-    }
-    .debug {
-      margin-top: 18px;
-      font-size: 12px;
-      color: #cfcfcf;
-      opacity:.9;
-      display:none;
-      border: 1px dashed rgba(255,255,255,.22);
-      border-radius: 10px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,.04);
-      line-height: 1.6;
-      word-break: break-all;
-    }
-    .muted { opacity:.7; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <span style="font-size:18px;">🛒</span>
-      <span>Smart Price</span>
-      <span class="pill" id="verPill">v20.4.46_boot-probe-01</span>
+  <div class="container">
+    <h1>⚠️ 運用停止</h1>
+    <div class="message">
+      <p>このURL（/dev/）は運用を停止しました。</p>
+      <p>最新版は以下のURLからご利用ください。</p>
     </div>
-    <div class="gear" title="設定">⚙️</div>
-  </header>
-
-  <main>
-    <div class="panel">
-      <div class="btnrow">
-        <div class="bigbtn primary">
-          <div class="icon">▥</div>
-          <div class="label">スキャン</div>
-        </div>
-        <div class="bigbtn">
-          <div class="icon">⌨️</div>
-          <div class="label">手入力</div>
-        </div>
-      </div>
-
-      <div class="debug" id="debugBox">
-        <div><b>BOOT PROBE</b> <span class="muted">(version表示とJS起動チェック)</span></div>
-        <div>VERSION: <span id="vOut"></span></div>
-        <div>BUILD(b): <span id="bOut"></span></div>
-        <div>URL: <span id="uOut"></span></div>
-        <div>SW: <span id="swOut"></span></div>
-        <div>JS: <span id="jsOut"></span></div>
-      </div>
+    <a href="https://smart-price-official.github.io/Smart-Price-Book/" class="link">
+      Smart Price 最新版へ移動
+    </a>
+    <div class="countdown">
+      5秒後に自動的に最新版へ移動します...
     </div>
-  </main>
-
-<script>
-(() => {
-  const VERSION = "v20.4.46_boot-probe-01";
-  const qs = new URLSearchParams(location.search);
-  const BUILD = (qs.get("b") || "").trim();
-  const DEBUG = qs.get("debug") === "1";
-
-  const pill = document.getElementById("verPill");
-  const debugBox = document.getElementById("debugBox");
-
-  // 1) まず表示（JSが動いていれば上書きされる）
-  pill.textContent = BUILD ? (VERSION + "｜" + BUILD) : VERSION;
-
-  // 2) debug表示
-  if (DEBUG) {
-    debugBox.style.display = "block";
-    document.getElementById("vOut").textContent = VERSION;
-    document.getElementById("bOut").textContent = BUILD || "(none)";
-    document.getElementById("uOut").textContent = location.href;
-    document.getElementById("jsOut").textContent = "RUNNING";
-  }
-
-  async function swText() {
-    try {
-      if (!("serviceWorker" in navigator)) return "NOT SUPPORTED";
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if (regs && regs.length) {
-        for (const r of regs) {
-          try { await r.unregister(); } catch(e) {}
-        }
-        return "UNREGISTERED (" + regs.length + ")";
+  </div>
+  <script>
+    let countdown = 5;
+    const countdownEl = document.querySelector('.countdown');
+    const interval = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        countdownEl.textContent = `${countdown}秒後に自動的に最新版へ移動します...`;
+      } else {
+        clearInterval(interval);
       }
-      return "NONE";
-    } catch (e) {
-      return "ERROR: " + (e && e.message ? e.message : String(e));
-    }
-  }
-
-  if (DEBUG) {
-    swText().then(t => {
-      document.getElementById("swOut").textContent = t;
-    });
-  }
-})();
-</script>
+    }, 1000);
+  </script>
 </body>
 </html>
