@@ -1,696 +1,297 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Smart Price 原因調査アプリ</title>
+  <!--
+    APP: Smart Price
+    FILE: diagnostics.html
+    VERSION: v1.0.0
+    DATE(JST): 2026-02-04 19:13 JST
+    TITLE: Smart Price 原因調査アプリ（diagnostics.html）修正版
+    CHANGES:
+    - GitHub Pages 直置き用に単体で動く diagnostics.html を再作成（仮ページではなく本体）
+    - Service Worker / Cache / Storage 状態表示 + 解除ボタン
+    - 設定URL・build(b=)・debug(debug=1) を画面で確認できるよう整理
+    BUILD_PARAM: ?b=2026-02-04_1913_diagfix
+    DEBUG_PARAM: &debug=1
+    AUTHOR: Yui
+    POLICY: UIは増やしすぎず、スマホ検証で迷わない最小導線
+  -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Smart Price Diagnostics</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'BIZ UDゴシック', 'Meiryo', sans-serif;
-      background: #121212;
-      color: #e0e0e0;
-      padding: 20px;
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: #ff9800;
-      font-size: 1.5rem;
-      margin-bottom: 20px;
-      border-bottom: 3px solid #ff9800;
-      padding-bottom: 10px;
-    }
-    .section {
-      background: #1e1e1e;
-      border: 2px solid #444;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    .section-title {
-      color: #ff9800;
-      font-size: 1.1rem;
-      font-weight: bold;
-      margin-bottom: 10px;
-      border-bottom: 1px solid #666;
-      padding-bottom: 5px;
-    }
-    .info-item {
-      margin: 8px 0;
-      padding: 8px;
-      background: #2a2a2a;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.85rem;
-      word-break: break-all;
-    }
-    .info-label {
-      color: #aaa;
-      font-weight: bold;
-    }
-    .info-value {
-      color: #fff;
-      margin-left: 8px;
-    }
-    .status-ok { color: #4caf50; }
-    .status-warn { color: #ff9800; }
-    .status-error { color: #ff5252; }
-    button {
-      background: #ff9800;
-      color: #fff;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
-      transition: background 0.3s;
-    }
-    button:hover { background: #f57c00; }
-    button:active { background: #e65100; }
-    button.danger {
-      background: #ff5252;
-    }
-    button.danger:hover {
-      background: #d32f2f;
-    }
-    .log-area {
-      background: #000;
-      color: #0f0;
-      padding: 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.8rem;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-top: 10px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .video-preview {
-      width: 100%;
-      max-width: 400px;
-      height: 300px;
-      background: #000;
-      border: 2px solid #666;
-      border-radius: 4px;
-      margin-top: 10px;
-    }
-    .loading { opacity: 0.5; pointer-events: none; }
+    :root{--bg:#121212;--panel:#1e1e1e;--line:#444;--text:#e0e0e0;--muted:#bdbdbd;--accent:#ff9800;--btn:#ff9800;--btnText:#121212;--danger:#d32f2f;}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"BIZ UDゴシック","Meiryo",sans-serif;line-height:1.6}
+    header{padding:18px 16px 10px;border-bottom:3px solid var(--accent)}
+    header h1{margin:0;font-size:20px;color:var(--accent);letter-spacing:.3px}
+    header .sub{margin-top:6px;color:var(--muted);font-size:12px;word-break:break-all}
+    .wrap{padding:14px 12px 26px;max-width:980px;margin:0 auto}
+    .section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0}
+    .section-title{font-weight:800;color:var(--accent);margin:0 0 10px;display:flex;gap:8px;align-items:center}
+    .row{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
+    .row:first-of-type{border-top:none}
+    .k{color:var(--muted);font-size:12px}
+    .v{font-size:13px;word-break:break-all}
+    .btnbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    button{appearance:none;border:none;background:var(--btn);color:var(--btnText);font-weight:800;padding:12px 14px;border-radius:10px;cursor:pointer}
+    button.secondary{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.22);font-weight:700}
+    button.danger{background:var(--danger);color:#fff}
+    .note{color:var(--muted);font-size:12px;margin-top:6px}
+    .badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:800;background:rgba(255,152,0,.18);border:1px solid rgba(255,152,0,.35);color:var(--accent)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+    textarea{width:100%;min-height:150px;background:#0f0f0f;color:var(--text);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:12px}
+    @media (max-width:720px){.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔍 Smart Price 原因調査アプリ</h1>
-    
-    <!-- A) 実際に読み込んだ index.html の情報 -->
-    <div class="section">
+  <header>
+    <h1>🔎 Smart Price 原因調査アプリ</h1>
+    <div class="sub">
+      <span class="badge">DIAG v1.0.0</span>
+      <span class="mono">b=<span id="qBuild"></span></span>
+      <span class="mono">debug=<span id="qDebug"></span></span>
+      <div class="mono" id="locLine"></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="section" id="secA">
       <div class="section-title">📌 A) 読み込んだHTMLの情報</div>
-      <div class="info-item">
-        <span class="info-label">FULL_VERSION:</span>
-        <span class="info-value" id="full-version">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">BUILD_ID:</span>
-        <span class="info-value" id="build-id">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">BUILD_PARAM (?b=):</span>
-        <span class="info-value" id="build-param">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Firebase:</span>
-        <span class="info-value" id="firebase-status">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">読み込んだURL:</span>
-        <span class="info-value" id="current-url">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Date.now():</span>
-        <span class="info-value" id="current-time">確認中...</span>
-      </div>
-      <button onclick="updatePageInfo()">🔄 ページ情報を更新</button>
+      <div class="row"><div class="k">FULL VERSION</div><div class="v mono" id="aFull">確認中…</div></div>
+      <div class="row"><div class="k">BUILD ID</div><div class="v mono" id="aBuild">確認中…</div></div>
+      <div class="row"><div class="k">BUILD PARAM (?b=)</div><div class="v mono" id="aB">確認中…</div></div>
+      <div class="row"><div class="k">Firebase</div><div class="v mono" id="aFb">確認中…</div></div>
+      <div class="row"><div class="k">読み込んだURL</div><div class="v mono" id="aUrl">確認中…</div></div>
+      <div class="row"><div class="k">Date.now()</div><div class="v mono" id="aNow">確認中…</div></div>
+      <div class="btnbar"><button id="btnRefresh">ページ情報を更新</button></div>
+      <div class="note">※ ここが埋まらない/変なら「キャッシュ」「Service Worker」が疑い。</div>
     </div>
 
-    <!-- B) Service Worker / キャッシュの状態 -->
-    <div class="section">
-      <div class="section-title">🔧 B) Service Worker / キャッシュの状態</div>
-      <div class="info-item">
-        <span class="info-label">SW Controller:</span>
-        <span class="info-value" id="sw-controller">確認中...</span>
+    <div class="section" id="secB">
+      <div class="section-title">🧹 B) Service Worker / キャッシュの状態</div>
+      <div class="row"><div class="k">SW Controller</div><div class="v mono" id="bCtrl">確認中…</div></div>
+      <div class="row"><div class="k">SW 登録数</div><div class="v mono" id="bRegs">確認中…</div></div>
+      <div class="row"><div class="k">キャッシュ数</div><div class="v mono" id="bCaches">確認中…</div></div>
+      <div class="btnbar">
+        <button class="danger" id="btnNuke">SW解除＋キャッシュ削除＋リロード</button>
+        <button class="secondary" id="btnOnlyReload">（削除しない）リロード</button>
       </div>
-      <div class="info-item">
-        <span class="info-label">SW登録数:</span>
-        <span class="info-value" id="sw-registrations">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">キャッシュ数:</span>
-        <span class="info-value" id="cache-count">確認中...</span>
-      </div>
-      <button onclick="clearServiceWorkerAndCache()">🗑️ SW解除＋キャッシュ削除＋リロード</button>
+      <div class="note">※ PWA（ホーム追加）だとキャッシュが強い。まず通常ブラウザで開くのが安全。</div>
     </div>
 
-    <!-- C) ストレージ系の状態 -->
-    <div class="section">
-      <div class="section-title">💿 C) ストレージ系の状態</div>
-      <div class="info-item">
-        <span class="info-label">localStorage使用量:</span>
-        <span class="info-value" id="localstorage-size">確認中...</span>
+    <div class="section" id="secC">
+      <div class="section-title">🗃️ C) ストレージ系の状態</div>
+      <div class="row"><div class="k">localStorage 使用量（概算）</div><div class="v mono" id="cLsSize">確認中…</div></div>
+      <div class="row"><div class="k">localStorage キー</div><div class="v mono" id="cLsKeys">確認中…</div></div>
+      <div class="row"><div class="k">IndexedDB</div><div class="v mono" id="cIdb">確認中…</div></div>
+      <div class="btnbar">
+        <button id="btnExport">バックアップ出力（localStorage）</button>
+        <button class="secondary" id="btnCopy">コピー</button>
       </div>
-      <div class="info-item">
-        <span class="info-label">localStorageキー:</span>
-        <span class="info-value" id="localstorage-keys">確認中...</span>
+      <div class="note">※ ここは将来“バックアップ”ボタン配下に移す想定。まず診断では最小実装。</div>
+      <div style="margin-top:10px;">
+        <textarea id="backupArea" placeholder="ここにバックアップJSONが出ます（または貼り付けて復元）"></textarea>
+        <div class="btnbar">
+          <button class="danger" id="btnImport">バックアップ読み込み（localStorageへ復元）</button>
+          <button class="secondary" id="btnClearLs">localStorage 全消し</button>
+        </div>
+        <div class="note" style="color:#ef9a9a;">※「読み込み」は上書き。必要なら先に“出力”して保管してから。</div>
       </div>
-      <div class="info-item">
-        <span class="info-label">IndexedDB一覧:</span>
-        <span class="info-value" id="indexeddb-list">確認中...</span>
-      </div>
-      <button class="danger" onclick="clearAllStorage()">⚠️ このサイトのデータを初期化</button>
     </div>
 
-    <!-- D) カメラ起動の切り分け -->
-    <div class="section">
-      <div class="section-title">📷 D) カメラ起動の切り分け</div>
-      <div class="info-item">
-        <span class="info-label">カメラ許可状況:</span>
-        <span class="info-value" id="camera-permission">確認中...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">カメラ起動テスト:</span>
-        <span class="info-value" id="camera-status">未実行</span>
-      </div>
-      <video id="camera-preview" class="video-preview" autoplay playsinline></video>
-      <button onclick="testCamera()">📷 カメラ起動テスト</button>
-      <button onclick="stopCamera()">⏹️ カメラ停止</button>
-      <div class="log-area" id="camera-log"></div>
+    <div class="section" id="secD">
+      <div class="section-title">🌐 D) 通信・設定ファイルの確認（任意）</div>
+      <div class="row"><div class="k">config.json（同階層）</div><div class="v mono" id="dCfg">未実行</div></div>
+      <div class="row"><div class="k">dev/config.json（フォールバック）</div><div class="v mono" id="dCfg2">未実行</div></div>
+      <div class="btnbar"><button id="btnFetchCfg">config.json を読んでみる</button></div>
+      <div class="note">※ GitHub Pages 配布で config.json が想定場所に無いと、本体が途中で止まることがあります。</div>
     </div>
 
-    <!-- E) ネットワーク／配信の切り分け -->
     <div class="section">
-      <div class="section-title">🌐 E) ネットワーク／配信の切り分け</div>
-      <div class="info-item">
-        <span class="info-label">fetch結果 (cache: no-store):</span>
-        <span class="info-value" id="fetch-no-store">未実行</span>
+      <div class="section-title">✅ ここが見えていればOK</div>
+      <div class="note">
+        このページが表示できていれば、少なくとも <span class="mono">/diagnostics.html</span> の 404 は解消しています。<br>
+        もし「本体URLは動くのに diagnostics だけ変」なら、<b>配布元のズレ</b> または <b>古いキャッシュ</b> が濃厚です。
       </div>
-      <div class="info-item">
-        <span class="info-label">fetch結果 (reload):</span>
-        <span class="info-value" id="fetch-reload">未実行</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">抽出したVERSION:</span>
-        <span class="info-value" id="fetched-version">-</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">抽出したBUILD_ID:</span>
-        <span class="info-value" id="fetched-build-id">-</span>
-      </div>
-      <button onclick="testNetworkFetch()">🌐 ネットワーク取得テスト</button>
-      <div class="log-area" id="network-log"></div>
-    </div>
-
-    <!-- エラーログ表示エリア -->
-    <div class="section">
-      <div class="section-title">❌ エラーログ（直近50件）</div>
-      <div class="info-item">
-        <span class="info-label">エラー件数:</span>
-        <span class="info-value" id="error-count">0件</span>
-      </div>
-      <div class="log-area" id="error-log" style="max-height: 400px;"></div>
-      <button onclick="copyErrorLog()">📋 エラーログをコピー</button>
-      <button onclick="clearErrorLog()" class="danger">🗑️ エラーログをクリア</button>
-    </div>
-
-    <!-- ログ表示エリア -->
-    <div class="section">
-      <div class="section-title">📋 診断ログ</div>
-      <div class="log-area" id="diagnostic-log"></div>
-      <button onclick="clearLog()">🗑️ ログをクリア</button>
     </div>
   </div>
 
-  <script>
-    let cameraStream = null;
-    const logArea = document.getElementById('diagnostic-log');
+<script>
+(()=> {
+  const qs = new URLSearchParams(location.search);
+  const qBuild = qs.get('b') || '';
+  const qDebug = qs.get('debug') || '';
+  document.getElementById('qBuild').textContent = qBuild || '(なし)';
+  document.getElementById('qDebug').textContent = qDebug || '(なし)';
+  document.getElementById('locLine').textContent = location.href;
 
-    function log(message, type = 'info') {
-      const timestamp = new Date().toLocaleTimeString('ja-JP');
-      const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
-      const logText = `[${timestamp}] ${prefix} ${message}\n`;
-      logArea.textContent += logText;
-      logArea.scrollTop = logArea.scrollHeight;
-      console.log(message);
+  const safeGet=(fn,fb)=>{try{return fn()}catch(e){return fb}};
+  const approxLocalStorageBytes=()=>{
+    let bytes=0;
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      const v=localStorage.getItem(k)||'';
+      bytes+=(k.length+v.length)*2;
     }
+    return bytes;
+  };
+  const humanBytes=(n)=>{
+    if(!isFinite(n)) return '不明';
+    const u=['B','KB','MB','GB']; let i=0,x=n;
+    while(x>=1024 && i<u.length-1){x/=1024;i++}
+    return x.toFixed(i===0?0:2)+u[i];
+  };
 
-    function clearLog() {
-      logArea.textContent = '';
+  const refreshA=async()=>{
+    document.getElementById('aUrl').textContent=location.href;
+    document.getElementById('aNow').textContent=String(Date.now());
+
+    const full =
+      window.FULL_VERSION ||
+      window.VERSION_INFO ||
+      document.querySelector('#versionBadge, .version-badge, [data-version]')?.textContent ||
+      '(親ページから取得不可)';
+    document.getElementById('aFull').textContent=String(full).trim();
+
+    const build =
+      window.BUILD_ID ||
+      window.DEFAULT_BUILD ||
+      (window.VERSION_INFO && window.VERSION_INFO.buildId) ||
+      '(親ページから取得不可)';
+    document.getElementById('aBuild').textContent=String(build).trim();
+
+    document.getElementById('aB').textContent=qBuild? qBuild : 'なし';
+
+    const fb=safeGet(()=>localStorage.getItem('smartPriceFirebaseUrl')||localStorage.getItem('firebaseUrl')||'','');
+    document.getElementById('aFb').textContent=fb?fb:'OFF';
+  };
+
+  const refreshB=async()=>{
+    if(!('serviceWorker' in navigator)){
+      document.getElementById('bCtrl').textContent='未対応';
+      document.getElementById('bRegs').textContent='未対応';
+      document.getElementById('bCaches').textContent='未対応';
+      return;
     }
+    document.getElementById('bCtrl').textContent=navigator.serviceWorker.controller?'あり':'なし';
+    const regs=await navigator.serviceWorker.getRegistrations();
+    document.getElementById('bRegs').textContent=String(regs.length);
 
-    // A) 実際に読み込んだ index.html の情報を確実に表示
-    function updatePageInfo() {
-      try {
-        // FULL_VERSION / BUILD_ID は現在のページからは取得できないため、
-        // 親ページ（index.html）から取得を試みる（window.openerまたはiframe経由）
-        // または、URLパラメータから取得
-        const urlParams = new URLSearchParams(location.search);
-        const bParam = urlParams.get('b') || 'なし';
-        
-        document.getElementById('full-version').textContent = window.FULL_VERSION || '親ページから取得不可';
-        document.getElementById('build-id').textContent = window.BUILD_ID || '親ページから取得不可';
-        document.getElementById('build-param').textContent = bParam;
-        document.getElementById('current-url').textContent = location.href;
-        document.getElementById('current-time').textContent = new Date().toISOString();
-        
-        // ✅ P0修正: Firebase状態を確認
-        try {
-          const isFirebaseReady = window.isFirebaseReady || false;
-          document.getElementById('firebase-status').textContent = isFirebaseReady ? 'ON' : 'OFF';
-        } catch(e) {
-          document.getElementById('firebase-status').textContent = '確認不可';
-        }
-        
-        log('ページ情報を更新しました', 'info');
-      } catch(e) {
-        log(`ページ情報更新エラー: ${e.message}`, 'error');
-      }
+    if('caches' in window){
+      const names=await caches.keys();
+      document.getElementById('bCaches').textContent=names.length + (names.length?` （${names.join(', ')}）`:'');
+    }else{
+      document.getElementById('bCaches').textContent='未対応';
     }
+  };
 
-    // B) Service Worker / キャッシュの状態を表示＋解除ボタン
-    async function updateServiceWorkerStatus() {
-      try {
-        if ('serviceWorker' in navigator) {
-          const controller = navigator.serviceWorker.controller;
-          document.getElementById('sw-controller').textContent = controller ? `あり (${controller.scriptURL})` : 'なし';
-          
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          document.getElementById('sw-registrations').textContent = `${registrations.length}件`;
-          if (registrations.length > 0) {
-            const swList = registrations.map(r => r.scope).join('\n  ');
-            document.getElementById('sw-registrations').textContent += `\n  ${swList}`;
-          }
-        } else {
-          document.getElementById('sw-controller').textContent = '未対応';
-          document.getElementById('sw-registrations').textContent = '未対応';
-        }
+  const refreshC=async()=>{
+    const bytes=approxLocalStorageBytes();
+    document.getElementById('cLsSize').textContent=humanBytes(bytes)+`（キー数 ${localStorage.length}）`;
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++) keys.push(localStorage.key(i));
+    keys.sort();
+    document.getElementById('cLsKeys').textContent=keys.length?keys.join(', '):'(空)';
+    document.getElementById('cIdb').textContent=safeGet(()=>window.indexedDB?'利用可':'不可','不明');
+  };
 
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          document.getElementById('cache-count').textContent = `${cacheNames.length}件`;
-          if (cacheNames.length > 0) {
-            const cacheList = cacheNames.join('\n  ');
-            document.getElementById('cache-count').textContent += `\n  ${cacheList}`;
-          }
-        } else {
-          document.getElementById('cache-count').textContent = '未対応';
-        }
-        
-        log('Service Worker/キャッシュ状態を更新しました', 'info');
-      } catch(e) {
-        log(`Service Worker状態更新エラー: ${e.message}`, 'error');
-      }
+  const fetchText=async(url)=>{
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return await res.text();
+  };
+
+  const checkCfg=async()=>{
+    const el1=document.getElementById('dCfg');
+    const el2=document.getElementById('dCfg2');
+    el1.textContent='確認中…'; el2.textContent='確認中…';
+    try{
+      const t=await fetchText('./config.json?b='+encodeURIComponent(qBuild||Date.now()));
+      el1.textContent='OK（読めた）: '+t.slice(0,120).replace(/\s+/g,' ')+(t.length>120?'…':'');
+    }catch(e){
+      el1.textContent='NG: '+(e?.message||e);
     }
-
-    async function clearServiceWorkerAndCache() {
-      if (!confirm('Service Workerを解除し、すべてのキャッシュを削除してリロードしますか？')) {
-        return;
-      }
-
-      try {
-        log('Service Worker解除＋キャッシュ削除を開始...', 'info');
-        
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (let registration of registrations) {
-            const success = await registration.unregister();
-            if (success) {
-              log(`Service Worker解除: ${registration.scope}`, 'info');
-            }
-          }
-        }
-
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          for (let cacheName of cacheNames) {
-            await caches.delete(cacheName);
-            log(`キャッシュ削除: ${cacheName}`, 'info');
-          }
-        }
-
-        log('完了。3秒後にリロードします...', 'info');
-        setTimeout(() => {
-          location.reload(true);
-        }, 3000);
-      } catch(e) {
-        log(`SW解除＋キャッシュ削除エラー: ${e.message}`, 'error');
-      }
+    try{
+      const t2=await fetchText('./dev/config.json?b='+encodeURIComponent(qBuild||Date.now()));
+      el2.textContent='OK（読めた）: '+t2.slice(0,120).replace(/\s+/g,' ')+(t2.length>120?'…':'');
+    }catch(e){
+      el2.textContent='NG: '+(e?.message||e);
     }
+  };
 
-    // C) ストレージ系の状態表示
-    async function updateStorageStatus() {
-      try {
-        // localStorage使用量（概算）
-        let totalSize = 0;
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          const value = localStorage.getItem(key);
-          keys.push(key);
-          totalSize += (key ? key.length : 0) + (value ? value.length : 0);
-        }
-        document.getElementById('localstorage-size').textContent = `${keys.length}キー / 約${(totalSize / 1024).toFixed(2)}KB`;
-        document.getElementById('localstorage-keys').textContent = keys.length > 0 ? keys.join(', ') : 'なし';
-
-        // IndexedDB一覧
-        if ('indexedDB' in window && 'databases' in indexedDB) {
-          try {
-            const databases = await indexedDB.databases();
-            const dbNames = databases.map(db => db.name).join(', ');
-            document.getElementById('indexeddb-list').textContent = databases.length > 0 ? `${databases.length}件: ${dbNames}` : 'なし';
-          } catch(e) {
-            document.getElementById('indexeddb-list').textContent = `確認エラー: ${e.message}`;
-          }
-        } else {
-          document.getElementById('indexeddb-list').textContent = 'databases()未対応（手動確認が必要）';
-        }
-
-        log('ストレージ状態を更新しました', 'info');
-      } catch(e) {
-        log(`ストレージ状態更新エラー: ${e.message}`, 'error');
-      }
+  const nukeSWAndCaches=async()=>{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister().catch(()=>null)));
     }
-
-    function clearAllStorage() {
-      if (!confirm('⚠️ 警告: このサイトのすべてのデータ（localStorage、IndexedDB）を削除します。購入履歴なども消えます。よろしいですか？')) {
-        return;
-      }
-
-      try {
-        log('ストレージ削除を開始...', 'warn');
-        
-        // localStorage削除
-        localStorage.clear();
-        log('localStorageを削除しました', 'info');
-        
-        // IndexedDB削除
-        if ('indexedDB' in window && 'databases' in indexedDB) {
-          indexedDB.databases().then(databases => {
-            databases.forEach(db => {
-              indexedDB.deleteDatabase(db.name);
-              log(`IndexedDB削除: ${db.name}`, 'info');
-            });
-          });
-        }
-
-        log('完了。3秒後にリロードします...', 'info');
-        setTimeout(() => {
-          location.reload(true);
-        }, 3000);
-      } catch(e) {
-        log(`ストレージ削除エラー: ${e.message}`, 'error');
-      }
+    if('caches' in window){
+      const names=await caches.keys();
+      await Promise.all(names.map(n=>caches.delete(n).catch(()=>null)));
     }
+  };
 
-    // D) カメラ起動の切り分け
-    async function updateCameraPermission() {
-      try {
-        if ('permissions' in navigator) {
-          try {
-            const permission = await navigator.permissions.query({ name: 'camera' });
-            const status = permission.state;
-            document.getElementById('camera-permission').textContent = status;
-            log(`カメラ許可状況: ${status}`, 'info');
-          } catch(e) {
-            document.getElementById('camera-permission').textContent = `確認エラー: ${e.message}`;
-          }
-        } else {
-          document.getElementById('camera-permission').textContent = 'Permissions API未対応';
-        }
-      } catch(e) {
-        log(`カメラ許可状況確認エラー: ${e.message}`, 'error');
-      }
+  const exportLS=()=>{
+    const obj={};
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      obj[k]=localStorage.getItem(k);
     }
+    return JSON.stringify({
+      app:'Smart Price',
+      kind:'localStorage-backup',
+      version:'v1.0.0',
+      exportedAt:new Date().toISOString(),
+      url:location.href,
+      data:obj
+    },null,2);
+  };
 
-    async function testCamera() {
-      const logArea = document.getElementById('camera-log');
-      const video = document.getElementById('camera-preview');
-      const statusEl = document.getElementById('camera-status');
-      
-      logArea.textContent = '';
-      statusEl.textContent = '起動中...';
-      
-      try {
-        // 既存のストリームを停止
-        if (cameraStream) {
-          cameraStream.getTracks().forEach(track => track.stop());
-        }
-
-        logArea.textContent += 'カメラ起動テストを開始...\n';
-        
-        // 段階的フォールバック
-        const configs = [
-          { facingMode: { exact: "environment" } },
-          { facingMode: { ideal: "environment" } },
-          { facingMode: "environment" },
-          true
-        ];
-
-        let success = false;
-        for (let i = 0; i < configs.length; i++) {
-          try {
-            logArea.textContent += `試行${i + 1}: ${JSON.stringify(configs[i])}\n`;
-            const stream = await navigator.mediaDevices.getUserMedia({ video: configs[i] });
-            
-            cameraStream = stream;
-            video.srcObject = stream;
-            statusEl.textContent = '✅ 成功';
-            statusEl.className = 'status-ok';
-            logArea.textContent += `✅ 成功: 試行${i + 1}\n`;
-            log(`カメラ起動成功: 試行${i + 1}`, 'info');
-            success = true;
-            break;
-          } catch(err) {
-            logArea.textContent += `❌ 失敗: ${err.name}: ${err.message}\n`;
-            log(`カメラ起動失敗(試行${i + 1}): ${err.name}: ${err.message}`, 'error');
-          }
-        }
-
-        if (!success) {
-          statusEl.textContent = '❌ 失敗';
-          statusEl.className = 'status-error';
-          logArea.textContent += '\n❌ すべての試行が失敗しました\n';
-        }
-      } catch(e) {
-        statusEl.textContent = `❌ エラー: ${e.message}`;
-        statusEl.className = 'status-error';
-        logArea.textContent += `❌ エラー: ${e.name}: ${e.message}\n`;
-        log(`カメラテストエラー: ${e.message}`, 'error');
-      }
-    }
-
-    function stopCamera() {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-        document.getElementById('camera-preview').srcObject = null;
-        document.getElementById('camera-status').textContent = '停止';
-        document.getElementById('camera-status').className = '';
-        log('カメラを停止しました', 'info');
-      }
-    }
-
-    // E) ネットワーク／配信の切り分け
-    async function testNetworkFetch() {
-      const logArea = document.getElementById('network-log');
-      logArea.textContent = '';
-
-      try {
-        const devIndexUrl = './index.html';
-        
-        // cache: no-store で取得
-        logArea.textContent += '【テスト1】cache: no-store で取得...\n';
-        const start1 = Date.now();
-        try {
-          const res1 = await fetch(devIndexUrl, { cache: 'no-store' });
-          const elapsed1 = Date.now() - start1;
-          const text1 = await res1.text();
-          
-          const versionMatch1 = text1.match(/FULL_VERSION:\s*(v[\d.]+)/) || text1.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
-          const buildIdMatch1 = text1.match(/BUILD_ID:\s*([^\n]+)/) || text1.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
-          
-          const version1 = versionMatch1 ? versionMatch1[1] : '抽出失敗';
-          const buildId1 = buildIdMatch1 ? buildIdMatch1[1].trim() : '抽出失敗';
-          
-          document.getElementById('fetch-no-store').textContent = `✅ ${res1.status} (${elapsed1}ms) / VERSION: ${version1}`;
-          document.getElementById('fetched-version').textContent = version1;
-          document.getElementById('fetched-build-id').textContent = buildId1;
-          
-          logArea.textContent += `✅ HTTP ${res1.status} (${elapsed1}ms)\n`;
-          logArea.textContent += `  FULL_VERSION: ${version1}\n`;
-          logArea.textContent += `  BUILD_ID: ${buildId1}\n`;
-        } catch(e) {
-          document.getElementById('fetch-no-store').textContent = `❌ エラー: ${e.message}`;
-          logArea.textContent += `❌ エラー: ${e.message}\n`;
-        }
-
-        // reload で取得
-        logArea.textContent += '\n【テスト2】reload で取得...\n';
-        const start2 = Date.now();
-        try {
-          const res2 = await fetch(devIndexUrl, { cache: 'reload' });
-          const elapsed2 = Date.now() - start2;
-          const text2 = await res2.text();
-          
-          const versionMatch2 = text2.match(/FULL_VERSION:\s*(v[\d.]+)/) || text2.match(/const\s+FULL_VERSION\s*=\s*["'](v[\d.]+)["']/);
-          const buildIdMatch2 = text2.match(/BUILD_ID:\s*([^\n]+)/) || text2.match(/const\s+BUILD_ID\s*=\s*["']([^"']+)["']/);
-          
-          const version2 = versionMatch2 ? versionMatch2[1] : '抽出失敗';
-          const buildId2 = buildIdMatch2 ? buildIdMatch2[1].trim() : '抽出失敗';
-          
-          document.getElementById('fetch-reload').textContent = `✅ ${res2.status} (${elapsed2}ms) / VERSION: ${version2}`;
-          
-          logArea.textContent += `✅ HTTP ${res2.status} (${elapsed2}ms)\n`;
-          logArea.textContent += `  FULL_VERSION: ${version2}\n`;
-          logArea.textContent += `  BUILD_ID: ${buildId2}\n`;
-          
-          // 比較
-          if (version1 !== version2 || buildId1 !== buildId2) {
-            logArea.textContent += `\n⚠️ 警告: 取得方法によってVERSION/BUILD_IDが異なります\n`;
-          }
-        } catch(e) {
-          document.getElementById('fetch-reload').textContent = `❌ エラー: ${e.message}`;
-          logArea.textContent += `❌ エラー: ${e.message}\n`;
-        }
-
-        log('ネットワーク取得テスト完了', 'info');
-      } catch(e) {
-        log(`ネットワーク取得テストエラー: ${e.message}`, 'error');
-      }
-    }
-
-    // ✅ P0修正: エラーログを表示する関数
-    function updateErrorLog() {
-      try {
-        const errorLogsJson = localStorage.getItem('smartPrice_errorLogs');
-        const errorLogs = errorLogsJson ? JSON.parse(errorLogsJson) : [];
-        const errorLogArea = document.getElementById('error-log');
-        const errorCountEl = document.getElementById('error-count');
-        
-        errorCountEl.textContent = `${errorLogs.length}件`;
-        
-        if (errorLogs.length === 0) {
-          errorLogArea.textContent = 'エラーログはありません';
-          return;
-        }
-        
-        // 最新のエラーから表示（逆順）
-        const reversedLogs = [...errorLogs].reverse();
-        let logText = '';
-        
-        reversedLogs.forEach((log, index) => {
-          const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString('ja-JP') : '時刻不明';
-          logText += `\n【${index + 1}】${timestamp}\n`;
-          logText += `タイプ: ${log.type || '不明'}\n`;
-          
-          if (log.message) {
-            logText += `メッセージ: ${log.message}\n`;
-          }
-          if (log.detail) {
-            logText += `詳細: ${log.detail}\n`;
-          }
-          if (log.rawError) {
-            logText += `生の例外: ${log.rawError}\n`;
-          }
-          if (log.stack) {
-            logText += `スタック:\n${log.stack}\n`;
-          }
-          if (log.filename) {
-            logText += `ファイル: ${log.filename} (行: ${log.lineno}, 列: ${log.colno})\n`;
-          }
-          
-          logText += '─'.repeat(50) + '\n';
-        });
-        
-        errorLogArea.textContent = logText.trim();
-      } catch(e) {
-        log(`エラーログ表示エラー: ${e.message}`, 'error');
-      }
-    }
-    
-    // ✅ P0修正: エラーログをコピーする関数
-    function copyErrorLog() {
-      try {
-        const errorLogArea = document.getElementById('error-log');
-        const text = errorLogArea.textContent;
-        
-        if (!text || text === 'エラーログはありません') {
-          alert('コピーするエラーログがありません');
-          return;
-        }
-        
-        navigator.clipboard.writeText(text).then(() => {
-          alert('エラーログをクリップボードにコピーしました');
-          log('エラーログをコピーしました', 'info');
-        }).catch(e => {
-          // フォールバック: テキストエリアを使用
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-          try {
-            document.execCommand('copy');
-            alert('エラーログをクリップボードにコピーしました');
-            log('エラーログをコピーしました（フォールバック）', 'info');
-          } catch(e2) {
-            alert('コピーに失敗しました: ' + e2.message);
-            log(`コピーエラー: ${e2.message}`, 'error');
-          }
-          document.body.removeChild(textarea);
-        });
-      } catch(e) {
-        log(`エラーログコピーエラー: ${e.message}`, 'error');
-      }
-    }
-    
-    // ✅ P0修正: エラーログをクリアする関数
-    function clearErrorLog() {
-      if (!confirm('エラーログをクリアしますか？')) {
-        return;
-      }
-      try {
-        localStorage.removeItem('smartPrice_errorLogs');
-        updateErrorLog();
-        log('エラーログをクリアしました', 'info');
-      } catch(e) {
-        log(`エラーログクリアエラー: ${e.message}`, 'error');
-      }
-    }
-    
-    // 初期化
-    window.addEventListener('load', async () => {
-      log('診断アプリを起動しました', 'info');
-      updatePageInfo();
-      await updateServiceWorkerStatus();
-      await updateStorageStatus();
-      await updateCameraPermission();
-      updateErrorLog(); // ✅ P0修正: エラーログを表示
-      
-      // debug=1 の場合は自動でSW解除＋キャッシュ削除＋リロード
-      const urlParams = new URLSearchParams(location.search);
-      if (urlParams.get('debug') === '1') {
-        log('debug=1が検出されました。SW解除＋キャッシュ削除を実行します...', 'warn');
-        setTimeout(() => {
-          clearServiceWorkerAndCache();
-        }, 2000);
-      }
+  const importLS=(txt)=>{
+    const payload=JSON.parse(txt);
+    if(!payload||payload.kind!=='localStorage-backup'||!payload.data) throw new Error('形式が違います（localStorage-backup ではない）');
+    const data=payload.data;
+    Object.keys(data).forEach(k=>{
+      const v=data[k];
+      if(v===null||typeof v==='undefined') localStorage.removeItem(k);
+      else localStorage.setItem(k,String(v));
     });
-  </script>
+  };
+
+  document.getElementById('btnRefresh').addEventListener('click',async()=>{await refreshA();await refreshB();await refreshC();});
+  document.getElementById('btnOnlyReload').addEventListener('click',()=>location.reload());
+  document.getElementById('btnNuke').addEventListener('click',async()=>{
+    if(!confirm('Service Worker とキャッシュを削除してリロードします。よろしいですか？')) return;
+    await nukeSWAndCaches(); location.reload();
+  });
+
+  document.getElementById('btnExport').addEventListener('click',async()=>{
+    document.getElementById('backupArea').value=exportLS();
+    await refreshC();
+  });
+  document.getElementById('btnCopy').addEventListener('click',async()=>{
+    const txt=document.getElementById('backupArea').value||'';
+    if(!txt) return alert('先に「バックアップ出力」を押してね。');
+    try{await navigator.clipboard.writeText(txt); alert('コピーしました。');}
+    catch(e){alert('コピーできませんでした。手動で選択してコピーしてね。');}
+  });
+  document.getElementById('btnImport').addEventListener('click',async()=>{
+    const txt=document.getElementById('backupArea').value||'';
+    if(!txt.trim()) return alert('貼り付けが空です。');
+    if(!confirm('localStorage を上書き復元します。よろしいですか？')) return;
+    try{importLS(txt); alert('復元しました。'); await refreshA(); await refreshC();}
+    catch(e){alert('復元できませんでした: '+(e?.message||e));}
+  });
+  document.getElementById('btnClearLs').addEventListener('click',async()=>{
+    if(!confirm('localStorage を全消しします。よろしいですか？')) return;
+    localStorage.clear(); document.getElementById('backupArea').value='';
+    await refreshA(); await refreshC();
+  });
+
+  document.getElementById('btnFetchCfg').addEventListener('click',checkCfg);
+
+  (async()=>{await refreshA();await refreshB();await refreshC();})();
+})();
+</script>
 </body>
 </html>
