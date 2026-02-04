@@ -1,8 +1,8 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.37
-FULL_VERSION: v19.9.37 [0204]
+VERSION: v19.9.38
+FULL_VERSION: v19.9.38 [0204]
 DATE(JST): 2026-02-01 09:40 JST（正確な時刻）
 TITLE: P0 root起動復旧（config二段フォールバック＋rootにconfig配置＋VERSION最優先表示）
 HEAD_COMMIT: （GitHubにpush後に確定）
@@ -472,9 +472,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.37"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.37 [0204]"; // デバッグ用（詳細）
-  P26-02-04_1800_toaststack"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.38"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.38 [0205]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-05_0045_toaststack-r3"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1603,27 +1603,7 @@ function __toastPump() {
   }, 250);
 }
 
-window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(); }); else if (isDebug()) {
-      ms = Math.max(ms || 0, 10000);
-    }
-    
-    // ✅ P0修正: 連続エラー時は上書きで消えない（最後の1件は必ず15秒残る）
-    if (lastToastTimeout) {
-      clearTimeout(lastToastTimeout);
-    }
-    if (lastToastElement) {
-      lastToastElement.style.opacity = 0;
-    }
-    
-    t.innerText = msg;
-    t.style.opacity = 1;
-    lastToastElement = t;
-    lastToastTimeout = setTimeout(() => { 
-      t.style.opacity = 0; 
-      lastToastTimeout = null;
-      lastToastElement = null;
-    }, ms);
-  }
+window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(); });
 
   function isQuotaError(e) {
     if (!e) return false;
