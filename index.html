@@ -2,10 +2,10 @@
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
 VERSION: v19.9.36
-FULL_VERSION: v19.9.36 [020410]nfig二段フォールバック＋rootにconfig配置＋VERSION最優先表示）
+FULL_VERSION: v19.9.36 [020416]nfig二段フォールバック＋rootにconfig配置＋VERSION最優先表示）
 HEAD_COMMIT: （GitHubにpush後に確定）
 BASE_COMMIT: db76a27（v19.9.32）
-BUILD_ID: 2026-02-04_1700_toastqueue-scanlock
+BUILD_ID: 2026-02-04_1645_toaststack-r2 を追加（dev/config.jsonと同一内容）
 - ✅ loadConfig() を二段フォールバック版に置き換え
   - root: ./config.json → 失敗時 ./dev/config.json
   - dev/emergency: 従来通り ./config.json
@@ -72,7 +72,7 @@ POLICY: UI変更なし・スキャン周り一切触らない
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.34</title>
+  <title>Smart Price v19.9.36</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -465,8 +465,8 @@ POLICY: UI変更なし・スキャン周り一切触らない
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   const APP_VERSION = "v19.9.36"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.36 [020410]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-04_1700_toastqueue-scanlock"; // ヘッダーと一致させる
+  const FULL_VERSION = "v19.9.36 [020416]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-04_1645_toaststack-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -4049,19 +4049,10 @@ window.addEventListener('orientationchange', () => { try { setToastTopFromAnchor
         // エラーは握りつぶして継続
       }
       
-      await if (scanBusy) { return; }
-      scanBusy = true;
-      try {
-        stopScanner();
-        // 画面を閉じる（連打で壊れないように）
-        const ca = document.getElementById('camera-area');
-        if (ca) ca.style.display = 'none';
-
-        // ✅ 共通処理へ（手入力と同じ）
-        await processBarcodeData(t);
-      } finally {
-        scanBusy = false;
-      }
+      await stopScanner();
+      
+      // ✅ 共通処理へ（手入力と同じ）
+      await processBarcodeData(t);
     }).catch((err) => {
       // ✅ P0: スキャナー起動失敗時の詳細なエラーハンドリング
       let errorMsg = "起動失敗";
@@ -4312,7 +4303,7 @@ window.addEventListener('orientationchange', () => { try { setToastTopFromAnchor
     }, 1000);
   }
 
-  async function stopScanner() {
+  async async function stopScanner() {
     if(scanner) {
       try { await scanner.stop(); } catch(e) {}
       finally { document.getElementById('camera-area').style.display='none'; isScanning = false; }
