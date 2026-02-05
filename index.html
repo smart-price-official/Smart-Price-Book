@@ -1,71 +1,19 @@
 <!--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.39
-FULL_VERSION: v19.9.39 [0205]nfig二段フォールバック＋rootにconfig配置＋VERSION最優先表示）
-HEAD_COMMIT: （GitHubにpush後に確定）
-BASE_COMMIT: db76a27（v19.9.32）
-P26-02-04_1800_toaststack
+VERSION: v19.9.40
+FULL_VERSION: v19.9.40 [0205]
+DATE(JST): 2026-02-05 09:25:18 JST
+TITLE: Toastの寿命/画面切替での残留を修正（設定へ移動で必ず消える）
 CHANGES:
-【P0: root起動復旧】
-- ✅ Smart-Price-Book/config.json を追加（dev/config.jsonと同一内容）
-- ✅ loadConfig() を二段フォールバック版に置き換え
-  - root: ./config.json → 失敗時 ./dev/config.json
-  - dev/emergency: 従来通り ./config.json
-- ✅ VERSION表示を DOMContentLoaded で最優先実行（loadConfigより先）
-- ✅ loadConfig()失敗時も全停止せず続行（空設定で動作）
-- ✅ BOOT PROBE v3 既存（VERSION_INFO/TITLE分離 + config二段フォールバック診断）
-CHANGES:
-【P0: 商品情報・画像取得改善】
-- ✅ LocalStorageキャッシュ優先（共有DB暫定実装）:
-  - JAN検索時、最初にLocalStorageキャッシュをチェック
-  - キャッシュヒット時は即座にフォーム反映（Web検索スキップ）
-  - キャッシュ有効期限: 7日間
-- ✅ 取得順の最適化:
-  1. LocalStorageキャッシュ（共有DB暫定）
-  2. Yahoo Shopping API
-  3. 楽天API
-  4. Open Food Facts API
-  5. 「見つかりませんでした」表示
-- ✅ データ構造拡張:
-  - imageRefType 追加（ec / off / user）
-  - areaId 追加（エリアID、将来の共有DB用）
-  - キャッシュ保存時に自動付与
-- ✅ 画像取得ルール（厳守）:
-  - EC画像はURL参照のみ（コピー保存禁止）
-  - ユーザー撮影画像のみローカル保存可能
-- ✅ 箱買い対応:
-  - 除外しない（既存のスコア方式を継続）
-  - 候補ゼロ化を防止
-【P1: 招待コードでエリア作成】
-- ✅ URL招待コード読み取り:
-  - ?invite=XXXX を起動時に読み取り
-  - ユーザープロファイル（uid, areaId, invitedBy）を自動作成・更新
-- ✅ LocalStorage保存:
-  - smartPrice_userProfile（uid, areaId, invitedBy, createdAt）
-  - smartPrice_jan_[JAN]（商品情報キャッシュ）
-- ✅ UI変更なし（内部処理のみ）
-【その他】
-- ✅ ユーティリティ関数追加:
-  - generateUid() - ランダムUID生成
-  - getUserProfile() / setUserProfile() - ユーザープロファイル管理
-  - parseInviteCode() - URL招待コード読み取り
-  - getJanCache() / setJanCache() - JANキャッシュ管理
-AUTHOR: Rex
-BUILD_PARAM: ?b=2026-01-21_210000_p0-p1-product-invite
+- Toastを「確実に時間で消える」方式に置換（通常3秒/デバッグ10秒）
+- 画面切替（設定の開閉）で clearToasts() を呼び、残留を防止
+- Toast内の長文URLがはみ出さないよう折り返し強化
+BUILD_PARAM (b): ?b=2026-02-05_0925_toastlife-r4
 DEBUG_PARAM: &debug=1
-POLICY: UI変更なし・スキャン周り一切触らない
-
-⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
-1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
-2. 通常タブで開く: ブラウザの通常タブで /?b=2026-01-21_210000_p0-p1-product-invite を開く
-3. だめならサイトデータ削除: 対象サイトのサイトデータを削除
-4. それでもだめならPWA削除→再追加:
-   - スマホのホーム画面からPWAを削除
-   - ブラウザで通常タブで開く
-   - メニューから「ホーム画面に追加」を選択して再追加
+AUTHOR: Yui
+POLICY: UIは変更しない（内部実装のみ）
 -->
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -470,9 +418,9 @@ POLICY: UI変更なし・スキャン周り一切触らない
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.38"; // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.39 [0205]"; // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-05_0045_toaststack-r3"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.40"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.40 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-05_0925_toastlife-r4"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1505,105 +1453,114 @@ POLICY: UI変更なし・スキャン周り一切触らない
   let lastToastElement = null;
   
   /* Toast (stack) - debug: 10s, normal: 3s (unless ms specified) */
-let __toastQueue = [];
-let __toastActive = [];
-let __toastTimer = null;
 
-function __toastIsDebug() {
-  try { return (typeof isDebug === 'function') ? isDebug() : (new URLSearchParams(location.search).get('debug') === '1'); }
-  catch { return false; }
-}
+  // ===== Toast (single source of truth) =====
+  // - 通常: 3秒 / デバッグ: 10秒
+  // - 画面切替（設定など）では clearToasts() で確実に消す
+  // - UIは変えない（見た目は既存CSSを流用）
 
-function __toastEnsureContainer() {
-  const c = document.getElementById('toast-container');
-  if (!c) return null;
+  let __toastHost = null;
+  let __toastTimers = [];
+  const __TOAST_MAX = 6;
 
-  // Anchor: below the barcode button if exists
-  const anchor = document.getElementById('scanBtnTop');
-  const vh = Math.max(320, window.innerHeight || 800);
-  const vw = Math.max(320, window.innerWidth || 360);
-
-  if (anchor) {
-    const r = anchor.getBoundingClientRect();
-    const top = Math.min(vh - 40, Math.max(10, r.bottom + 8));
-    c.style.top = `${top}px`;
-    c.style.bottom = 'auto';
-    c.style.width = `min(${Math.floor(vw - 16)}px, 420px)`;
-  } else {
-    // fallback
-    c.style.top = 'auto';
-    c.style.bottom = '110px';
-    c.style.width = `min(${Math.floor(vw - 16)}px, 420px)`;
-  }
-  return c;
-}
-
-function clearToasts() {
-  __toastQueue = [];
-  __toastActive = [];
-  if (__toastTimer) { clearTimeout(__toastTimer); __toastTimer = null; }
-  const c = document.getElementById('toast-container');
-  if (c) c.innerHTML = '';
-}
-
-function showToast(msg, ms) {
-  const c = __toastEnsureContainer();
-  if (!c) return;
-
-  const ttl = (typeof ms === 'number' && ms > 0) ? ms : (__toastIsDebug() ? 10000 : 3000);
-
-  __toastQueue.push({ msg: String(msg ?? ''), ms: ttl });
-  __toastPump();
-}
-
-function __toastPump() {
-  const c = __toastEnsureContainer();
-  if (!c) return;
-
-  // Determine max visible based on remaining space
-  const vh = Math.max(320, window.innerHeight || 800);
-  const top = c.style.top && c.style.top !== 'auto' ? parseInt(c.style.top, 10) : (vh - 110);
-  const available = Math.max(140, vh - top - 12);
-  const approxItem = 44; // px
-  const maxVisible = Math.max(2, Math.min(10, Math.floor(available / (approxItem + 8))));
-
-  while (__toastActive.length < maxVisible && __toastQueue.length) {
-    const item = __toastQueue.shift();
-    const el = document.createElement('div');
-    el.className = 'toast-item' + (__toastIsDebug() ? '' : ' small');
-    el.textContent = item.msg;
-
-    c.appendChild(el);
-    __toastActive.push({ el, until: Date.now() + item.ms });
-
-    // animate in
-    requestAnimationFrame(() => el.classList.add('show'));
+  function __toastIsDebug() {
+    try {
+      const usp = new URLSearchParams(location.search || "");
+      return usp.get("debug") === "1";
+    } catch (e) {
+      return false;
+    }
   }
 
-  if (__toastTimer) { clearTimeout(__toastTimer); __toastTimer = null; }
+  function __toastEnsureContainer() {
+    if (__toastHost && document.body.contains(__toastHost)) return __toastHost;
 
-  // schedule next removal / pump
-  __toastTimer = setTimeout(() => {
-    const now = Date.now();
-    // remove expired from top
-    let removed = 0;
-    __toastActive = __toastActive.filter(x => {
-      if (x.until <= now) {
-        removed++;
-        x.el.classList.remove('show');
-        setTimeout(() => { try { x.el.remove(); } catch {} }, 220);
-        return false;
+    const host = document.createElement("div");
+    host.id = "toastHost";
+    host.style.position = "fixed";
+    host.style.left = "50%";
+    host.style.top = "72px";
+    host.style.transform = "translateX(-50%)";
+    host.style.zIndex = "9999";
+    host.style.width = "min(560px, calc(100vw - 24px))";
+    host.style.pointerEvents = "none";
+    document.body.appendChild(host);
+
+    __toastHost = host;
+    return host;
+  }
+
+  function clearToasts() {
+    try {
+      __toastTimers.forEach((t) => clearTimeout(t));
+      __toastTimers = [];
+      if (__toastHost) __toastHost.innerHTML = "";
+    } catch (e) {}
+  }
+
+  function showToast(message, ms, opts) {
+    try {
+      const host = __toastEnsureContainer();
+      const isDebug = __toastIsDebug();
+
+      const ttl = (typeof ms === "number" && ms > 0)
+        ? ms
+        : (isDebug ? 10000 : 3000);
+
+      const options = opts || {};
+      const sticky = !!options.sticky;
+
+      // 既存が多すぎるときは古いものから削除
+      while (host.children.length >= __TOAST_MAX) {
+        host.removeChild(host.firstChild);
       }
-      return true;
-    });
-    // after freeing space, pump again
-    if (removed > 0 || __toastQueue.length > 0) __toastPump();
-  }, 250);
-}
 
-window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(); });
+      const toast = document.createElement("div");
+      toast.className = "toast toast-compact";
+      toast.style.pointerEvents = "auto";
+      toast.style.margin = "6px 0";
+      toast.style.borderRadius = "10px";
+      toast.style.padding = "10px 12px";
+      toast.style.background = "rgba(30,30,30,0.94)";
+      toast.style.border = "1px solid rgba(255,255,255,0.10)";
+      toast.style.boxShadow = "0 10px 26px rgba(0,0,0,0.35)";
+      toast.style.backdropFilter = "blur(6px)";
+      toast.style.webkitBackdropFilter = "blur(6px)";
+      toast.style.color = "#fff";
+      toast.style.fontSize = "14px";
+      toast.style.lineHeight = "1.35";
+      toast.style.wordBreak = "break-word";
+      toast.style.overflowWrap = "anywhere";
+      toast.style.maxHeight = "160px";
+      toast.style.overflow = "hidden";
 
-  function isQuotaError(e) {
+      // クリックで閉じる（デバッグ時は便利）
+      toast.addEventListener("click", () => {
+        try { toast.remove(); } catch (e) {}
+      });
+
+      toast.textContent = (message == null) ? "" : String(message);
+      host.appendChild(toast);
+
+      if (!sticky) {
+        const timer = setTimeout(() => {
+          try { toast.remove(); } catch (e) {}
+        }, ttl);
+        __toastTimers.push(timer);
+      }
+
+      return toast;
+    } catch (e) {
+      // 最悪でも落とさない
+      return null;
+    }
+  }
+
+  // 画面サイズ変更時にhostを再生成しても落ちないようにする
+  window.addEventListener("resize", () => {
+    __toastEnsureContainer();
+  });
+function isQuotaError(e) {
     if (!e) return false;
     return (
       e.name === 'QuotaExceededError' ||
@@ -4278,6 +4235,8 @@ window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(
   }
 
   function showHome() {
+    try{ clearToasts(); }catch(e){}
+
     document.getElementById('mainView').style.display='block';
     document.getElementById('formView').style.display='none';
     renderHistory();
@@ -5131,6 +5090,8 @@ window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(
   }
 
   function openSettings() {
+    try{ clearToasts(); }catch(e){}
+
     try {
       db = normalizeDb(db);
       resetSyncBtn();
@@ -5154,6 +5115,8 @@ window.addEventListener('resize', () => { __toastEnsureContainer(); __toastPump(
   }
 
   function closeSettings() {
+    try{ clearToasts(); }catch(e){}
+
     const modal = document.getElementById('settingsModal');
     if(modal) modal.style.display = 'none';
   }
