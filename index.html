@@ -1,8 +1,16 @@
-<!--
+<!
+
+function debugLog(message, type='info') {
+  if (!isDebug) return;
+  // デバッグは積み上げトーストで表示（10秒で自動消去）
+  showToast(String(message), type, 10);
+}
+
+--
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.40
-FULL_VERSION: v19.9.40 [0205]
+VERSION: v19.9.41
+FULL_VERSION: v19.9.41 [0205]
 DATE(JST): 2026-02-05 09:25:18 JST
 TITLE: Toastの寿命/画面切替での残留を修正（設定へ移動で必ず消える）
 CHANGES:
@@ -418,8 +426,8 @@ POLICY: UIは変更しない（内部実装のみ）
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.40"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.40 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.41"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.41 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-05_0925_toastlife-r4"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -497,7 +505,7 @@ POLICY: UIは変更しない（内部実装のみ）
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
     const errorDisplay = document.getElementById('debug-error-display');
-    if (errorDisplay) errorDisplay.style.display = 'block';
+    if (errorDisplay) if (isDebug && message) errorDisplay.style.display = 'block';
 
     // 最終エラーを画面に固定表示する関数
     // ✅ P0修正: エラーログを保存する配列（診断ツール用）
@@ -526,7 +534,7 @@ POLICY: UIは変更しない（内部実装のみ）
       const errorDisplay = document.getElementById('debug-error-display');
       if (errorDisplay) {
         errorDisplay.textContent = msg;
-        errorDisplay.style.display = 'block';
+        if (isDebug && message) errorDisplay.style.display = 'block';
       }
     }
 
@@ -4188,7 +4196,7 @@ function isQuotaError(e) {
     if (errorDisplay) {
       const debugText = `[Scanbar] Mode:${scanbarMode} | Found:${elementFound} | Visible:${scanbarVisible} | LaserZ:${laserZIndex} | FrameZ:${frameZIndex} | Parent:${parentElId}`;
       errorDisplay.textContent = debugText;
-      errorDisplay.style.display = 'block';
+      if (isDebug && message) errorDisplay.style.display = 'block';
     }
     
     // 定期的に更新（1秒ごと）
@@ -5090,6 +5098,7 @@ function isQuotaError(e) {
   }
 
   function openSettings() {
+  clearToasts();
     try{ clearToasts(); }catch(e){}
 
     try {
@@ -5115,6 +5124,7 @@ function isQuotaError(e) {
   }
 
   function closeSettings() {
+  clearToasts();
     try{ clearToasts(); }catch(e){}
 
     const modal = document.getElementById('settingsModal');
