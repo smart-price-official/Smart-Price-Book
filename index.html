@@ -9,15 +9,15 @@ function debugLog(message, type='info') {
 --
 APP: Smart Price
 FILE: Smart-Price-Book/index.html
-VERSION: v19.9.41
-FULL_VERSION: v19.9.41 [0205]
+VERSION: v19.9.42
+FULL_VERSION: v19.9.42 [0205]
 DATE(JST): 2026-02-05 09:25:18 JST
 TITLE: Toastの寿命/画面切替での残留を修正（設定へ移動で必ず消える）
 CHANGES:
 - Toastを「確実に時間で消える」方式に置換（通常3秒/デバッグ10秒）
 - 画面切替（設定の開閉）で clearToasts() を呼び、残留を防止
 - Toast内の長文URLがはみ出さないよう折り返し強化
-BUILD_PARAM (b): ?b=2026-02-05_0925_toastlife-r4
+BUILD_PARAM (b): ?b=2026-02-05_1453_debugfix-r6
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UIは変更しない（内部実装のみ）
@@ -31,7 +31,7 @@ POLICY: UIは変更しない（内部実装のみ）
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.37</title>
+  <title>Smart Price v19.9.42</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -174,7 +174,14 @@ POLICY: UIは変更しない（内部実装のみ）
 
     .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
-  </style>
+  
+  /* [YUI] hide legacy red debug square (user request) */
+  #debug-fab, .debug-fab, .debug-square { display:none !important; }
+
+  /* [YUI] debug overlay should not block UI touches */
+  #debugOverlay, .debug-overlay, .debug-panel { pointer-events: none; }
+  #debugOverlay button, .debug-overlay button, .debug-panel button { pointer-events: auto; }
+</style>
 
 <!-- BOOT PROBE v3 (debug only / UI_FREEZE) -->
   <script>
@@ -427,7 +434,7 @@ POLICY: UIは変更しない（内部実装のみ）
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   const APP_VERSION = "v19.9.41"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.41 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const FULL_VERSION = "v19.9.42 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-05_0925_toastlife-r4"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -505,7 +512,7 @@ POLICY: UIは変更しない（内部実装のみ）
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
     const errorDisplay = document.getElementById('debug-error-display');
-    if (errorDisplay) if (isDebug && message) errorDisplay.style.display = 'block';
+    if (errorDisplay) if (isDebug()) errorDisplay.style.display = 'block';
 
     // 最終エラーを画面に固定表示する関数
     // ✅ P0修正: エラーログを保存する配列（診断ツール用）
@@ -534,7 +541,7 @@ POLICY: UIは変更しない（内部実装のみ）
       const errorDisplay = document.getElementById('debug-error-display');
       if (errorDisplay) {
         errorDisplay.textContent = msg;
-        if (isDebug && message) errorDisplay.style.display = 'block';
+        if (isDebug()) errorDisplay.style.display = 'block';
       }
     }
 
@@ -4196,7 +4203,7 @@ function isQuotaError(e) {
     if (errorDisplay) {
       const debugText = `[Scanbar] Mode:${scanbarMode} | Found:${elementFound} | Visible:${scanbarVisible} | LaserZ:${laserZIndex} | FrameZ:${frameZIndex} | Parent:${parentElId}`;
       errorDisplay.textContent = debugText;
-      if (isDebug && message) errorDisplay.style.display = 'block';
+      if (isDebug()) errorDisplay.style.display = 'block';
     }
     
     // 定期的に更新（1秒ごと）
@@ -5098,6 +5105,8 @@ function isQuotaError(e) {
   }
 
   function openSettings() {
+  try { clearToasts(); } catch(e) {}
+
   clearToasts();
     try{ clearToasts(); }catch(e){}
 
