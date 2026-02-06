@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Smart Price v19.9.43 DIAG</title>
+<title>Smart Price v19.9.43 (STABLE)</title>
 
 <script>
 /* ===== SSOT ===== */
@@ -13,69 +13,67 @@ window.BUILD_ID = '2026-02-06_stable_diag';
 </script>
 
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  background:#111;
-  color:#fff;
-  padding:20px;
+body { font-family: system-ui, sans-serif; background:#111; color:#fff; margin:0; padding:0; }
+header { background:#b00000; padding:12px; font-weight:bold; }
+#debug-indicator {
+  position:fixed; top:6px; right:6px;
+  width:8px; height:8px; background:#f00;
+  display:none; z-index:9999;
 }
 .toast {
-  background:#222;
-  border-left:4px solid #0f0;
-  padding:10px;
-  margin:8px 0;
-  font-size:14px;
+  position:fixed; right:10px; top:60px;
+  background:#222; border-left:4px solid #0f0;
+  padding:10px; margin-bottom:6px;
+  font-size:12px; z-index:9998;
 }
-.err { border-color:#f00; }
-.warn { border-color:#ff0; }
+.toast.err { border-color:#f00; }
+.toast.warn { border-color:#ff0; }
 </style>
 </head>
 
 <body>
 
-<h2>Smart Price 診断モード</h2>
-<div id="out"></div>
+<div id="debug-indicator"></div>
+<header>Smart Price <span id="ver"></span></header>
+
+<main style="padding:16px">
+  <p>通常表示（stable）</p>
+</main>
 
 <script>
 (function(){
-  const isDebug = new URL(location.href).searchParams.get('debug') === '1';
-  if (!isDebug) {
-    document.getElementById('out').innerHTML =
-      '<div class="toast err">debug=1 が付いていません</div>';
-    return;
-  }
+  const params = new URL(location.href).searchParams;
+  const isDebug = params.get('debug') === '1';
+  document.getElementById('ver').textContent =
+    window.APP_VERSION + ' / ' + window.BUILD_ID;
 
-  const out = (msg, cls='') => {
+  const toast = (msg, cls='') => {
     const d = document.createElement('div');
     d.className = 'toast ' + cls;
     d.textContent = msg;
-    document.getElementById('out').appendChild(d);
+    document.body.appendChild(d);
   };
 
-  /* VERSION */
-  out('VERSION = ' + (window.APP_VERSION || 'UNKNOWN'));
+  if (!isDebug) return;
 
-  /* BUILD */
-  out('BUILD = ' + (window.BUILD_ID || 'UNKNOWN'));
+  document.getElementById('debug-indicator').style.display = 'block';
 
-  /* ServiceWorker */
+  toast('VERSION=' + (window.APP_VERSION||'UNKNOWN'));
+  toast('BUILD=' + (window.BUILD_ID||'UNKNOWN'));
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(r=>{
-      out(
-        r.length
-          ? 'ServiceWorker = ON（キャッシュ原因）'
-          : 'ServiceWorker = OFF',
+      toast(
+        r.length ? 'ServiceWorker=ON (cache)' : 'ServiceWorker=OFF',
         r.length ? 'err' : ''
       );
     });
   }
 
-  /* lastStore */
-  out(
-    localStorage.getItem('lastStore')
-      ? 'lastStore = 残っている（自動選択の原因）'
-      : 'lastStore = なし',
-    localStorage.getItem('lastStore') ? 'warn' : ''
+  const ls = localStorage.getItem('lastStore');
+  toast(
+    ls ? 'lastStore=残存 → 自動選択原因' : 'lastStore=なし',
+    ls ? 'warn' : ''
   );
 })();
 </script>
