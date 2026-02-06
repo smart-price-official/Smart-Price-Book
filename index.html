@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.43</title>
+  <title>Smart Price v19.9.44</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -238,7 +238,7 @@
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.43</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.44</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -409,9 +409,9 @@
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.43"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.43 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-05_2300_toastlife-r4"; // ヘッダーと一致させる
+  const APP_VERSION = 'v19.9.44'; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = 'v19.9.44 [0206]'; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = '2026-02-06_1037_stable-full-diag1'; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1592,6 +1592,87 @@ async function diagQuickToast() {
   window.addEventListener("resize", () => {
     __toastEnsureContainer();
   });
+  // ===== QUICK DIAG (debug=1) =====
+  // 目的：ページが「どの版を配信しているか」「設定が読めているか」「SWキャッシュが悪さしてないか」を
+  // トーストだけで即判定できるようにする（UI追加なし）
+  function runQuickDiagToast() {
+    try {
+      const params = new URL(location.href).searchParams;
+      const isDebug = (params.get('debug') === '1');
+      if (!isDebug) return;
+
+      const now = new Date();
+      const timeStr = now.toISOString();
+
+      // まず、最上段の1枚で状況が読めるように
+      showToast(
+        [
+          'TIME: ' + timeStr,
+          'URL: ' + location.href,
+          'PATH: ' + location.pathname,
+          'BUILD: ' + (typeof BUILD_ID !== 'undefined' ? BUILD_ID : '(none)'),
+          'VERSION: ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '(none)'),
+          'FULL: ' + (typeof FULL_VERSION !== 'undefined' ? FULL_VERSION : '(none)'),
+        ].join('\n'),
+        'info',
+        15000
+      );
+
+      // よくある「ボタン全滅」系：致命的関数が未定義かどうか
+      const must = [
+        ['showToast', (typeof showToast === 'function')],
+        ['openSettings', (typeof openSettings === 'function')],
+        ['toggleGps', (typeof toggleGps === 'function')],
+      ];
+      const bad = must.filter(x => !x[1]).map(x => x[0]);
+      if (bad.length) {
+        showToast('ERROR: missing function(s): ' + bad.join(', ') + '\n→ 読み込み中断/壊れたHTMLの可能性', 'error', 20000);
+      }
+
+      // ServiceWorker（SW）有無：404や古い版固定の主因
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          if (regs && regs.length) {
+            showToast(
+              'ServiceWorker: ON (' + regs.length + ')\n→ キャッシュで古い版を引いてる可能性\n対策：アプリの「設定→SW解除」か、別途SW削除手順',
+              'warn',
+              20000
+            );
+          } else {
+            showToast('ServiceWorker: OFF', 'success', 8000);
+          }
+        }).catch(() => {
+          showToast('ServiceWorker: check failed', 'warn', 8000);
+        });
+      }
+
+      // localStorage：lastStore残り/設定残りで挙動が変わる
+      try {
+        const lastStore = localStorage.getItem('lastStore');
+        if (lastStore) {
+          showToast('lastStore: ' + lastStore + '\n→ 自動選択が暴れる時はクリア対象', 'warn', 12000);
+        } else {
+          showToast('lastStore: (none)', 'success', 8000);
+        }
+      } catch (e) {
+        showToast('localStorage: blocked', 'warn', 8000);
+      }
+
+      // config.json：読めているか（ここは既存のCONFIG_URL/CONFIG_OBJがあればそれを使う）
+      try {
+        if (typeof CONFIG_URL !== 'undefined') {
+          showToast('CONFIG_URL: ' + CONFIG_URL, 'info', 12000);
+        }
+        if (typeof CONFIG_OBJ !== 'undefined' && CONFIG_OBJ) {
+          showToast('CONFIG: OK', 'success', 8000);
+        }
+      } catch (e) {}
+    } catch (e) {
+      // ここで落ちると本末転倒なので黙って終了
+    }
+  }
+  // ===== /QUICK DIAG =====
+
 function isQuotaError(e) {
     if (!e) return false;
     return (
@@ -5492,6 +5573,13 @@ if ("serviceWorker" in navigator) {
 
 // ===== DIAG AUTO (debug=1) =====
 window.addEventListener('DOMContentLoaded', ()=>{ try{ setTimeout(diagQuickToast, 50); }catch(e){} });
+</script>
+
+<script>
+// Auto-run quick diag toast (debug=1 only)
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof runQuickDiagToast === 'function') runQuickDiagToast();
+}, { once:true });
 </script>
 </body>
 </html>
