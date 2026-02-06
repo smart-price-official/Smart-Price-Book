@@ -3,11 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.json">
+  
+<script>
+/* ===== VERSION SSOT (唯一の正本) ===== */
+(function(){
+  const p = new URLSearchParams(location.search);
+  const build = p.get('b') || '2026-02-06_1328_stable-full-diag3';
+  const version = 'v19.9.45';
+  const tag = '[0206]';
+  const full = `${version} ${tag}`;
+  window.VERSION_SSOT = { APP:'Smart Price', VERSION:version, TAG:tag, FULL:full, BUILD:build };
+  window.APP_VERSION = version;      // backward compat
+  window.FULL_VERSION = full;
+  window.BUILD_ID = build;
+  window.VERSION_INFO = full;        // backward compat (debug overlay)
+  document.title = `${window.VERSION_SSOT.APP} ${window.VERSION_SSOT.FULL}`;
+})();
+</script>
+<link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.44</title>
+  <title>Smart Price</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -234,11 +251,26 @@
   })();
   </script>
   <!-- /BOOT PROBE v3 -->
+<script>
+/* ===== Debug Error Capture ===== */
+window.__SP_ERRLOG__ = window.__SP_ERRLOG__ || [];
+(function(){
+  function pushErr(kind, msg){
+    try{
+      const t = new Date().toISOString();
+      window.__SP_ERRLOG__.push({t, kind, msg: String(msg||'')});
+      if (window.__SP_ERRLOG__.length > 20) window.__SP_ERRLOG__.shift();
+    }catch(e){}
+  }
+  window.addEventListener('error', (e)=> pushErr('error', e.message || e.error || e.filename), true);
+  window.addEventListener('unhandledrejection', (e)=> pushErr('promise', e.reason), true);
+})();
+</script>
 </head>
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.44</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.43</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -409,8 +441,8 @@
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = 'v19.9.44'; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = 'v19.9.44 [0206]'; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = 'v19.9.43'; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = 'v19.9.43 [0206]'; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = '2026-02-06_1037_stable-full-diag1'; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -484,6 +516,10 @@
   // ========= Debug =========
   function isDebug() {
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
+
+}
+function isAdmin(){ try{ return new URL(location.href).searchParams.get('admin')==='1'; }catch(e){ return false; } }
+function canEditFirebase(){ return isDebug() && isAdmin(); }
 
 
 /* ===== DIAG QUICK (debug=1 only) =====
@@ -679,11 +715,7 @@ async function diagQuickToast() {
     storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
   };
 
-  const CITY_STORE_PRESET = {
-    "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
-    "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
-    "東海村": ["カスミ東海店", "ヨークベニマル東海店", "イオン東海店"]
-  };
+  const CITY_STORE_PRESET = {}; // 生活圏の固定プリセットは廃止（必要ならユーザーが追加）
 
   // ========= Image Store (IndexedDB) =========
   const IMG_DB_NAME = "smart_price_img_db_v1";
@@ -1712,7 +1744,9 @@ function isQuotaError(e) {
 
     if (typeof o.config.lastTax !== "string") o.config.lastTax = DEFAULT_CONFIG.lastTax;
     if (typeof o.config.homeCity !== "string") o.config.homeCity = DEFAULT_CONFIG.homeCity;
-    if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
+    
+    if (typeof o.config.lastStore !== "string") o.config.lastStore = "";
+if (!Array.isArray(o.config.homeCities)) o.config.homeCities = o.config.homeCity ? [o.config.homeCity] : [];
     if (!Array.isArray(o.config.customStores)) o.config.customStores = [];
 
     Object.keys(o.products).forEach(code => {
@@ -5142,7 +5176,11 @@ function isQuotaError(e) {
   async function startMigration() {
     const btn = document.getElementById('syncBtn');
     const urlEl = document.getElementById('fb-url-input');
-    const cityEl = document.getElementById('home-city-input');
+    
+    // Firebase URLは通常ロック（debug=1&admin=1 のときだけ編集可）
+    urlEl.readOnly = !canEditFirebase();
+    urlEl.title = urlEl.readOnly ? '通常は編集不可（debug=1&admin=1 で解除）' : '編集可能（管理モード）';
+const cityEl = document.getElementById('home-city-input');
 
     const u = (urlEl ? urlEl.value : '').trim();
     const cityInput = (cityEl ? cityEl.value : '').trim();
