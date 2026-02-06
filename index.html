@@ -5619,5 +5619,99 @@ document.addEventListener('DOMContentLoaded', function(){
   if (typeof runQuickDiagToast === 'function') runQuickDiagToast();
 }, { once:true });
 </script>
+  <script>
+/* ==== DIAG INJECTOR (debug=1 only) ==== */
+(function(){
+  const qs = new URL(location.href).searchParams;
+  const isDebug = (qs.get('debug') === '1');
+  if(!isDebug) return;
+
+  // --- toast (既存があればそれを使う / 無ければ自前で出す) ---
+  function ensureToastHost(){
+    let host = document.getElementById('diag-toast-host');
+    if(host) return host;
+    host = document.createElement('div');
+    host.id = 'diag-toast-host';
+    host.style.cssText = [
+      'position:fixed','left:12px','top:72px','right:12px','z-index:999999',
+      'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(host);
+    return host;
+  }
+  function toast(msg, level){
+    const host = ensureToastHost();
+    const d = document.createElement('div');
+    const color = (level==='err')?'#ff5252':(level==='warn')?'#ffd54f':'#00e676';
+    d.style.cssText = [
+      'background:rgba(0,0,0,0.78)',
+      'border:1px solid rgba(255,255,255,0.12)',
+      'border-left:6px solid '+color,
+      'border-radius:12px',
+      'padding:10px 12px',
+      'margin:8px 0',
+      'font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      'color:#b9f6ff',
+      'white-space:pre-wrap',
+      'word-break:break-word'
+    ].join(';');
+    d.textContent = msg;
+    host.appendChild(d);
+    setTimeout(()=>{ d.remove(); }, 12000);
+  }
+
+  // --- 重要：openSettings が無いと連発するので、診断時だけ“安全に無効化” ---
+  if (typeof window.openSettings !== 'function') {
+    window.openSettings = function(){
+      toast('DIAG: openSettings is not defined → 代替(no-op)で停止', 'warn');
+    };
+  }
+
+  // --- グローバルエラー捕捉（原因をトーストに出す） ---
+  window.addEventListener('error', (e)=>{
+    toast('ERROR: ' + (e.message || e.type) + '\n@' + (e.filename||'') + ':' + (e.lineno||'') , 'err');
+  }, true);
+
+  window.addEventListener('unhandledrejection', (e)=>{
+    toast('PROMISE REJECTION: ' + (e.reason && (e.reason.stack||e.reason.message||String(e.reason))) , 'err');
+  });
+
+  // --- 配信版の取り違いを即判定（b が無い / BUILD が無い） ---
+  const b = qs.get('b');
+  const av = (window.APP_VERSION || window.VERSION || window.FULL_VERSION || '(no version var)');
+  const title = document.title || '(no title)';
+  toast(
+    'TIME: ' + new Date().toISOString() + '\n' +
+    'URL: ' + location.href + '\n' +
+    'PATH: ' + location.pathname + '\n' +
+    'b: ' + (b || '(MISSING)') + '\n' +
+    'APP_VERSION: ' + av + '\n' +
+    'TITLE: ' + title,
+    (!b ? 'err' : 'ok')
+  );
+
+  // --- ServiceWorker / Cache の有無（古い版を掴む原因） ---
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      toast('SW: ' + (regs.length ? ('ON ('+regs.length+') → 古い版の原因') : 'NONE'), regs.length ? 'warn' : 'ok');
+    }).catch(err=>{
+      toast('SW check failed: ' + (err.message||String(err)), 'warn');
+    });
+  } else {
+    toast('SW: not supported', 'ok');
+  }
+
+  // --- localStorage の怪しいキー（例：lastStore） ---
+  const lsKeys = ['lastStore','curStore','selectedStore','store','city','homeCity'];
+  const found = [];
+  lsKeys.forEach(k=>{
+    const v = localStorage.getItem(k);
+    if(v!=null && v!=='') found.push(k+'='+v);
+  });
+  toast('LS: ' + (found.length ? found.join(' / ') : 'no target keys'), found.length ? 'warn' : 'ok');
+
+})();
+</script>
+
 </body>
 </html>
