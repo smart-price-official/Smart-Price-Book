@@ -2,93 +2,82 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Smart Price v19.9.43</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!--
-APP: Smart Price
-VERSION: v19.9.43
-BUILD: 2026-02-06_demo_stable
-AUTHOR: Yui
-POLICY: UI変更なし／内部修正のみ
--->
+<title>Smart Price v19.9.43 DIAG</title>
+
+<script>
+/* ===== SSOT ===== */
+window.APP_VERSION = 'v19.9.43';
+window.BUILD_ID = '2026-02-06_stable_diag';
+</script>
 
 <style>
-body { margin:0; font-family:sans-serif; background:#121212; color:#e0e0e0; }
-.header { background:#b30000; padding:10px; color:#fff; display:flex; justify-content:space-between; }
-.store-tag { padding:6px 12px; border-radius:20px; border:1px solid #444; margin-right:6px; cursor:pointer; }
-.store-tag.active { background:#b30000; color:#fff; }
-#debug-indicator { position:fixed; top:6px; right:6px; width:8px; height:8px; background:red; display:none; z-index:9999; }
-#debug-toast { position:fixed; top:50px; right:10px; z-index:9998; font-size:11px; }
-.debug-line { background:#000; color:#0f0; padding:4px 8px; margin-bottom:4px; border-left:3px solid #0f0; }
+body {
+  font-family: system-ui, sans-serif;
+  background:#111;
+  color:#fff;
+  padding:20px;
+}
+.toast {
+  background:#222;
+  border-left:4px solid #0f0;
+  padding:10px;
+  margin:8px 0;
+  font-size:14px;
+}
+.err { border-color:#f00; }
+.warn { border-color:#ff0; }
 </style>
 </head>
 
 <body>
 
-<div id="debug-indicator"></div>
-<div id="debug-toast"></div>
-
-<div class="header">
-  <div>Smart Price <span id="ver"></span></div>
-</div>
-
-<div style="padding:10px;">
-  <div id="store-list"></div>
-</div>
+<h2>Smart Price 診断モード</h2>
+<div id="out"></div>
 
 <script>
-/* ===== SSOT ===== */
-const VERSION = "v19.9.43";
-const BUILD = "2026-02-06_demo_stable";
+(function(){
+  const isDebug = new URL(location.href).searchParams.get('debug') === '1';
+  if (!isDebug) {
+    document.getElementById('out').innerHTML =
+      '<div class="toast err">debug=1 が付いていません</div>';
+    return;
+  }
 
-/* ===== Debug ===== */
-const isDebug = new URL(location.href).searchParams.get("debug") === "1";
-const dbgInd = document.getElementById("debug-indicator");
-if (isDebug) dbgInd.style.display = "block";
+  const out = (msg, cls='') => {
+    const d = document.createElement('div');
+    d.className = 'toast ' + cls;
+    d.textContent = msg;
+    document.getElementById('out').appendChild(d);
+  };
 
-function debugLog(msg) {
-  if (!isDebug) return;
-  const box = document.getElementById("debug-toast");
-  const d = document.createElement("div");
-  d.className = "debug-line";
-  d.textContent = msg;
-  box.appendChild(d);
-  setTimeout(()=>d.remove(), 8000);
-}
+  /* VERSION */
+  out('VERSION = ' + (window.APP_VERSION || 'UNKNOWN'));
 
-/* ===== Store State (分離) ===== */
-let uiSelectedStore = "";
-let purchaseStore = "";
+  /* BUILD */
+  out('BUILD = ' + (window.BUILD_ID || 'UNKNOWN'));
 
-const stores = ["未設定","スーパーA","ドラッグB","コンビニC"];
+  /* ServiceWorker */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(r=>{
+      out(
+        r.length
+          ? 'ServiceWorker = ON（キャッシュ原因）'
+          : 'ServiceWorker = OFF',
+        r.length ? 'err' : ''
+      );
+    });
+  }
 
-function renderStores() {
-  const list = document.getElementById("store-list");
-  list.innerHTML = "";
-  stores.forEach(s=>{
-    const sp = document.createElement("span");
-    sp.className = "store-tag" + (s===uiSelectedStore ? " active":"");
-    sp.textContent = s;
-    sp.onclick = ()=> {
-      uiSelectedStore = s;
-      debugLog("UI select: "+s);
-      renderStores();
-    };
-    list.appendChild(sp);
-  });
-}
-
-/* ===== Save ===== */
-function saveDummy() {
-  purchaseStore = uiSelectedStore;
-  debugLog("SAVE store = " + purchaseStore);
-}
-
-/* ===== Init ===== */
-document.getElementById("ver").textContent = VERSION;
-renderStores();
-debugLog("BOOT " + VERSION + " / " + BUILD);
+  /* lastStore */
+  out(
+    localStorage.getItem('lastStore')
+      ? 'lastStore = 残っている（自動選択の原因）'
+      : 'lastStore = なし',
+    localStorage.getItem('lastStore') ? 'warn' : ''
+  );
+})();
 </script>
 
 </body>
