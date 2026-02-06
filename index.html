@@ -1,82 +1,134 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Smart Price v19.9.43</title>
 
-<title>Smart Price v19.9.43 (STABLE)</title>
-
+<!-- ===== SSOT ===== -->
 <script>
-/* ===== SSOT ===== */
-window.APP_VERSION = 'v19.9.43';
-window.BUILD_ID = '2026-02-06_stable_diag';
+window.APP = {
+  VERSION: 'v19.9.43',
+  BUILD: '2026-02-06_stable_full',
+};
 </script>
 
 <style>
-body { font-family: system-ui, sans-serif; background:#111; color:#fff; margin:0; padding:0; }
-header { background:#b00000; padding:12px; font-weight:bold; }
-#debug-indicator {
-  position:fixed; top:6px; right:6px;
-  width:8px; height:8px; background:#f00;
-  display:none; z-index:9999;
-}
-.toast {
-  position:fixed; right:10px; top:60px;
-  background:#222; border-left:4px solid #0f0;
-  padding:10px; margin-bottom:6px;
-  font-size:12px; z-index:9998;
-}
-.toast.err { border-color:#f00; }
-.toast.warn { border-color:#ff0; }
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto; background:#111; color:#eee; margin:0; padding-bottom:90px}
+header{position:sticky; top:0; z-index:10; background:linear-gradient(135deg,#d50000,#9b0000); padding:12px 16px}
+h1{font-size:18px; margin:0}
+main{padding:12px}
+button{border-radius:10px; border:none; padding:12px 14px; font-size:16px}
+.btn-main{background:#d50000; color:#fff; width:100%; margin-bottom:12px}
+.list{margin-top:12px}
+.item{background:#1e1e1e; border:1px solid #333; border-radius:12px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between}
+.storebar{display:flex; gap:8px; overflow-x:auto; padding:8px 0}
+.store{padding:6px 14px; border-radius:20px; border:1px solid #444; background:#2a2a2a; color:#ccc; white-space:nowrap}
+.store.active{background:#d50000; border-color:#d50000; color:#fff}
+#toast{position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:#222; border-left:4px solid #0f0; padding:10px 14px; border-radius:8px; display:none; z-index:9999}
+#toast.err{border-color:#f00}
+#debug-dot{position:fixed; top:6px; right:6px; width:8px; height:8px; background:#f00; border-radius:2px; display:none; z-index:10000}
 </style>
 </head>
 
 <body>
+<div id="debug-dot"></div>
+<header>
+  <h1>Smart Price <span id="ver"></span></h1>
+</header>
 
-<div id="debug-indicator"></div>
-<header>Smart Price <span id="ver"></span></header>
+<main>
+  <div class="storebar" id="stores"></div>
 
-<main style="padding:16px">
-  <p>通常表示（stable）</p>
+  <button class="btn-main" onclick="addDummy()">＋ 価格を追加（簡易）</button>
+
+  <div class="list" id="list"></div>
 </main>
 
+<div id="toast"></div>
+
 <script>
-(function(){
-  const params = new URL(location.href).searchParams;
-  const isDebug = params.get('debug') === '1';
-  document.getElementById('ver').textContent =
-    window.APP_VERSION + ' / ' + window.BUILD_ID;
+/* ===== 基本ユーティリティ ===== */
+const qs = new URLSearchParams(location.search);
+const isDebug = qs.get('debug') === '1';
 
-  const toast = (msg, cls='') => {
-    const d = document.createElement('div');
-    d.className = 'toast ' + cls;
-    d.textContent = msg;
-    document.body.appendChild(d);
-  };
+const toast = (msg, err=false) => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = err ? 'err' : '';
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none', 3500);
+};
 
-  if (!isDebug) return;
+/* ===== 初期表示 ===== */
+document.getElementById('ver').textContent = APP.VERSION;
+if(isDebug) document.getElementById('debug-dot').style.display='block';
 
-  document.getElementById('debug-indicator').style.display = 'block';
+/* ===== userId / ref ===== */
+let userId = localStorage.getItem('sp_userId');
+if(!userId){
+  userId = 'U-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
+  localStorage.setItem('sp_userId', userId);
+}
+if(qs.get('ref') && !localStorage.getItem('sp_ref')){
+  localStorage.setItem('sp_ref', qs.get('ref'));
+}
 
-  toast('VERSION=' + (window.APP_VERSION||'UNKNOWN'));
-  toast('BUILD=' + (window.BUILD_ID||'UNKNOWN'));
+/* ===== lastStore ===== */
+let lastStore = localStorage.getItem('sp_lastStore') || '未設定';
 
-  if ('serviceWorker' in navigator) {
+/* ===== データ ===== */
+let db = JSON.parse(localStorage.getItem('sp_db')||'[]');
+
+/* ===== ストア描画 ===== */
+function renderStores(){
+  const el = document.getElementById('stores');
+  const set = new Set(['未設定']);
+  db.forEach(x=>set.add(x.store));
+  el.innerHTML='';
+  [...set].forEach(s=>{
+    const b=document.createElement('div');
+    b.className='store'+(s===lastStore?' active':'');
+    b.textContent=s;
+    b.onclick=()=>{ lastStore=s; localStorage.setItem('sp_lastStore',s); renderStores(); };
+    el.appendChild(b);
+  });
+}
+
+/* ===== リスト描画 ===== */
+function render(){
+  const el=document.getElementById('list');
+  el.innerHTML='';
+  db.slice().reverse().forEach(x=>{
+    const d=document.createElement('div');
+    d.className='item';
+    d.innerHTML=`<div>${x.store}</div><div>${x.price}円</div>`;
+    el.appendChild(d);
+  });
+}
+
+/* ===== 追加（簡易） ===== */
+function addDummy(){
+  db.push({store:lastStore, price:Math.floor(Math.random()*500)+100});
+  localStorage.setItem('sp_db', JSON.stringify(db));
+  render(); renderStores();
+}
+
+/* ===== 診断（debug=1 時のみ自動表示） ===== */
+if(isDebug){
+  toast(`VERSION=${APP.VERSION} BUILD=${APP.BUILD}`);
+  toast(`userId=${userId}`);
+  toast(`ref=${localStorage.getItem('sp_ref')||'none'}`);
+  toast(`lastStore=${lastStore}`);
+  if('serviceWorker' in navigator){
     navigator.serviceWorker.getRegistrations().then(r=>{
-      toast(
-        r.length ? 'ServiceWorker=ON (cache)' : 'ServiceWorker=OFF',
-        r.length ? 'err' : ''
-      );
+      toast(r.length?'ServiceWorker=ON':'ServiceWorker=OFF', r.length);
     });
   }
+}
 
-  const ls = localStorage.getItem('lastStore');
-  toast(
-    ls ? 'lastStore=残存 → 自動選択原因' : 'lastStore=なし',
-    ls ? 'warn' : ''
-  );
-})();
+/* ===== 初期描画 ===== */
+renderStores(); render();
 </script>
-
 </body>
 </html>
