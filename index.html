@@ -32,6 +32,13 @@ POLICY: UIは変更しない（内部実装のみ）
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
   <title>Smart Price v19.9.41</title>
+  <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
+  <script>
+    window.VERSION_INFO = 'v19.9.41';
+    window.APP_VERSION = 'v19.9.41';
+    window.FULL_VERSION = 'v19.9.41 [0205]';
+    window.BUILD_ID = '2026-02-05_0925_toastlife-r5';
+  </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -194,9 +201,11 @@ POLICY: UIは変更しない（内部実装のみ）
       max-height: 60vh;
       overflow-y: auto;
       display: none;
+      pointer-events: none;
     }
     #debug-panel.show {
       display: block;
+      pointer-events: auto;
     }
     #debug-panel-header {
       display: flex;
@@ -262,151 +271,6 @@ POLICY: UIは変更しない（内部実装のみ）
       transform: scale(0.95);
     }
   </style>
-
-<!-- DEBUG PANEL v4 (Improved with toggle button) -->
-  <script>
-  // ✅ VERSION_INFOをグローバルに定義（デバッグパネルより先に）
-  window.VERSION_INFO = 'v19.9.41';
-  window.APP_VERSION = 'v19.9.41';
-  window.BUILD_ID = '2026-02-05_0925_toastlife-r5';
-
-  (function () {
-    const params = new URLSearchParams(location.search);
-    if (!params.has('debug')) return;
-
-    // デバッグパネルとボタンのHTML要素を作成
-    const createDebugUI = () => {
-      // デバッグトグルボタン
-      const toggleBtn = document.createElement('div');
-      toggleBtn.id = 'debug-toggle-btn';
-      toggleBtn.className = 'show';
-      toggleBtn.title = 'デバッグパネルを開く';
-      toggleBtn.innerHTML = '<i class="bi bi-bug-fill"></i>';
-
-      // デバッグパネル
-      const panel = document.createElement('div');
-      panel.id = 'debug-panel';
-      panel.innerHTML = `
-        <div id="debug-panel-header">
-          <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO}</div>
-          <button id="debug-panel-close">×</button>
-        </div>
-        <div id="debug-panel-content"></div>
-      `;
-
-      document.body.appendChild(toggleBtn);
-      document.body.appendChild(panel);
-
-      return { panel, toggleBtn, content: panel.querySelector('#debug-panel-content') };
-    };
-
-    // DOMContentLoaded後に実行
-    document.addEventListener('DOMContentLoaded', () => {
-      const { panel, toggleBtn, content } = createDebugUI();
-
-      const log = (k, v) => {
-        const div = document.createElement('div');
-        div.innerHTML = `<b>${k}</b>: ${String(v)}`;
-        content.appendChild(div);
-      };
-
-      // デバッグ情報を収集
-      log('TIME', new Date().toISOString());
-      log('URL', location.href);
-      log('PATH', location.pathname);
-      log('BUILD', params.get('b') || window.BUILD_ID);
-      log('VERSION', window.VERSION_INFO);
-      log('TITLE', document.title || '(empty)');
-      log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
-
-      // Service Worker状態
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(rs => {
-          log('SW', rs.length ? `${rs.length} REGISTERED (UNREGISTERING)` : 'NONE');
-          rs.forEach(r => r.unregister());
-        }).catch(e => log('SW', 'ERROR ' + e.message));
-      } else {
-        log('SW', 'NOT SUPPORTED');
-      }
-
-      // localStorage情報
-      try {
-        const dbStr = localStorage.getItem('smart_price_db');
-        if (dbStr) {
-          const db = JSON.parse(dbStr);
-          log('DB_PRODUCTS', Object.keys(db.products || {}).length);
-          log('DB_STORES', Object.keys(db.stores || {}).length);
-        } else {
-          log('DB', 'EMPTY');
-        }
-      } catch (e) {
-        log('DB', 'ERROR: ' + e.message);
-      }
-
-      // config.json resolver
-      const isBook = location.pathname.includes('/Smart-Price-Book/');
-      const isDev = location.pathname.includes('/dev/');
-      const isEmergency = location.pathname.includes('/emergency/');
-
-      const fetchOnce = (url, tag) =>
-        fetch(url, { cache: 'no-store' }).then(r => {
-          log(tag, r.ok ? ('OK ' + url) : ('FAIL ' + r.status + ' ' + url));
-          return r.ok;
-        }).catch(e => {
-          log(tag, 'ERROR ' + e.message + ' ' + url);
-          return false;
-        });
-
-      if (!isBook) {
-        log('CONFIG_URL', './config.json');
-        fetchOnce('./config.json', 'CONFIG_FETCH');
-      } else if (isDev || isEmergency) {
-        log('CONFIG_URL', './config.json');
-        fetchOnce('./config.json', 'CONFIG_FETCH');
-      } else {
-        log('CONFIG_URL', './config.json → ./dev/config.json (fallback)');
-        fetchOnce('./config.json', 'CONFIG_1ST').then(ok => {
-          if (ok) {
-            log('CONFIG_FINAL', './config.json');
-            return;
-          }
-          fetchOnce('./dev/config.json', 'CONFIG_2ND').then(() => {
-            log('CONFIG_FINAL', './dev/config.json');
-          });
-        });
-      }
-
-      // エラーハンドリング
-      window.addEventListener('error', e => log('ERROR', e.message));
-      window.addEventListener('unhandledrejection', e => log('PROMISE_REJECT', e.reason));
-
-      log('STATUS', 'JS RUNNING ✓');
-
-      // トグルボタンのイベント
-      toggleBtn.addEventListener('click', () => {
-        if (panel.classList.contains('show')) {
-          panel.classList.remove('show');
-          console.log('[DEBUG] パネルを閉じました');
-        } else {
-          panel.classList.add('show');
-          console.log('[DEBUG] パネルを開きました');
-        }
-      });
-
-      // 閉じるボタンのイベント
-      const closeBtn = panel.querySelector('#debug-panel-close');
-      closeBtn.addEventListener('click', () => {
-        panel.classList.remove('show');
-        console.log('[DEBUG] パネルを閉じました');
-      });
-
-      // 初期メッセージ
-      console.log('[DEBUG] デバッグモードが有効です。右下のボタンでパネルを表示できます。');
-      console.log('[DEBUG] VERSION:', window.VERSION_INFO, '| BUILD:', window.BUILD_ID);
-    }, { once: true });
-  })();
-  </script>
-  <!-- /DEBUG PANEL v4 -->
 </head>
 
 <body>
@@ -573,7 +437,7 @@ POLICY: UIは変更しない（内部実装のみ）
 
 <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
-<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:99997; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -676,7 +540,6 @@ POLICY: UIは変更しない（内部実装のみ）
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
     const errorDisplay = document.getElementById('debug-error-display');
-    if (errorDisplay) if (isDebug && message) errorDisplay.style.display = 'block';
 
     // 最終エラーを画面に固定表示する関数
     // ✅ P0修正: エラーログを保存する配列（診断ツール用）
@@ -705,7 +568,7 @@ POLICY: UIは変更しない（内部実装のみ）
       const errorDisplay = document.getElementById('debug-error-display');
       if (errorDisplay) {
         errorDisplay.textContent = msg;
-        if (isDebug && message) errorDisplay.style.display = 'block';
+        errorDisplay.style.display = 'block';
       }
     }
 
@@ -4367,7 +4230,7 @@ function isQuotaError(e) {
     if (errorDisplay) {
       const debugText = `[Scanbar] Mode:${scanbarMode} | Found:${elementFound} | Visible:${scanbarVisible} | LaserZ:${laserZIndex} | FrameZ:${frameZIndex} | Parent:${parentElId}`;
       errorDisplay.textContent = debugText;
-      if (isDebug && message) errorDisplay.style.display = 'block';
+      errorDisplay.style.display = 'block';
     }
     
     // 定期的に更新（1秒ごと）
@@ -5634,5 +5497,148 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
+
+<!-- ✅ DEBUG PANEL v4 (body終了直前に配置) -->
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('debug')) return;
+
+  // DOMが完全に読み込まれた後に実行
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDebugPanel);
+  } else {
+    // すでにDOMが読み込まれている場合は即実行
+    initDebugPanel();
+  }
+
+  function initDebugPanel() {
+    // デバッグトグルボタン
+    const toggleBtn = document.createElement('div');
+    toggleBtn.id = 'debug-toggle-btn';
+    toggleBtn.className = 'show';
+    toggleBtn.title = 'デバッグパネルを開く';
+    toggleBtn.innerHTML = '<i class="bi bi-bug-fill"></i>';
+
+    // デバッグパネル
+    const panel = document.createElement('div');
+    panel.id = 'debug-panel';
+    panel.innerHTML = `
+      <div id="debug-panel-header">
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.41'}</div>
+        <button id="debug-panel-close">×</button>
+      </div>
+      <div id="debug-panel-content"></div>
+    `;
+
+    document.body.appendChild(toggleBtn);
+    document.body.appendChild(panel);
+
+    const content = panel.querySelector('#debug-panel-content');
+
+    const log = (k, v) => {
+      const div = document.createElement('div');
+      div.innerHTML = `<b>${k}</b>: ${String(v)}`;
+      content.appendChild(div);
+    };
+
+    // デバッグ情報を収集
+    log('TIME', new Date().toISOString());
+    log('URL', location.href);
+    log('PATH', location.pathname);
+    log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.41');
+    log('TITLE', document.title || '(empty)');
+    log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
+
+    // Service Worker状態
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(rs => {
+        log('SW', rs.length ? `${rs.length} REGISTERED (UNREGISTERING)` : 'NONE');
+        rs.forEach(r => r.unregister());
+      }).catch(e => log('SW', 'ERROR ' + e.message));
+    } else {
+      log('SW', 'NOT SUPPORTED');
+    }
+
+    // localStorage情報
+    try {
+      const dbStr = localStorage.getItem('smart_price_db');
+      if (dbStr) {
+        const db = JSON.parse(dbStr);
+        log('DB_PRODUCTS', Object.keys(db.products || {}).length);
+        log('DB_STORES', Object.keys(db.stores || {}).length);
+      } else {
+        log('DB', 'EMPTY');
+      }
+    } catch (e) {
+      log('DB', 'ERROR: ' + e.message);
+    }
+
+    // config.json resolver
+    const isBook = location.pathname.includes('/Smart-Price-Book/');
+    const isDev = location.pathname.includes('/dev/');
+    const isEmergency = location.pathname.includes('/emergency/');
+
+    const fetchOnce = (url, tag) =>
+      fetch(url, { cache: 'no-store' }).then(r => {
+        log(tag, r.ok ? ('OK ' + url) : ('FAIL ' + r.status + ' ' + url));
+        return r.ok;
+      }).catch(e => {
+        log(tag, 'ERROR ' + e.message + ' ' + url);
+        return false;
+      });
+
+    if (!isBook) {
+      log('CONFIG_URL', './config.json');
+      fetchOnce('./config.json', 'CONFIG_FETCH');
+    } else if (isDev || isEmergency) {
+      log('CONFIG_URL', './config.json');
+      fetchOnce('./config.json', 'CONFIG_FETCH');
+    } else {
+      log('CONFIG_URL', './config.json → ./dev/config.json (fallback)');
+      fetchOnce('./config.json', 'CONFIG_1ST').then(ok => {
+        if (ok) {
+          log('CONFIG_FINAL', './config.json');
+          return;
+        }
+        fetchOnce('./dev/config.json', 'CONFIG_2ND').then(() => {
+          log('CONFIG_FINAL', './dev/config.json');
+        });
+      });
+    }
+
+    // エラーハンドリング
+    window.addEventListener('error', e => log('ERROR', e.message));
+    window.addEventListener('unhandledrejection', e => log('PROMISE_REJECT', e.reason));
+
+    log('STATUS', 'JS RUNNING ✓');
+
+    // トグルボタンのイベント
+    toggleBtn.addEventListener('click', () => {
+      if (panel.classList.contains('show')) {
+        panel.classList.remove('show');
+        console.log('[DEBUG] パネルを閉じました');
+      } else {
+        panel.classList.add('show');
+        console.log('[DEBUG] パネルを開きました');
+      }
+    });
+
+    // 閉じるボタンのイベント
+    const closeBtn = panel.querySelector('#debug-panel-close');
+    closeBtn.addEventListener('click', () => {
+      panel.classList.remove('show');
+      console.log('[DEBUG] パネルを閉じました');
+    });
+
+    // 初期メッセージ
+    console.log('[DEBUG] デバッグモードが有効です。右下のボタンでパネルを表示できます。');
+    console.log('[DEBUG] VERSION:', window.VERSION_INFO || window.APP_VERSION, '| BUILD:', window.BUILD_ID);
+  }
+})();
+</script>
+<!-- /DEBUG PANEL v4 -->
+
 </body>
 </html>
