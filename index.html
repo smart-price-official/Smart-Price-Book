@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+APP: Smart Price
+VERSION: v19.9.43
+DATE(JST): 2026-02-07 18:30
+TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
+CHANGES:
+- 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
+- Firebase URLは通常ユーザーに非表示、admin時のみ読み取り専用で表示
+- お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
+- 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
+- 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
+BUILD_PARAM(b): ?b=2026-02-07_1830_settings-unified
+DEBUG_PARAM: &debug=1
+POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
+-->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -7,13 +22,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.41</title>
+  <title>Smart Price v19.9.43</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.41';
-    window.APP_VERSION = 'v19.9.41';
-    window.FULL_VERSION = 'v19.9.41 [0205]';
-    window.BUILD_ID = '2026-02-05_0925_toastlife-r5';
+    window.VERSION_INFO = 'v19.9.43';
+    window.APP_VERSION = 'v19.9.43';
+    window.FULL_VERSION = 'v19.9.43 [0207]';
+    window.BUILD_ID = '2026-02-07_1830_settings-unified';
   </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -251,7 +266,7 @@
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.41</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.43</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -352,14 +367,115 @@
 
     <div class="mb-3">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市">
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市、つくば市">
+      <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
       <div id="city-history-chips" class="city-chips"></div>
     </div>
 
-    <div class="mb-3">
-      <label class="small text-secondary">Firebase URL</label>
-      <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://xxx.firebaseio.com/">
-    </div>
+    <details id="referralDetails" class="mb-3">
+      <summary class="small text-secondary" style="cursor:pointer;">友人紹介／家族共有</summary>
+      <div class="mt-2">
+        <div class="small text-secondary mb-1">あなたの紹介ID</div>
+        <div class="d-flex gap-2 mb-2">
+          <input id="ref-my-id" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-dark" onclick="spCopy('ref-my-id')">コピー</button>
+        </div>
+
+        <div class="small text-secondary mb-1">紹介リンク</div>
+        <textarea id="ref-link" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
+
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-dark flex-grow-1" onclick="spCopy('ref-link')">コピー</button>
+          <button class="btn btn-danger flex-grow-1" onclick="spShareReferral()">共有</button>
+        </div>
+
+        <div class="small text-secondary mb-1">家族共有コード（任意）</div>
+        <div class="d-flex gap-2 mb-2">
+          <input id="family-code-input" class="form-control bg-dark text-white border-secondary" placeholder="例：FAMILY-001">
+          <button class="btn btn-warning" onclick="spSaveFamilyCode()">保存</button>
+        </div>
+        <div id="family-code-status" class="small text-secondary"></div>
+
+        <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
+      </div>
+    </details>
+
+    <details id="supportDetails" class="mb-3">
+      <summary class="small text-secondary" style="cursor:pointer;">運営者へ質問／不具合報告</summary>
+      <div class="mt-2">
+        <label class="small text-secondary">症状（何が起きたか）</label>
+        <textarea id="support-symptom" class="form-control bg-dark text-white border-secondary mb-2" rows="3" placeholder="例：バーコード読み込み後、商品名が違う…"></textarea>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="small text-secondary">機種</label>
+            <input id="support-device" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Pixel 9">
+          </div>
+          <div class="col-6">
+            <label class="small text-secondary">OS</label>
+            <input id="support-os" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Android 15">
+          </div>
+        </div>
+
+        <label class="small text-secondary">ブラウザ</label>
+        <input id="support-browser" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Chrome / Edge">
+
+        <label class="small text-secondary">スクリーンショット（任意）</label>
+        <input id="support-screens" type="file" accept="image/*" multiple class="form-control bg-dark text-white border-secondary mb-2">
+        <div id="support-preview" class="d-flex flex-wrap gap-2 mb-2"></div>
+
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-dark flex-grow-1" onclick="spCopySupport()">内容コピー</button>
+          <button class="btn btn-danger flex-grow-1" onclick="spShareSupport()">共有</button>
+        </div>
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-warning w-100" onclick="spSaveSupport()">保存</button>
+        </div>
+
+        <div class="hint" style="margin:0;">※コピーした文章に、必要ならスクショも添えて送ってください。</div>
+      </div>
+    </details>
+
+    <details id="operatorDetails" class="mb-3">
+      <summary class="small text-secondary" style="cursor:pointer;">運営者メニュー</summary>
+      <div class="mt-2">
+        <div id="operatorNote" class="hint mb-2">※運営者モード（URLに <b>&amp;mode=admin</b> ）で有効化されます。</div>
+
+        <div id="operatorEnabled" style="display:none;">
+          <div class="mb-2">
+            <div class="small text-secondary mb-1">Firebase URL（読み取り専用）</div>
+            <div class="d-flex gap-2">
+              <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary" readonly>
+              <button class="btn btn-dark" onclick="spCopy('fb-url-input')">コピー</button>
+            </div>
+          </div>
+
+          <details class="mb-2">
+            <summary class="small text-secondary" style="cursor:pointer;">未確定商品（昨日分）</summary>
+            <div class="mt-2">
+              <div id="admin-unconfirmed-list" class="small"></div>
+              <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
+            </div>
+          </details>
+
+          <details class="mb-2">
+            <summary class="small text-secondary" style="cursor:pointer;">お問い合わせ履歴</summary>
+            <div class="mt-2" id="admin-support-list" class="small"></div>
+          </details>
+
+          <details class="mb-2">
+            <summary class="small text-secondary" style="cursor:pointer;">検証ツール</summary>
+            <div class="mt-2">
+              <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="spRunSelfCheck()">検証する</button>
+              <textarea id="selfcheck-log" class="form-control bg-dark text-white border-secondary" rows="6" readonly></textarea>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-dark flex-grow-1" onclick="spCopy('selfcheck-log')">ログコピー</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </details>
 
     <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
@@ -369,6 +485,8 @@
     </div>
     <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
   </div>
+</div>
+
 </div>
 
 <div id="webModal" class="modal">
@@ -422,9 +540,9 @@
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.41"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.41 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-05_0925_toastlife-r5"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.43"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.43 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-07_1830_settings-unified"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -508,7 +626,7 @@
     
     // トーストで表示（10秒）
     if (typeof showToast === 'function') {
-      showToast(String(message), type, 10);
+      showToast(String(message), 10000);
     }
   }
   
@@ -5474,6 +5592,634 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
+<script>
+/* === Smart Price Settings Unified Patch (v19.9.43 / 2026-02-07_1830_settings-unified) === */
+(function () {
+  "use strict";
+
+  // --- Helpers ---
+  function spParams() { return new URLSearchParams(location.search); }
+  function spIsAdminMode() {
+    const p = spParams();
+    return p.get('mode') === 'admin';
+  }
+  function spIsDebug() {
+    const p = spParams();
+    return p.has('debug');
+  }
+  function spNowISO() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2,'0');
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  function spSafeText(s) {
+    return (s == null) ? '' : String(s);
+  }
+
+  // Copy by element id
+  window.spCopy = async function(id) {
+    try {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const text = ('value' in el) ? el.value : el.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        if (typeof showToast === 'function') showToast('コピーしました', 1200);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (typeof showToast === 'function') showToast('コピーしました', 1200);
+      }
+    } catch (e) {
+      console.warn('[spCopy] failed', e);
+      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
+    }
+  };
+
+  // --- Referral / Family share ---
+  const LS_MY_REF = 'sp_ref_my';
+  const LS_REF_FROM = 'sp_ref_from';
+  const LS_FAMILY = 'sp_family_code';
+
+  function spGenId() {
+    // 6 chars (base36)
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  function spGetOrCreateMyRef() {
+    let v = localStorage.getItem(LS_MY_REF);
+    if (!v) {
+      v = spGenId();
+      localStorage.setItem(LS_MY_REF, v);
+    }
+    return v;
+  }
+
+  function spSaveFamily(code) {
+    const v = (code || '').trim();
+    if (v) localStorage.setItem(LS_FAMILY, v);
+    else localStorage.removeItem(LS_FAMILY);
+    return v;
+  }
+
+  function spBuildReferralLink(myId) {
+    const url = new URL(location.href);
+    // keep build param for cache busting, but remove debug/mode to avoid leaking
+    url.searchParams.set('ref', myId);
+    url.searchParams.delete('debug');
+    url.searchParams.delete('mode');
+    // ensure b exists
+    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_1830_settings-unified');
+    return url.toString();
+  }
+
+  window.spSaveFamilyCode = function() {
+    const input = document.getElementById('family-code-input');
+    const status = document.getElementById('family-code-status');
+    if (!input) return;
+    const saved = spSaveFamily(input.value);
+    if (status) status.textContent = saved ? ('保存しました：' + saved) : '未設定';
+    if (typeof showToast === 'function') showToast('家族共有コードを保存しました', 1500);
+  };
+
+  window.spShareReferral = async function() {
+    try {
+      const myId = spGetOrCreateMyRef();
+      const link = spBuildReferralLink(myId);
+      if (navigator.share) {
+        await navigator.share({ title: 'Smart Price 紹介リンク', text: 'Smart Price の紹介リンクです。', url: link });
+      } else {
+        await window.spCopy('ref-link');
+      }
+    } catch (e) {
+      console.warn('[spShareReferral] failed', e);
+      try { await window.spCopy('ref-link'); } catch(_e) {}
+    }
+  };
+
+  function spHandleRefParam() {
+    const p = spParams();
+    const ref = p.get('ref');
+    const my = spGetOrCreateMyRef();
+    if (ref && ref !== my) {
+      localStorage.setItem(LS_REF_FROM, ref);
+    }
+  }
+
+  // --- Support / Inquiry ---
+  const LS_SUPPORT = 'sp_support_logs_v1'; // max 50
+  const MAX_SUPPORT = 50;
+
+  function spUAInfo() {
+    const ua = navigator.userAgent || '';
+    const plat = navigator.platform || '';
+    return { ua, plat };
+  }
+
+  function spDetectBrowser() {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (ua.includes('edg/')) return 'Edge';
+    if (ua.includes('chrome/')) return 'Chrome';
+    if (ua.includes('safari/') && !ua.includes('chrome/')) return 'Safari';
+    if (ua.includes('firefox/')) return 'Firefox';
+    return 'Browser';
+  }
+
+  function spDefaultDevice() {
+    // coarse default; user can edit
+    const ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) return 'Android端末';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'iPhone/iPad';
+    if (/windows/i.test(ua)) return 'Windows PC';
+    if (/macintosh/i.test(ua)) return 'Mac';
+    return '端末';
+  }
+
+  function spDefaultOS() {
+    const ua = navigator.userAgent || '';
+    if (/android\s([0-9\.]+)/i.test(ua)) return 'Android ' + (ua.match(/android\s([0-9\.]+)/i)||[])[1];
+    if (/iphone os\s([0-9_]+)/i.test(ua)) return 'iOS ' + ((ua.match(/iphone os\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
+    if (/windows nt\s([0-9\.]+)/i.test(ua)) return 'Windows ' + (ua.match(/windows nt\s([0-9\.]+)/i)||[])[1];
+    if (/mac os x\s([0-9_]+)/i.test(ua)) return 'macOS ' + ((ua.match(/mac os x\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
+    return 'OS';
+  }
+
+  let _supportFiles = [];
+
+  function spRenderSupportPreview() {
+    const wrap = document.getElementById('support-preview');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    _supportFiles.forEach((f, idx) => {
+      const box = document.createElement('div');
+      box.style.position = 'relative';
+      const img = document.createElement('img');
+      img.src = f.dataUrl;
+      img.style.width = '88px';
+      img.style.height = '88px';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '10px';
+      img.style.border = '1px solid rgba(255,255,255,.12)';
+      const btn = document.createElement('button');
+      btn.textContent = '×';
+      btn.className = 'btn btn-dark';
+      btn.style.position = 'absolute';
+      btn.style.top = '-10px';
+      btn.style.right = '-10px';
+      btn.style.width = '28px';
+      btn.style.height = '28px';
+      btn.style.borderRadius = '999px';
+      btn.style.padding = '0';
+      btn.style.lineHeight = '1';
+      btn.onclick = () => {
+        _supportFiles.splice(idx,1);
+        spRenderSupportPreview();
+      };
+      box.appendChild(img);
+      box.appendChild(btn);
+      wrap.appendChild(box);
+    });
+  }
+
+  async function spFileToDataUrl(file, maxW=900, maxH=900) {
+    const dataUrl = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+    // downscale using canvas
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = dataUrl;
+    });
+    const w0 = img.width || 1, h0 = img.height || 1;
+    const scale = Math.min(1, maxW / w0, maxH / h0);
+    const w = Math.max(1, Math.round(w0 * scale));
+    const h = Math.max(1, Math.round(h0 * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    // jpeg to reduce size
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }
+
+  function spLoadSupportLogs() {
+    try {
+      const raw = localStorage.getItem(LS_SUPPORT);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch(e) {
+      return [];
+    }
+  }
+
+  function spSaveSupportLogs(arr) {
+    try {
+      localStorage.setItem(LS_SUPPORT, JSON.stringify(arr.slice(0, MAX_SUPPORT)));
+    } catch(e) {
+      console.warn('[spSaveSupportLogs] failed', e);
+    }
+  }
+
+  function spCollectSupportText() {
+    const symptom = spSafeText(document.getElementById('support-symptom')?.value).trim();
+    const device = spSafeText(document.getElementById('support-device')?.value).trim();
+    const os = spSafeText(document.getElementById('support-os')?.value).trim();
+    const browser = spSafeText(document.getElementById('support-browser')?.value).trim();
+    const myRef = spGetOrCreateMyRef();
+    const refFrom = localStorage.getItem(LS_REF_FROM) || '';
+    const family = localStorage.getItem(LS_FAMILY) || '';
+    const url = location.href;
+    const version = window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || '';
+    const build = window.BUILD_ID || '2026-02-07_1830_settings-unified';
+    const ua = spUAInfo();
+
+    const lines = [];
+    lines.push('【Smart Price お問い合わせ】');
+    lines.push('日時: ' + spNowISO());
+    lines.push('VERSION: ' + version);
+    lines.push('BUILD: ' + build);
+    if (myRef) lines.push('紹介ID: ' + myRef);
+    if (refFrom) lines.push('紹介元(ref): ' + refFrom);
+    if (family) lines.push('家族共有コード: ' + family);
+    lines.push('URL: ' + url);
+    lines.push('機種: ' + (device || '未入力'));
+    lines.push('OS: ' + (os || '未入力'));
+    lines.push('ブラウザ: ' + (browser || '未入力'));
+    lines.push('UA: ' + ua.ua);
+    lines.push('');
+    lines.push('症状:');
+    lines.push(symptom || '（未入力）');
+    lines.push('');
+    lines.push('スクショ: ' + (_supportFiles.length ? (_supportFiles.length + '枚（この画面で選択）') : 'なし'));
+    return lines.join('\n');
+  }
+
+  window.spCopySupport = async function() {
+    const text = spCollectSupportText();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
+      }
+    } catch(e) {
+      console.warn('[spCopySupport] failed', e);
+      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
+    }
+  };
+
+  window.spSaveSupport = function() {
+    const entry = {
+      ts: Date.now(),
+      text: spCollectSupportText(),
+      symptom: spSafeText(document.getElementById('support-symptom')?.value).trim().slice(0, 120),
+      files: _supportFiles.map(f => ({ name: f.name, dataUrl: f.dataUrl })).slice(0, 3),
+    };
+    const logs = spLoadSupportLogs();
+    logs.unshift(entry);
+    spSaveSupportLogs(logs);
+    if (typeof showToast === 'function') showToast('保存しました（運営者モードで確認できます）', 1800);
+    // clear symptom only
+    const sym = document.getElementById('support-symptom');
+    if (sym) sym.value = '';
+    _supportFiles = [];
+    spRenderSupportPreview();
+    // refresh admin list if visible
+    spRenderAdminSupportList();
+  };
+
+  function spBindSupportFiles() {
+    const inp = document.getElementById('support-screens');
+    if (!inp || inp.dataset.bound === '1') return;
+    inp.dataset.bound = '1';
+    inp.addEventListener('change', async () => {
+      try {
+        const files = Array.from(inp.files || []);
+        // keep up to 3 images
+        const take = files.slice(0, 3);
+        _supportFiles = [];
+        for (const f of take) {
+          const dataUrl = await spFileToDataUrl(f);
+          _supportFiles.push({ name: f.name, dataUrl });
+        }
+        spRenderSupportPreview();
+      } catch(e) {
+        console.warn('[support files] failed', e);
+        if (typeof showToast === 'function') showToast('画像の読み込みに失敗しました', 2000);
+      }
+    });
+  }
+
+  // --- Admin: Support history ---
+  function spRenderAdminSupportList() {
+    const wrap = document.getElementById('admin-support-list');
+    if (!wrap) return;
+    const logs = spLoadSupportLogs();
+    if (!logs.length) {
+      wrap.innerHTML = '<div class="hint">保存されたお問い合わせはありません。</div>';
+      return;
+    }
+    wrap.innerHTML = '';
+    logs.slice(0, 50).forEach((e, i) => {
+      const row = document.createElement('div');
+      row.className = 'p-2 mb-2';
+      row.style.border = '1px solid rgba(255,255,255,.08)';
+      row.style.borderRadius = '12px';
+      row.style.background = 'rgba(255,255,255,.02)';
+      const dt = new Date(e.ts);
+      const title = spSafeText(e.symptom || '').trim() || '（内容未入力）';
+      row.innerHTML = `
+        <div class="small text-secondary mb-1">${dt.toLocaleString()}</div>
+        <div class="text-white small mb-2">${title}</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-dark btn-sm flex-grow-1" data-i="${i}">コピー</button>
+          <button class="btn btn-outline-secondary btn-sm flex-grow-1" data-d="${i}">詳細</button>
+        </div>
+        <div class="small text-secondary mt-2" style="display:none;" id="support-detail-${i}"></div>
+      `;
+      wrap.appendChild(row);
+      row.querySelector('button[data-i]')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(e.text || '');
+          if (typeof showToast === 'function') showToast('コピーしました', 1200);
+        } catch(_e) {
+          window.spCopy('selfcheck-log'); // fallback noop
+        }
+      });
+      row.querySelector('button[data-d]')?.addEventListener('click', () => {
+        const d = row.querySelector('#support-detail-' + i);
+        if (!d) return;
+        if (d.style.display === 'none') {
+          const files = (e.files || []).map(f => f.name).join(', ');
+          d.textContent = (e.text || '') + (files ? ('\n\n添付: ' + files) : '');
+          d.style.whiteSpace = 'pre-wrap';
+          d.style.display = 'block';
+        } else {
+          d.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // --- Admin: Unconfirmed products (yesterday) ---
+  function spYesterdayRange() {
+    const now = new Date();
+    const y = new Date(now);
+    y.setDate(now.getDate() - 1);
+    const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0).getTime();
+    const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999).getTime();
+    return { start, end };
+  }
+
+  function spGetProductLastTs(p) {
+    try {
+      if (p && Array.isArray(p.history) && p.history.length) {
+        const last = p.history[p.history.length - 1];
+        const ts = last?.t || last?.ts || last?.time || last?.date;
+        if (typeof ts === 'number') return ts;
+        if (typeof ts === 'string') {
+          const n = Date.parse(ts);
+          return isNaN(n) ? 0 : n;
+        }
+      }
+      if (typeof p?.updatedAt === 'number') return p.updatedAt;
+      if (typeof p?.createdAt === 'number') return p.createdAt;
+    } catch(e) {}
+    return 0;
+  }
+
+  function spIsUnconfirmed(p) {
+    const name = spSafeText(p?.name).trim();
+    const maker = spSafeText(p?.maker).trim() || spSafeText(p?.manufacturer).trim();
+    const brand = spSafeText(p?.brand).trim();
+    const hasImg = !!(p?.imageKey || p?.imageUrl || p?.img || p?.image);
+    // 未確定: 名前 or メーカー欠落 or 画像欠落
+    return (!name || !maker || !hasImg);
+  }
+
+  function spRenderUnconfirmedList() {
+    const wrap = document.getElementById('admin-unconfirmed-list');
+    if (!wrap) return;
+    if (!window.db || !db.products) {
+      wrap.innerHTML = '<div class="hint">DBが未初期化です。</div>';
+      return;
+    }
+    const r = spYesterdayRange();
+    const codes = Object.keys(db.products || {});
+    const targets = [];
+    for (const code of codes) {
+      const p = db.products[code];
+      if (!p) continue;
+      const ts = spGetProductLastTs(p);
+      if (ts >= r.start && ts <= r.end && spIsUnconfirmed(p)) {
+        targets.push({ code, p });
+      }
+    }
+    if (!targets.length) {
+      wrap.innerHTML = '<div class="hint">昨日分の未確定商品はありません。</div>';
+      return;
+    }
+
+    wrap.innerHTML = '';
+    targets.slice(0, 50).forEach(({
+      code, p
+    }) => {
+      const box = document.createElement('div');
+      box.className = 'p-2 mb-2';
+      box.style.border = '1px solid rgba(255,255,255,.08)';
+      box.style.borderRadius = '12px';
+      box.style.background = 'rgba(255,255,255,.02)';
+      const name = spSafeText(p.name).trim();
+      const maker = spSafeText(p.maker || p.manufacturer).trim();
+      const brand = spSafeText(p.brand).trim();
+      box.innerHTML = `
+        <div class="small text-secondary mb-1">JAN: <b class="text-white">${code}</b></div>
+        <div class="mb-2">
+          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="name" data-code="${code}" placeholder="商品名" value="${name.replace(/"/g,'&quot;')}">
+          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="maker" data-code="${code}" placeholder="メーカー" value="${maker.replace(/"/g,'&quot;')}">
+          <input class="form-control bg-dark text-white border-secondary" data-f="brand" data-code="${code}" placeholder="ブランド（任意）" value="${brand.replace(/"/g,'&quot;')}">
+        </div>
+      `;
+      wrap.appendChild(box);
+    });
+  }
+
+  window.spConfirmUnconfirmedAll = function() {
+    try {
+      if (!window.db || !db.products) return;
+      const inputs = document.querySelectorAll('#admin-unconfirmed-list [data-code][data-f]');
+      const updates = {};
+      inputs.forEach(inp => {
+        const code = inp.getAttribute('data-code');
+        const f = inp.getAttribute('data-f');
+        if (!updates[code]) updates[code] = {};
+        updates[code][f] = (inp.value || '').trim();
+      });
+      let changed = 0;
+      Object.keys(updates).forEach(code => {
+        const p = db.products[code];
+        if (!p) return;
+        const u = updates[code];
+        if (u.name) p.name = u.name;
+        if (u.maker) {
+          p.maker = u.maker;
+          p.manufacturer = u.maker;
+        }
+        if (u.brand) p.brand = u.brand;
+        // 最終更新を押し込む
+        p.updatedAt = Date.now();
+        changed++;
+      });
+      if (typeof saveLocalOnly === 'function') saveLocalOnly();
+      else if (typeof saveLocal === 'function') saveLocal();
+      spRenderUnconfirmedList();
+      if (typeof showToast === 'function') showToast('確定しました（' + changed + '件）', 1800);
+    } catch (e) {
+      console.warn('[spConfirmUnconfirmedAll] failed', e);
+      if (typeof showToast === 'function') showToast('確定に失敗しました', 2000);
+    }
+  };
+
+  // --- Self check ---
+  window.spRunSelfCheck = function() {
+    const log = [];
+    try {
+      log.push('SELF CHECK (' + spNowISO() + ')');
+      log.push('VERSION: ' + (window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || ''));
+      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_1830_settings-unified'));
+      log.push('MODE: ' + (spIsAdminMode() ? 'admin' : 'normal') + (spIsDebug() ? ' / debug' : ''));
+      log.push('');
+      // Config
+      log.push('[config]');
+      log.push('SP_CONFIG.loaded: ' + (!!window.SP_CONFIG && Object.keys(window.SP_CONFIG||{}).length));
+      log.push('firebaseUrl(var): ' + (typeof fbUrl === 'string' ? 'OK' : 'NG'));
+      log.push('yahooProxyExecUrl: ' + (window.SP_CONFIG?.yahooProxyExecUrl ? 'OK' : 'NG'));
+      log.push('');
+      // Functions
+      const fn = (name) => (typeof window[name] === 'function');
+      const must = ['processBarcodeData','lookupYahooByJan','lookupRakutenByJan','startMigration','openSettings','showToast'];
+      log.push('[functions]');
+      must.forEach(n => log.push(n + ': ' + (fn(n) ? 'OK' : 'NG')));
+      log.push('');
+      log.push('localStorage keys:');
+      log.push('ref_my=' + (localStorage.getItem(LS_MY_REF)||''));
+      log.push('ref_from=' + (localStorage.getItem(LS_REF_FROM)||''));
+      log.push('family=' + (localStorage.getItem(LS_FAMILY)||''));
+    } catch(e) {
+      log.push('ERROR: ' + e.message);
+    }
+    const ta = document.getElementById('selfcheck-log');
+    if (ta) ta.value = log.join('\n');
+    if (typeof showToast === 'function') showToast('検証ログを作成しました', 1500);
+  };
+
+  // --- Settings UI wiring ---
+  function spSetupSettingsUnified() {
+    // Referral UI
+    const myId = spGetOrCreateMyRef();
+    const refMy = document.getElementById('ref-my-id');
+    const refLink = document.getElementById('ref-link');
+    if (refMy) refMy.value = myId;
+    if (refLink) refLink.value = spBuildReferralLink(myId);
+
+    const fam = localStorage.getItem(LS_FAMILY) || '';
+    const famIn = document.getElementById('family-code-input');
+    const famSt = document.getElementById('family-code-status');
+    if (famIn && famIn.value !== fam) famIn.value = fam;
+    if (famSt) famSt.textContent = fam ? ('保存済み：' + fam) : '未設定';
+
+    const from = localStorage.getItem(LS_REF_FROM) || '';
+    const fromSt = document.getElementById('ref-from-status');
+    if (fromSt) fromSt.textContent = from ? ('紹介元(ref): ' + from) : '';
+
+    // Support defaults
+    const dev = document.getElementById('support-device');
+    const os = document.getElementById('support-os');
+    const br = document.getElementById('support-browser');
+    if (dev && !dev.value) dev.value = spDefaultDevice();
+    if (os && !os.value) os.value = spDefaultOS();
+    if (br && !br.value) br.value = spDetectBrowser();
+
+    spBindSupportFiles();
+
+    // Operator menu gating
+    const enabled = document.getElementById('operatorEnabled');
+    if (enabled) enabled.style.display = spIsAdminMode() ? 'block' : 'none';
+
+    // Firebase URL protection: show only in operator section (readonly)
+    const fb = document.getElementById('fb-url-input');
+    if (fb) {
+      fb.readOnly = true;
+      fb.value = spIsAdminMode() ? (typeof fbUrl === 'string' ? fbUrl : '') : '';
+    }
+
+    if (spIsAdminMode()) {
+      spRenderUnconfirmedList();
+      spRenderAdminSupportList();
+    }
+  }
+
+  // Patch openSettings so every time it opens, we refresh our sections
+  const _origOpenSettings = window.openSettings;
+  window.openSettings = function() {
+    try {
+      if (typeof _origOpenSettings === 'function') _origOpenSettings();
+    } catch(e) {
+      console.warn('[openSettings] orig failed', e);
+    }
+    try {
+      spSetupSettingsUnified();
+    } catch(e) {
+      console.warn('[spSetupSettingsUnified] failed', e);
+    }
+  };
+
+  // Fix debugLog: avoid wrong showToast signature usage (keeps app alive)
+  if (typeof window.debugLog === 'function') {
+    window.debugLog = function(message, type) {
+      if (!spIsDebug()) return;
+      try {
+        showToast(String(message), 10000);
+        console.log('[DEBUG]', type || 'log', message);
+      } catch(e) {
+        console.log('[DEBUG]', type || 'log', message);
+      }
+    };
+  }
+
+  // Ensure default toast life: normal 5 sec, debug 10 sec (if showToast supports default ms)
+  // (This file's showToast already decides internally; we leave behavior unless ms omitted.)
+
+  // Apply once on load
+  spHandleRefParam();
+  // In case settings already open at load
+  document.addEventListener('DOMContentLoaded', () => {
+    try { spSetupSettingsUnified(); } catch(e) {}
+  });
+})();
+</script>
+
 <!-- ✅ DEBUG PANEL v4 (body終了直前に配置) -->
 <script>
 (function () {
@@ -5501,7 +6247,7 @@ if ("serviceWorker" in navigator) {
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.41'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.43'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -5523,7 +6269,7 @@ if ("serviceWorker" in navigator) {
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.41');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.43');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
