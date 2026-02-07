@@ -1,27 +1,3 @@
-<!
-
-function debugLog(message, type='info') {
-  if (!isDebug) return;
-  // デバッグは積み上げトーストで表示（10秒で自動消去）
-  showToast(String(message), type, 10);
-}
-
---
-APP: Smart Price
-FILE: Smart-Price-Book/index.html
-VERSION: v19.9.41
-FULL_VERSION: v19.9.41 [0205]
-DATE(JST): 2026-02-05 09:25:18 JST
-TITLE: Toastの寿命/画面切替での残留を修正（設定へ移動で必ず消える）
-CHANGES:
-- Toastを「確実に時間で消える」方式に置換（通常3秒/デバッグ10秒）
-- 画面切替（設定の開閉）で clearToasts() を呼び、残留を防止
-- Toast内の長文URLがはみ出さないよう折り返し強化
-BUILD_PARAM (b): ?b=2026-02-05_0925_toastlife-r4
-DEBUG_PARAM: &debug=1
-AUTHOR: Yui
-POLICY: UIは変更しない（内部実装のみ）
--->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -448,7 +424,7 @@ POLICY: UIは変更しない（内部実装のみ）
 <script>
   const APP_VERSION = "v19.9.41"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.41 [0205]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-05_0925_toastlife-r4"; // ヘッダーと一致させる
+  const BUILD_ID = "2026-02-05_0925_toastlife-r5"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
