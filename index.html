@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.44
-DATE(JST): 2026-02-07 19:45
+VERSION: v19.9.45
+DATE(JST): 2026-02-07 18:30
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
 - 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-07_1830_settings-unified
+BUILD_PARAM(b): ?b=2026-02-07_2000_sw-reset
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,14 +22,79 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.44</title>
+  <title>Smart Price v19.9.45</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.44';
-    window.APP_VERSION = 'v19.9.44';
-    window.FULL_VERSION = 'v19.9.44 [0207]';
-    window.BUILD_ID = '2026-02-07_1945_bugfix-ux-fixed';
+    window.VERSION_INFO = 'v19.9.45';
+    window.APP_VERSION = 'v19.9.45';
+    window.FULL_VERSION = 'v19.9.45 [0207]';
+    window.BUILD_ID = '2026-02-07_2000_sw-reset';
   </script>
+  <!-- ✅ SW RESET TOOL (v19.9.45) : ?reset=sw -->
+  <script>
+  (function() {
+    try {
+      var params = new URLSearchParams(location.search);
+      if (params.get('reset') === 'sw') {
+        // remove reset to avoid loops
+        params.delete('reset');
+        var target = location.pathname + (params.toString() ? ('?' + params.toString()) : '');
+        var showMsg = params.has('debug');
+
+        function showOverlay() {
+          if (!showMsg) return;
+          try {
+            var ov = document.createElement('div');
+            ov.id = 'sw-reset-overlay';
+            ov.style.cssText =
+              'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;' +
+              'display:flex;align-items:center;justify-content:center;padding:24px;';
+            var box = document.createElement('div');
+            box.style.cssText =
+              'background:#1e1e1e;color:#fff;padding:22px 18px;border-radius:14px;' +
+              'border:2px solid #00c853;max-width:420px;width:100%;text-align:center;';
+            box.innerHTML =
+              '<div style="font-size:1.25rem;font-weight:700;margin-bottom:10px;">✅ 更新ツール実行中</div>' +
+              '<div style="color:#bbb;font-size:0.92rem;line-height:1.5;">' +
+              'Service Worker とキャッシュを削除しています。<br>自動で最新を読み込みます…' +
+              '</div>';
+            ov.appendChild(box);
+            document.documentElement.appendChild(ov);
+          } catch(e) {}
+        }
+
+        (async function() {
+          showOverlay();
+          try {
+            // 1) unregister SW
+            if ('serviceWorker' in navigator) {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              for (var i=0; i<regs.length; i++) {
+                try { await regs[i].unregister(); } catch(e) {}
+              }
+            }
+            // 2) delete caches
+            if (window.caches && caches.keys) {
+              var keys = await caches.keys();
+              for (var k=0; k<keys.length; k++) {
+                try { await caches.delete(keys[k]); } catch(e) {}
+              }
+            }
+          } catch(e) {
+            // no alert (UI_FREEZE). debug only: console
+            try { console.warn('[SW-RESET] failed', e); } catch(_e) {}
+          } finally {
+            // 3) redirect without reset
+            try { location.replace(target); } catch(e) { location.href = target; }
+          }
+        })();
+      }
+    } catch(e) {
+      // ignore
+    }
+  })();
+  </script>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -261,49 +326,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     #debug-toggle-btn:active {
       transform: scale(0.95);
     }
-  
-  /* ===== DEBUG TOAST (debug=1) ===== */
-  #debug-toast-container{
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(92vw, 520px);
-    z-index: 99999;
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none; /* クリック阻害ゼロ */
-  }
-  .debug-toast-item{
-    background: rgba(0,0,0,0.88);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: #fff;
-    padding: 10px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    line-height: 1.35;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-    opacity: 0;
-    transform: translateY(-6px);
-    transition: opacity .18s ease, transform .18s ease;
-    pointer-events: none;
-    word-break: break-word;
-  }
-  .debug-toast-item.show{
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-</style>
+  </style>
 </head>
 
 <body>
-  <!-- DEBUG TOAST CONTAINER (debug=1) -->
-  <div id="debug-toast-container" aria-live="polite" aria-atomic="true"></div>
-
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.44</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.45</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -577,9 +605,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.43"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.43 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-07_1830_settings-unified"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-07_2000_sw-reset"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -661,41 +689,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     // コンソールにログ出力
     console.log('[DEBUG]', message);
     
-    // ✅ debug=1: 上部に積み上げトースト（10秒／クリック阻害ゼロ）
-    if (typeof showDebugToast === 'function') {
-      showDebugToast(String(message));
-    } else if (typeof showToast === 'function') {
-      // フォールバック（従来）
+    // トーストで表示（10秒）
+    if (typeof showToast === 'function') {
       showToast(String(message), 10000);
-    }}
-
-
-  // ========= DEBUG TOAST (debug=1) =========
-  function showDebugToast(message) {
-    if (!isDebug()) return;
-    const container = document.getElementById('debug-toast-container');
-    if (!container) return;
-
-    container.style.display = 'flex';
-
-    const toast = document.createElement('div');
-    toast.className = 'debug-toast-item';
-    toast.textContent = String(message);
-
-    container.appendChild(toast);
-
-    requestAnimationFrame(() => toast.classList.add('show'));
-
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-        if (!container.children.length) container.style.display = 'none';
-      }, 220);
-    }, 10000);
+    }
   }
-
-
+  
   // ========= Debug Error Handling =========
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
@@ -1521,10 +1520,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
       if (versionBadge) {
         versionBadge.textContent = FULL_VERSION;
       }
-
-      // ✅ 起動時は店名を未選択に戻す（誤保存防止）
-      curStore = "未設定";
-
+      
       // document.titleを更新（debug=1の時だけBUILD_IDも併記）
       if (isDebug()) {
         document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
@@ -1574,10 +1570,6 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
       migrateMergeManualToJan();
 
       initCategorySelect();
-
-    // ✅ 起動後の誤保存防止：フォームを開くたび店名を未選択に戻す
-    curStore = "未設定";
-
       renderStoreList();
       renderHistory();
 
@@ -2440,7 +2432,12 @@ function isQuotaError(e) {
     
     // ✅ 空なら プリセット + customStores を必ず表示
     const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
-    // ✅ 自動選択はしない（起動時は必ず「未設定」）
+    
+    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
+    if (curStore === "未設定" && finalSet.length > 1) {
+      curStore = finalSet[1]; // 「未設定」以外の最初の候補
+      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
+    }
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
     list.innerHTML = `<span class="store-tag gps-btn ${isGpsOn?'on':''}" onclick="toggleGps()">${gpsTxt}</span>`;
@@ -5661,7 +5658,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.43 / 2026-02-07_1830_settings-unified) === */
+/* === Smart Price Settings Unified Patch (v19.9.45 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -5743,7 +5740,7 @@ if ("serviceWorker" in navigator) {
     url.searchParams.delete('debug');
     url.searchParams.delete('mode');
     // ensure b exists
-    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_1830_settings-unified');
+    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_2000_sw-reset');
     return url.toString();
   }
 
@@ -5910,7 +5907,7 @@ if ("serviceWorker" in navigator) {
     const family = localStorage.getItem(LS_FAMILY) || '';
     const url = location.href;
     const version = window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || '';
-    const build = window.BUILD_ID || '2026-02-07_1830_settings-unified';
+    const build = window.BUILD_ID || '2026-02-07_2000_sw-reset';
     const ua = spUAInfo();
 
     const lines = [];
@@ -6175,7 +6172,7 @@ if ("serviceWorker" in navigator) {
     try {
       log.push('SELF CHECK (' + spNowISO() + ')');
       log.push('VERSION: ' + (window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || ''));
-      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_1830_settings-unified'));
+      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_2000_sw-reset'));
       log.push('MODE: ' + (spIsAdminMode() ? 'admin' : 'normal') + (spIsDebug() ? ' / debug' : ''));
       log.push('');
       // Config
@@ -6315,7 +6312,7 @@ if ("serviceWorker" in navigator) {
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.43'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.45'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6337,7 +6334,7 @@ if ("serviceWorker" in navigator) {
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.43');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.45');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6430,5 +6427,26 @@ if ("serviceWorker" in navigator) {
 </script>
 <!-- /DEBUG PANEL v4 -->
 
+
+  <!-- ✅ BUILD/VERSION MISMATCH DETECTOR (debug=1 only) -->
+  <script>
+  (function() {
+    try {
+      window.addEventListener('load', function() {
+        var params = new URLSearchParams(location.search);
+        var urlBuild = params.get('b');
+        var buildId = window.BUILD_ID || '';
+        if (urlBuild && buildId && urlBuild !== buildId) {
+          try {
+            console.warn('[BUILD MISMATCH] url b=', urlBuild, ' actual=', buildId);
+          } catch(e) {}
+          if (params.has('debug') && typeof window.showDebugToast === 'function') {
+            window.showDebugToast('⚠️ 旧版の可能性: ?reset=sw を実行してください');
+          }
+        }
+      }, { once: true });
+    } catch(e) {}
+  })();
+  </script>
 </body>
 </html>
