@@ -2,15 +2,16 @@
 <!--
 APP: Smart Price
 VERSION: v19.9.45
-DATE(JST): 2026-02-07 18:30
+P26-02-08 11:59 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
+- Admin診断（Firebaseなし）：運営者メニューの検証ツールに「URLコピー／SW解除URLコピー／診断ログコピー」を追加（アドレスバー不要）
 - 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
 - Firebase URLは通常ユーザーに非表示、admin時のみ読み取り専用で表示
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-07_2000_sw-reset
+BUILD_PARAM(b): ?b=2026-02-08_1159_admin-inappdiag-nofb
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -28,7 +29,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     window.VERSION_INFO = 'v19.9.45';
     window.APP_VERSION = 'v19.9.45';
     window.FULL_VERSION = 'v19.9.45 [0207]';
-    window.BUILD_ID = '2026-02-07_2000_sw-reset';
+    P26-02-08_1159_admin-inappdiag-nofb';
   </script>
   <!-- ✅ SW RESET TOOL (v19.9.45) : ?reset=sw -->
   <script>
@@ -536,6 +537,18 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
               <div class="d-flex gap-2 mt-2">
                 <button class="btn btn-dark flex-grow-1" onclick="spCopy('selfcheck-log')">ログコピー</button>
               </div>
+
+              <!-- ✅ Admin診断（Firebaseなし）：Xperiaなどアドレスバー無しでもコピーできる -->
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyCurrentUrl()">URLコピー</button>
+                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyResetUrl()">SW解除URL</button>
+              </div>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-warning w-100 fw-bold" onclick="spAdminCopyDiagNoFb()">診断ログをコピー（Firebaseなし）</button>
+              </div>
+              <div class="hint mt-2" style="margin:0;opacity:.9;">
+                ※クリップボードが使えない端末は、上のログ欄に出すので「長押しコピー」でOKです。
+              </div>
             </div>
           </details>
         </div>
@@ -607,7 +620,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 <script>
   const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-07_2000_sw-reset"; // ヘッダーと一致させる
+  P26-02-08_1159_admin-inappdiag-nofb"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -6448,80 +6461,101 @@ if ("serviceWorker" in navigator) {
     } catch(e) {}
   })();
   </script>
-<!-- ✅ Smart Price v19.9.49 / 2026-02-08_1112_admin-diag-yui2 / ADMIN DIAG (NO FIREBASE) -->
+
+<!--
+  Admin Diag Tool (NO FIREBASE)
+  AUTHOR: Yui
+  DATE(JST): 2026-02-08 11:59 JST
+  BUILD(b): 2026-02-08_1159_admin-inappdiag-nofb
+  POLICY: Firebase/UID/接続先URLには触れない。運営者メニュー（検証ツール）にだけ追加。
+-->
 <script>
 (function() {
-  const BUILD_EXPECTED = '2026-02-08_1112_admin-diag-yui2';
+  'use strict';
 
-  function qs() { return new URLSearchParams(location.search); }
-
-  // 管理者モード判定（既存の入り方を邪魔しない）
-  function isAdminMode() {
-    const p = qs();
-    if (p.has('admin') || p.get('mode') === 'admin' || p.has('owner') || p.has('operator')) return true;
-
-    // DOM側に管理者パネルがあるか（名前は複数候補で拾う）
-    if (document.querySelector('#admin-panel, #owner-panel, #operator-panel, [data-admin-panel], .admin-panel, .owner-panel, .operator-panel')) return true;
-
-    // テキスト目印（最終手段：重いので1回だけ）
-    const t = document.body && document.body.innerText ? document.body.innerText : '';
-    return (t.includes('管理者') || t.includes('運営者'));
+  function _isDebug() {
+    try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e) { return false; }
   }
 
-  function findAdminAnchor() {
-    return (
-      document.querySelector('#admin-panel') ||
-      document.querySelector('#owner-panel') ||
-      document.querySelector('#operator-panel') ||
-      document.querySelector('[data-admin-panel]') ||
-      document.querySelector('.admin-panel') ||
-      document.querySelector('.owner-panel') ||
-      document.querySelector('.operator-panel')
-    );
-  }
-
-  function showToastSafe(msg, kind, sec) {
+  function _toast(msg, kind, sec) {
     try {
-      if (typeof showToast === 'function') showToast(msg, kind || 'info', sec || 6);
-    } catch (e) {}
+      if (typeof showToast === 'function') { showToast(String(msg), (sec||6)*1000); return; }
+    } catch(e) {}
+    try {
+      if (typeof debugLog === 'function') debugLog(String(msg));
+    } catch(e) {}
   }
 
-  // 端末情報（最低限）
-  function getDeviceInfo() {
-    const ua = navigator.userAgent || '';
-    let os = 'Unknown';
-    const a = ua.match(/Android ([\d.]+)/);
-    const i = ua.match(/iPhone OS ([\d_]+)/);
-    const ip = ua.match(/iPad.*OS ([\d_]+)/);
-    if (a) os = 'Android ' + a[1];
-    else if (i) os = 'iOS ' + i[1].replace(/_/g, '.');
-    else if (ip) os = 'iPadOS ' + ip[1].replace(/_/g, '.');
-    else if (/Windows/.test(ua)) os = 'Windows';
-    else if (/Mac OS X/.test(ua)) os = 'macOS';
-
-    let browser = 'Unknown';
-    if (/Edg\//.test(ua)) {
-      const m = ua.match(/Edg\/([\d.]+)/);
-      browser = 'Edge ' + (m ? m[1] : '');
-    } else if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
-      const m = ua.match(/Chrome\/([\d.]+)/);
-      browser = 'Chrome ' + (m ? m[1] : '');
-    } else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) {
-      const m = ua.match(/Version\/([\d.]+)/);
-      browser = 'Safari ' + (m ? m[1] : '');
+  async function _copy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      _toast('コピーしました', 'success', 4);
+      return true;
+    } catch(e) {
+      if (_isDebug()) console.warn('[AdminDiag] clipboard failed', e);
+      _toast('コピーできませんでした。ログ欄を長押しでコピーしてください', 'info', 7);
+      return false;
     }
+  }
+
+  function _buildUrl(edits) {
+    const u = new URL(location.href);
+    const p = u.searchParams;
+
+    if (edits && Object.prototype.hasOwnProperty.call(edits, 'reset')) {
+      if (edits.reset === null) p.delete('reset');
+      else p.set('reset', String(edits.reset));
+    }
+    if (edits && Object.prototype.hasOwnProperty.call(edits, 'b')) {
+      if (edits.b === null) p.delete('b');
+      else p.set('b', String(edits.b));
+    }
+    u.search = p.toString();
+    return u.toString();
+  }
+
+  function _getBuild() {
+    try {
+      const p = new URL(location.href).searchParams;
+      return p.get('b') || (window.BUILD_ID || '') || 'N/A';
+    } catch(e) {
+      return (window.BUILD_ID || '') || 'N/A';
+    }
+  }
+
+  function _getVersion() {
+    return (window.VERSION_INFO || '').trim()
+      || (document.getElementById('version-badge')?.textContent || '').trim()
+      || ((document.title.match(/v[\d.]+/) || [])[0] || 'N/A');
+  }
+
+  function _nowJP() {
+    try { return new Date().toLocaleString('ja-JP'); } catch(e) { return String(new Date()); }
+  }
+
+  function _deviceInfo() {
+    const ua = navigator.userAgent || '';
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.innerWidth || 0;
+    const h = window.innerHeight || 0;
 
     let displayMode = 'browser';
     try {
       if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) displayMode = 'standalone';
-      // iOS PWA
       if (navigator.standalone) displayMode = 'standalone(iOS)';
-    } catch (e) {}
+    } catch(e) {}
 
-    return { ua, os, browser, displayMode };
+    return {
+      ua, dpr, viewport: `${w}x${h}`,
+      lang: navigator.language || '',
+      platform: navigator.platform || '',
+      displayMode,
+      hardwareConcurrency: navigator.hardwareConcurrency || 'N/A',
+      deviceMemory: navigator.deviceMemory || 'N/A'
+    };
   }
 
-  async function getSWCacheInfo() {
+  async function _swCacheInfo() {
     let swCount = 'N/A';
     let swScopes = [];
     if ('serviceWorker' in navigator) {
@@ -6529,7 +6563,7 @@ if ("serviceWorker" in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         swCount = regs.length;
         swScopes = regs.map(r => r.scope).filter(Boolean);
-      } catch (e) {
+      } catch(e) {
         swCount = 'ERROR';
       }
     }
@@ -6541,29 +6575,26 @@ if ("serviceWorker" in navigator) {
         const keys = await caches.keys();
         cacheCount = keys.length;
         cacheNames = keys;
-      } catch (e) {
+      } catch(e) {
         cacheCount = 'ERROR';
       }
     }
-    return { swCount, swScopes, cacheCount, cacheNames };
+
+    return { sw: { count: swCount, scopes: swScopes }, cache: { count: cacheCount, names: cacheNames } };
   }
 
-  function getLocalStorageInfo() {
-    const info = [];
+  function _localStorageInfo() {
     try {
       const keys = Object.keys(localStorage || {}).sort();
-      for (const k of keys) {
-        const v = localStorage.getItem(k) || '';
-        info.push({ key: k, size: v.length });
-      }
-    } catch (e) {
-      return { error: true, list: [] };
+      const list = keys.map(k => ({ key: k, size: (localStorage.getItem(k) || '').length }));
+      const total = list.reduce((s, x) => s + x.size, 0);
+      return { ok: true, total, list };
+    } catch(e) {
+      return { ok: false, total: 'ERROR', list: [] };
     }
-    const total = info.reduce((s, x) => s + (x.size || 0), 0);
-    return { total, list: info };
   }
 
-  function getDBInfo() {
+  function _dbInfo() {
     const db = window.db || {};
     const purchases = db.purchases || [];
     const products = db.products || {};
@@ -6572,171 +6603,97 @@ if ("serviceWorker" in navigator) {
       purchasesCount: purchases.length,
       productsCount: (products && typeof products === 'object') ? Object.keys(products).length : 0,
       latestAt: latest ? (latest.timestamp || latest.date || 'N/A') : 'N/A',
-      latestId: latest ? (latest.id || 'N/A') : 'N/A',
+      latestId: latest ? (latest.id || 'N/A') : 'N/A'
     };
   }
 
-  async function buildDiagText() {
-    const p = qs();
-    const urlB = p.get('b') || '';
-    const badge = (document.getElementById('version-badge')?.textContent || '').trim();
-    const titleV = (document.title.match(/v[\d.]+/) || [])[0] || '';
-
-    const ssotOK = (urlB === (window.BUILD_ID || '') && (window.BUILD_ID || '') === BUILD_EXPECTED);
-    const vOK = ((window.VERSION_INFO || '') === 'v19.9.49'); // 固定（今回の目的）
-
-    const device = getDeviceInfo();
-    const sw = await getSWCacheInfo();
-    const ls = getLocalStorageInfo();
-    const db = getDBInfo();
-
-    let text = '';
-    text += `【Smart Price 管理者モード診断（Firebaseなし）】\n`;
-    text += `日時: ${new Date().toLocaleString('ja-JP')}\n\n`;
-
-    text += `■ VERSION\n`;
-    text += `VERSION_INFO: ${window.VERSION_INFO || 'N/A'}\n`;
-    text += `BUILD_ID: ${window.BUILD_ID || 'N/A'}\n`;
-    text += `URL b=: ${urlB || 'N/A'}\n`;
-    text += `Badge: ${badge || 'N/A'}\n`;
-    text += `Title: ${titleV || 'N/A'}\n`;
-    text += `SSOT一致: ${ssotOK ? 'OK' : 'NG'}\n`;
-    text += `VERSION一致: ${vOK ? 'OK' : 'NG'}\n\n`;
-
-    text += `■ DEVICE\n`;
-    text += `OS: ${device.os}\n`;
-    text += `ブラウザ: ${device.browser}\n`;
-    text += `表示モード: ${device.displayMode}\n`;
-    text += `USER_AGENT: ${device.ua}\n\n`;
-
-    text += `■ SW/CACHE\n`;
-    text += `SW登録数: ${sw.swCount}\n`;
-    if (sw.swScopes && sw.swScopes.length) {
-      text += `SW scope: ${sw.swScopes.join(' | ')}\n`;
-    }
-    text += `Cache数: ${sw.cacheCount}\n`;
-    if (sw.cacheNames && sw.cacheNames.length) {
-      text += `Cache名: ${sw.cacheNames.join(' | ')}\n`;
-    }
-    text += `\n`;
-
-    text += `■ LOCAL STORAGE\n`;
-    if (ls.error) {
-      text += `取得: ERROR\n\n`;
-    } else {
-      text += `総文字数: ${ls.total}\n`;
-      const list = ls.list.slice().sort((a, b) => (a.key === 'smart_price_db' ? -1 : 0) - (b.key === 'smart_price_db' ? -1 : 0));
-      for (const item of list.slice(0, 12)) {
-        text += `- ${item.key}: ${item.size}\n`;
-      }
-      if (ls.list.length > 12) text += `...（他 ${ls.list.length - 12} 件）\n`;
-      text += `\n`;
-    }
-
-    text += `■ DB（端末内）\n`;
-    text += `購入件数: ${db.purchasesCount}\n`;
-    text += `商品件数: ${db.productsCount}\n`;
-    text += `最終更新: ${db.latestAt}\n`;
-    text += `最終レコードID: ${db.latestId}\n\n`;
-
-    text += `■ FIREBASE\n`;
-    text += `（管理者モードでは触れない設定：取得しません）\n`;
-
-    return text;
-  }
-
-  async function runAdminDiag() {
-    const logEl = document.getElementById('sp-admin-diag-log');
-    const copyBtn = document.getElementById('sp-admin-diag-copy');
-    if (!logEl) {
-      showToastSafe('診断ログ枠が見つかりません', 'danger', 8);
-      return;
-    }
-    logEl.style.display = 'block';
-    if (copyBtn) {
-      copyBtn.style.display = 'block';
-      copyBtn.disabled = true;
-    }
-    logEl.textContent = '■ 検証中…\n';
-
-    const text = await buildDiagText();
-    logEl.textContent = text;
-    if (copyBtn) copyBtn.disabled = false;
-    showToastSafe('検証完了（Firebaseなし）', 'success', 5);
-  }
-
-  async function copyAdminDiag() {
-    const logEl = document.getElementById('sp-admin-diag-log');
-    if (!logEl) return;
+  function _setSelfcheckLog(text) {
     try {
-      await navigator.clipboard.writeText(logEl.textContent || '');
-      showToastSafe('ログをコピーしました', 'success', 5);
-    } catch (e) {
-      console.error('[ADMIN-DIAG] copy failed', e);
-      showToastSafe('コピーに失敗しました', 'danger', 8);
+      const ta = document.getElementById('selfcheck-log');
+      if (ta) ta.value = text;
+    } catch(e) {}
+  }
+
+  async function _buildDiagTextNoFb() {
+    const device = _deviceInfo();
+    const swc = await _swCacheInfo();
+    const ls = _localStorageInfo();
+    const db = _dbInfo();
+    const build = _getBuild();
+    const ver = _getVersion();
+
+    let out = '';
+    out += `【Smart Price 診断ログ（運営者／Firebaseなし）】\n`;
+    out += `日時: ${_nowJP()}\n\n`;
+
+    out += `■ VERSION\n`;
+    out += `VERSION: ${ver}\n`;
+    out += `BUILD(b): ${build}\n`;
+    out += `URL: ${location.href}\n`;
+    out += `PATH: ${location.pathname}\n\n`;
+
+    out += `■ DEVICE\n`;
+    out += `viewport: ${device.viewport} (dpr=${device.dpr})\n`;
+    out += `display-mode: ${device.displayMode}\n`;
+    out += `lang: ${device.lang}\n`;
+    out += `platform: ${device.platform}\n`;
+    out += `cpu: ${device.hardwareConcurrency}, mem: ${device.deviceMemory}\n`;
+    out += `ua: ${device.ua}\n\n`;
+
+    out += `■ SW/CACHE\n`;
+    out += `SW登録数: ${swc.sw.count}\n`;
+    if (swc.sw.scopes && swc.sw.scopes.length) out += `SW scope: ${swc.sw.scopes.join(' | ')}\n`;
+    out += `Cache数: ${swc.cache.count}\n`;
+    if (swc.cache.names && swc.cache.names.length) out += `Cache名: ${swc.cache.names.join(' | ')}\n`;
+    out += `\n`;
+
+    out += `■ LOCAL STORAGE\n`;
+    if (!ls.ok) {
+      out += `取得: ERROR\n\n`;
+    } else {
+      out += `総文字数: ${ls.total}\n`;
+      const top = ls.list.slice(0, 15);
+      for (const item of top) out += `- ${item.key}: ${item.size}\n`;
+      if (ls.list.length > top.length) out += `...（他 ${ls.list.length - top.length} 件）\n`;
+      out += `\n`;
     }
+
+    out += `■ DB（端末内 / window.db）\n`;
+    out += `購入件数: ${db.purchasesCount}\n`;
+    out += `商品件数: ${db.productsCount}\n`;
+    out += `最終更新: ${db.latestAt}\n`;
+    out += `最終ID: ${db.latestId}\n\n`;
+
+    out += `■ URL QUICK LINKS\n`;
+    out += `RESET_URL: ${_buildUrl({ reset: 'sw', b: build })}\n`;
+    out += `NORMAL_URL: ${_buildUrl({ reset: null, b: build })}\n`;
+
+    return out;
   }
 
-  function injectAdminDiagUI() {
-    if (!isAdminMode()) return false;
+  // ====== public (called from buttons) ======
+  window.spAdminCopyCurrentUrl = async function() {
+    const u = _buildUrl({});
+    const ok = await _copy(u);
+    if (!ok) _setSelfcheckLog(u);
+  };
 
-    const anchor = findAdminAnchor();
-    if (!anchor) return false;
+  window.spAdminCopyResetUrl = async function() {
+    const u = _buildUrl({ reset: 'sw', b: _getBuild() });
+    const ok = await _copy(u);
+    if (!ok) _setSelfcheckLog(u);
+  };
 
-    if (document.getElementById('sp-admin-diag-block')) return true;
-
-    const block = document.createElement('div');
-    block.id = 'sp-admin-diag-block';
-    block.className = 'mb-3';
-    block.innerHTML = `
-      <div style="border-top: 1px solid #444; padding-top: 12px;">
-        <div class="small text-secondary mb-2">同期不一致診断（Firebaseなし）</div>
-
-        <button class="btn btn-sm btn-warning w-100 mb-2" id="sp-admin-diag-run">
-          <i class="bi bi-search"></i> 検証する
-        </button>
-
-        <div id="sp-admin-diag-log" style="
-          display: none;
-          background: #1a1a1a;
-          padding: 8px;
-          border-radius: 6px;
-          font-family: monospace;
-          font-size: 0.7rem;
-          color: #9ff;
-          max-height: 250px;
-          overflow-y: auto;
-          border: 1px solid #444;
-          white-space: pre-wrap;
-          word-break: break-all;
-        "></div>
-
-        <button class="btn btn-sm btn-secondary w-100 mt-2"
-                id="sp-admin-diag-copy" style="display: none;">
-          <i class="bi bi-clipboard"></i> ログをコピー
-        </button>
-      </div>
-    `;
-
-    // 追加位置：管理者パネルの先頭（“管理者モード内だけ”で完結）
-    anchor.prepend(block);
-
-    // bind
-    document.getElementById('sp-admin-diag-run')?.addEventListener('click', runAdminDiag);
-    document.getElementById('sp-admin-diag-copy')?.addEventListener('click', copyAdminDiag);
-
-    return true;
-  }
-
-  // 管理者パネルが後から描画されても拾う
-  const mo = new MutationObserver(() => {
-    injectAdminDiagUI();
-  });
-  mo.observe(document.body, { childList: true, subtree: true });
-
-  // 起動直後も一度だけ
-  injectAdminDiagUI();
+  window.spAdminCopyDiagNoFb = async function() {
+    const text = await _buildDiagTextNoFb();
+    _setSelfcheckLog(text);
+    const ok = await _copy(text);
+    if (!ok) {
+      // textarea に出してあるので長押しコピー
+    }
+  };
 })();
 </script>
+
 </body>
 </html>
