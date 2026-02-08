@@ -6448,5 +6448,295 @@ if ("serviceWorker" in navigator) {
     } catch(e) {}
   })();
   </script>
+<!-- ✅ Smart Price v19.9.49 / 2026-02-08_1112_admin-diag-yui2 / ADMIN DIAG (NO FIREBASE) -->
+<script>
+(function() {
+  const BUILD_EXPECTED = '2026-02-08_1112_admin-diag-yui2';
+
+  function qs() { return new URLSearchParams(location.search); }
+
+  // 管理者モード判定（既存の入り方を邪魔しない）
+  function isAdminMode() {
+    const p = qs();
+    if (p.has('admin') || p.get('mode') === 'admin' || p.has('owner') || p.has('operator')) return true;
+
+    // DOM側に管理者パネルがあるか（名前は複数候補で拾う）
+    if (document.querySelector('#admin-panel, #owner-panel, #operator-panel, [data-admin-panel], .admin-panel, .owner-panel, .operator-panel')) return true;
+
+    // テキスト目印（最終手段：重いので1回だけ）
+    const t = document.body && document.body.innerText ? document.body.innerText : '';
+    return (t.includes('管理者') || t.includes('運営者'));
+  }
+
+  function findAdminAnchor() {
+    return (
+      document.querySelector('#admin-panel') ||
+      document.querySelector('#owner-panel') ||
+      document.querySelector('#operator-panel') ||
+      document.querySelector('[data-admin-panel]') ||
+      document.querySelector('.admin-panel') ||
+      document.querySelector('.owner-panel') ||
+      document.querySelector('.operator-panel')
+    );
+  }
+
+  function showToastSafe(msg, kind, sec) {
+    try {
+      if (typeof showToast === 'function') showToast(msg, kind || 'info', sec || 6);
+    } catch (e) {}
+  }
+
+  // 端末情報（最低限）
+  function getDeviceInfo() {
+    const ua = navigator.userAgent || '';
+    let os = 'Unknown';
+    const a = ua.match(/Android ([\d.]+)/);
+    const i = ua.match(/iPhone OS ([\d_]+)/);
+    const ip = ua.match(/iPad.*OS ([\d_]+)/);
+    if (a) os = 'Android ' + a[1];
+    else if (i) os = 'iOS ' + i[1].replace(/_/g, '.');
+    else if (ip) os = 'iPadOS ' + ip[1].replace(/_/g, '.');
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Mac OS X/.test(ua)) os = 'macOS';
+
+    let browser = 'Unknown';
+    if (/Edg\//.test(ua)) {
+      const m = ua.match(/Edg\/([\d.]+)/);
+      browser = 'Edge ' + (m ? m[1] : '');
+    } else if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
+      const m = ua.match(/Chrome\/([\d.]+)/);
+      browser = 'Chrome ' + (m ? m[1] : '');
+    } else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) {
+      const m = ua.match(/Version\/([\d.]+)/);
+      browser = 'Safari ' + (m ? m[1] : '');
+    }
+
+    let displayMode = 'browser';
+    try {
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) displayMode = 'standalone';
+      // iOS PWA
+      if (navigator.standalone) displayMode = 'standalone(iOS)';
+    } catch (e) {}
+
+    return { ua, os, browser, displayMode };
+  }
+
+  async function getSWCacheInfo() {
+    let swCount = 'N/A';
+    let swScopes = [];
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        swCount = regs.length;
+        swScopes = regs.map(r => r.scope).filter(Boolean);
+      } catch (e) {
+        swCount = 'ERROR';
+      }
+    }
+
+    let cacheCount = 'N/A';
+    let cacheNames = [];
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        cacheCount = keys.length;
+        cacheNames = keys;
+      } catch (e) {
+        cacheCount = 'ERROR';
+      }
+    }
+    return { swCount, swScopes, cacheCount, cacheNames };
+  }
+
+  function getLocalStorageInfo() {
+    const info = [];
+    try {
+      const keys = Object.keys(localStorage || {}).sort();
+      for (const k of keys) {
+        const v = localStorage.getItem(k) || '';
+        info.push({ key: k, size: v.length });
+      }
+    } catch (e) {
+      return { error: true, list: [] };
+    }
+    const total = info.reduce((s, x) => s + (x.size || 0), 0);
+    return { total, list: info };
+  }
+
+  function getDBInfo() {
+    const db = window.db || {};
+    const purchases = db.purchases || [];
+    const products = db.products || {};
+    const latest = purchases.length ? purchases[purchases.length - 1] : null;
+    return {
+      purchasesCount: purchases.length,
+      productsCount: (products && typeof products === 'object') ? Object.keys(products).length : 0,
+      latestAt: latest ? (latest.timestamp || latest.date || 'N/A') : 'N/A',
+      latestId: latest ? (latest.id || 'N/A') : 'N/A',
+    };
+  }
+
+  async function buildDiagText() {
+    const p = qs();
+    const urlB = p.get('b') || '';
+    const badge = (document.getElementById('version-badge')?.textContent || '').trim();
+    const titleV = (document.title.match(/v[\d.]+/) || [])[0] || '';
+
+    const ssotOK = (urlB === (window.BUILD_ID || '') && (window.BUILD_ID || '') === BUILD_EXPECTED);
+    const vOK = ((window.VERSION_INFO || '') === 'v19.9.49'); // 固定（今回の目的）
+
+    const device = getDeviceInfo();
+    const sw = await getSWCacheInfo();
+    const ls = getLocalStorageInfo();
+    const db = getDBInfo();
+
+    let text = '';
+    text += `【Smart Price 管理者モード診断（Firebaseなし）】\n`;
+    text += `日時: ${new Date().toLocaleString('ja-JP')}\n\n`;
+
+    text += `■ VERSION\n`;
+    text += `VERSION_INFO: ${window.VERSION_INFO || 'N/A'}\n`;
+    text += `BUILD_ID: ${window.BUILD_ID || 'N/A'}\n`;
+    text += `URL b=: ${urlB || 'N/A'}\n`;
+    text += `Badge: ${badge || 'N/A'}\n`;
+    text += `Title: ${titleV || 'N/A'}\n`;
+    text += `SSOT一致: ${ssotOK ? 'OK' : 'NG'}\n`;
+    text += `VERSION一致: ${vOK ? 'OK' : 'NG'}\n\n`;
+
+    text += `■ DEVICE\n`;
+    text += `OS: ${device.os}\n`;
+    text += `ブラウザ: ${device.browser}\n`;
+    text += `表示モード: ${device.displayMode}\n`;
+    text += `USER_AGENT: ${device.ua}\n\n`;
+
+    text += `■ SW/CACHE\n`;
+    text += `SW登録数: ${sw.swCount}\n`;
+    if (sw.swScopes && sw.swScopes.length) {
+      text += `SW scope: ${sw.swScopes.join(' | ')}\n`;
+    }
+    text += `Cache数: ${sw.cacheCount}\n`;
+    if (sw.cacheNames && sw.cacheNames.length) {
+      text += `Cache名: ${sw.cacheNames.join(' | ')}\n`;
+    }
+    text += `\n`;
+
+    text += `■ LOCAL STORAGE\n`;
+    if (ls.error) {
+      text += `取得: ERROR\n\n`;
+    } else {
+      text += `総文字数: ${ls.total}\n`;
+      const list = ls.list.slice().sort((a, b) => (a.key === 'smart_price_db' ? -1 : 0) - (b.key === 'smart_price_db' ? -1 : 0));
+      for (const item of list.slice(0, 12)) {
+        text += `- ${item.key}: ${item.size}\n`;
+      }
+      if (ls.list.length > 12) text += `...（他 ${ls.list.length - 12} 件）\n`;
+      text += `\n`;
+    }
+
+    text += `■ DB（端末内）\n`;
+    text += `購入件数: ${db.purchasesCount}\n`;
+    text += `商品件数: ${db.productsCount}\n`;
+    text += `最終更新: ${db.latestAt}\n`;
+    text += `最終レコードID: ${db.latestId}\n\n`;
+
+    text += `■ FIREBASE\n`;
+    text += `（管理者モードでは触れない設定：取得しません）\n`;
+
+    return text;
+  }
+
+  async function runAdminDiag() {
+    const logEl = document.getElementById('sp-admin-diag-log');
+    const copyBtn = document.getElementById('sp-admin-diag-copy');
+    if (!logEl) {
+      showToastSafe('診断ログ枠が見つかりません', 'danger', 8);
+      return;
+    }
+    logEl.style.display = 'block';
+    if (copyBtn) {
+      copyBtn.style.display = 'block';
+      copyBtn.disabled = true;
+    }
+    logEl.textContent = '■ 検証中…\n';
+
+    const text = await buildDiagText();
+    logEl.textContent = text;
+    if (copyBtn) copyBtn.disabled = false;
+    showToastSafe('検証完了（Firebaseなし）', 'success', 5);
+  }
+
+  async function copyAdminDiag() {
+    const logEl = document.getElementById('sp-admin-diag-log');
+    if (!logEl) return;
+    try {
+      await navigator.clipboard.writeText(logEl.textContent || '');
+      showToastSafe('ログをコピーしました', 'success', 5);
+    } catch (e) {
+      console.error('[ADMIN-DIAG] copy failed', e);
+      showToastSafe('コピーに失敗しました', 'danger', 8);
+    }
+  }
+
+  function injectAdminDiagUI() {
+    if (!isAdminMode()) return false;
+
+    const anchor = findAdminAnchor();
+    if (!anchor) return false;
+
+    if (document.getElementById('sp-admin-diag-block')) return true;
+
+    const block = document.createElement('div');
+    block.id = 'sp-admin-diag-block';
+    block.className = 'mb-3';
+    block.innerHTML = `
+      <div style="border-top: 1px solid #444; padding-top: 12px;">
+        <div class="small text-secondary mb-2">同期不一致診断（Firebaseなし）</div>
+
+        <button class="btn btn-sm btn-warning w-100 mb-2" id="sp-admin-diag-run">
+          <i class="bi bi-search"></i> 検証する
+        </button>
+
+        <div id="sp-admin-diag-log" style="
+          display: none;
+          background: #1a1a1a;
+          padding: 8px;
+          border-radius: 6px;
+          font-family: monospace;
+          font-size: 0.7rem;
+          color: #9ff;
+          max-height: 250px;
+          overflow-y: auto;
+          border: 1px solid #444;
+          white-space: pre-wrap;
+          word-break: break-all;
+        "></div>
+
+        <button class="btn btn-sm btn-secondary w-100 mt-2"
+                id="sp-admin-diag-copy" style="display: none;">
+          <i class="bi bi-clipboard"></i> ログをコピー
+        </button>
+      </div>
+    `;
+
+    // 追加位置：管理者パネルの先頭（“管理者モード内だけ”で完結）
+    anchor.prepend(block);
+
+    // bind
+    document.getElementById('sp-admin-diag-run')?.addEventListener('click', runAdminDiag);
+    document.getElementById('sp-admin-diag-copy')?.addEventListener('click', copyAdminDiag);
+
+    return true;
+  }
+
+  // 管理者パネルが後から描画されても拾う
+  const mo = new MutationObserver(() => {
+    injectAdminDiagUI();
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // 起動直後も一度だけ
+  injectAdminDiagUI();
+})();
+</script>
 </body>
 </html>
