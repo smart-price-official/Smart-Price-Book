@@ -2,16 +2,16 @@
 <!--
 APP: Smart Price
 VERSION: v19.9.45
-P26-02-08 11:59 JST
+P26-02-08 12:21 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
-- Admin診断（Firebaseなし）：運営者メニューの検証ツールに「URLコピー／SW解除URLコピー／診断ログコピー」を追加（アドレスバー不要）
+- Admin診断（UI重視/Firebaseなし）：検証ツール内に「診断カード表示」ボタン追加。文字列だけでなく見やすいカード表示に戻す。
 - 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
 - Firebase URLは通常ユーザーに非表示、admin時のみ読み取り専用で表示
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-08_1159_admin-inappdiag-nofb
+BUILD_PARAM(b): ?b=2026-02-08_1221_admin-ui-restore-diag2
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -29,7 +29,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     window.VERSION_INFO = 'v19.9.45';
     window.APP_VERSION = 'v19.9.45';
     window.FULL_VERSION = 'v19.9.45 [0207]';
-    P26-02-08_1159_admin-inappdiag-nofb';
+    P26-02-08_1221_admin-ui-restore-diag2';
   </script>
   <!-- ✅ SW RESET TOOL (v19.9.45) : ?reset=sw -->
   <script>
@@ -534,20 +534,25 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
             <div class="mt-2">
               <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="spRunSelfCheck()">検証する</button>
               <textarea id="selfcheck-log" class="form-control bg-dark text-white border-secondary" rows="6" readonly></textarea>
+              <div id="selfcheck-cards" class="mt-2" style="display:none;"></div>
               <div class="d-flex gap-2 mt-2">
                 <button class="btn btn-dark flex-grow-1" onclick="spCopy('selfcheck-log')">ログコピー</button>
               </div>
 
-              <!-- ✅ Admin診断（Firebaseなし）：Xperiaなどアドレスバー無しでもコピーできる -->
+              <!-- ✅ Admin診断（UI重視 / Firebaseなし） -->
               <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyCurrentUrl()">URLコピー</button>
+                <button class="btn btn-warning w-100 fw-bold" onclick="spAdminShowDiagCardsNoFb()">診断カード表示（Firebaseなし）</button>
+              </div>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyDiagNoFb()">診断ログをコピー</button>
                 <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyResetUrl()">SW解除URL</button>
               </div>
               <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-warning w-100 fw-bold" onclick="spAdminCopyDiagNoFb()">診断ログをコピー（Firebaseなし）</button>
+                <button class="btn btn-dark w-100" onclick="spAdminCopyCurrentUrl()">URLコピー</button>
               </div>
               <div class="hint mt-2" style="margin:0;opacity:.9;">
-                ※クリップボードが使えない端末は、上のログ欄に出すので「長押しコピー」でOKです。
+                ※カード表示が見やすい版です。コピーは「診断ログをコピー」を使ってください。<br>
+                ※クリップボード不可端末は、ログ欄を長押しコピーでOK。
               </div>
             </div>
           </details>
@@ -620,7 +625,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 <script>
   const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  P26-02-08_1159_admin-inappdiag-nofb"; // ヘッダーと一致させる
+  P26-02-08_1221_admin-ui-restore-diag2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -6463,37 +6468,27 @@ if ("serviceWorker" in navigator) {
   </script>
 
 <!--
-  Admin Diag Tool (NO FIREBASE)
+  Admin Diag Tool (NO FIREBASE / UI CARDS)
   AUTHOR: Yui
-  DATE(JST): 2026-02-08 11:59 JST
-  BUILD(b): 2026-02-08_1159_admin-inappdiag-nofb
+  DATE(JST): 2026-02-08 12:21 JST
+  BUILD(b): 2026-02-08_1221_admin-ui-restore-diag2
   POLICY: Firebase/UID/接続先URLには触れない。運営者メニュー（検証ツール）にだけ追加。
 -->
 <script>
 (function() {
   'use strict';
 
-  function _isDebug() {
-    try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e) { return false; }
-  }
-
-  function _toast(msg, kind, sec) {
-    try {
-      if (typeof showToast === 'function') { showToast(String(msg), (sec||6)*1000); return; }
-    } catch(e) {}
-    try {
-      if (typeof debugLog === 'function') debugLog(String(msg));
-    } catch(e) {}
+  function _toast(msg) {
+    try { if (typeof showToast === 'function') showToast(String(msg), 4500); } catch(e) {}
   }
 
   async function _copy(text) {
     try {
       await navigator.clipboard.writeText(text);
-      _toast('コピーしました', 'success', 4);
+      _toast('コピーしました');
       return true;
     } catch(e) {
-      if (_isDebug()) console.warn('[AdminDiag] clipboard failed', e);
-      _toast('コピーできませんでした。ログ欄を長押しでコピーしてください', 'info', 7);
+      _toast('コピーできませんでした。ログ欄を長押しでコピーしてください');
       return false;
     }
   }
@@ -6510,6 +6505,7 @@ if ("serviceWorker" in navigator) {
       if (edits.b === null) p.delete('b');
       else p.set('b', String(edits.b));
     }
+
     u.search = p.toString();
     return u.toString();
   }
@@ -6546,12 +6542,14 @@ if ("serviceWorker" in navigator) {
     } catch(e) {}
 
     return {
-      ua, dpr, viewport: `${w}x${h}`,
+      viewport: `${w}x${h}`,
+      dpr,
+      displayMode,
       lang: navigator.language || '',
       platform: navigator.platform || '',
-      displayMode,
       hardwareConcurrency: navigator.hardwareConcurrency || 'N/A',
-      deviceMemory: navigator.deviceMemory || 'N/A'
+      deviceMemory: navigator.deviceMemory || 'N/A',
+      ua
     };
   }
 
@@ -6580,7 +6578,7 @@ if ("serviceWorker" in navigator) {
       }
     }
 
-    return { sw: { count: swCount, scopes: swScopes }, cache: { count: cacheCount, names: cacheNames } };
+    return { swCount, swScopes, cacheCount, cacheNames };
   }
 
   function _localStorageInfo() {
@@ -6614,6 +6612,31 @@ if ("serviceWorker" in navigator) {
     } catch(e) {}
   }
 
+  function _ensureCardsContainer() {
+    const box = document.getElementById('selfcheck-cards');
+    if (!box) return null;
+    box.style.display = 'block';
+    return box;
+  }
+
+  function _card(title, rowsHtml) {
+    return `
+      <div class="p-3 mb-2" style="border:1px solid #3a3a3a;border-radius:12px;background:#141414;">
+        <div class="fw-bold mb-2" style="font-size:14px;">${title}</div>
+        <div style="font-size:12px;line-height:1.6;">${rowsHtml}</div>
+      </div>
+    `;
+  }
+
+  function _row(k, v) {
+    return `
+      <div class="d-flex justify-content-between" style="gap:10px;border-bottom:1px dashed #2a2a2a;padding:6px 0;">
+        <div class="text-secondary" style="min-width:120px;">${k}</div>
+        <div class="text-white" style="text-align:right;word-break:break-all;">${v}</div>
+      </div>
+    `;
+  }
+
   async function _buildDiagTextNoFb() {
     const device = _deviceInfo();
     const swc = await _swCacheInfo();
@@ -6641,10 +6664,10 @@ if ("serviceWorker" in navigator) {
     out += `ua: ${device.ua}\n\n`;
 
     out += `■ SW/CACHE\n`;
-    out += `SW登録数: ${swc.sw.count}\n`;
-    if (swc.sw.scopes && swc.sw.scopes.length) out += `SW scope: ${swc.sw.scopes.join(' | ')}\n`;
-    out += `Cache数: ${swc.cache.count}\n`;
-    if (swc.cache.names && swc.cache.names.length) out += `Cache名: ${swc.cache.names.join(' | ')}\n`;
+    out += `SW登録数: ${swc.swCount}\n`;
+    if (swc.swScopes && swc.swScopes.length) out += `SW scope: ${swc.swScopes.join(' | ')}\n`;
+    out += `Cache数: ${swc.cacheCount}\n`;
+    if (swc.cacheNames && swc.cacheNames.length) out += `Cache名: ${swc.cacheNames.join(' | ')}\n`;
     out += `\n`;
 
     out += `■ LOCAL STORAGE\n`;
@@ -6671,6 +6694,77 @@ if ("serviceWorker" in navigator) {
     return out;
   }
 
+  async function _renderCardsNoFb() {
+    const box = _ensureCardsContainer();
+    if (!box) {
+      _toast('表示領域が見つかりませんでした');
+      return;
+    }
+
+    const build = _getBuild();
+    const ver = _getVersion();
+    const device = _deviceInfo();
+    const swc = await _swCacheInfo();
+    const ls = _localStorageInfo();
+    const db = _dbInfo();
+
+    const vCard = _card('VERSION', 
+      _row('VERSION', ver) +
+      _row('BUILD(b)', build) +
+      _row('PATH', location.pathname) +
+      _row('URL', location.href)
+    );
+
+    const dCard = _card('DEVICE',
+      _row('viewport', `${device.viewport} (dpr=${device.dpr})`) +
+      _row('display-mode', device.displayMode) +
+      _row('lang', device.lang) +
+      _row('platform', device.platform) +
+      _row('cpu / mem', `${device.hardwareConcurrency} / ${device.deviceMemory}`) +
+      _row('ua', device.ua)
+    );
+
+    const sCard = _card('SW / CACHE',
+      _row('SW登録数', swc.swCount) +
+      _row('SW scope', (swc.swScopes && swc.swScopes.length) ? swc.swScopes.join(' | ') : '-') +
+      _row('Cache数', swc.cacheCount) +
+      _row('Cache名', (swc.cacheNames && swc.cacheNames.length) ? swc.cacheNames.join(' | ') : '-')
+    );
+
+    let lsRows = '';
+    if (!ls.ok) {
+      lsRows = _row('取得', 'ERROR');
+    } else {
+      lsRows += _row('総文字数', String(ls.total));
+      const top = ls.list.slice(0, 8);
+      for (const item of top) {
+        lsRows += _row(item.key, String(item.size));
+      }
+      if (ls.list.length > top.length) {
+        lsRows += _row('他', `+${ls.list.length - top.length} 件`);
+      }
+    }
+    const lCard = _card('LOCAL STORAGE（上位のみ）', lsRows);
+
+    const bCard = _card('DB（端末内 / window.db）',
+      _row('購入件数', db.purchasesCount) +
+      _row('商品件数', db.productsCount) +
+      _row('最終更新', db.latestAt) +
+      _row('最終ID', db.latestId)
+    );
+
+    const uCard = _card('URL QUICK LINKS',
+      _row('RESET_URL', _buildUrl({ reset:'sw', b: build })) +
+      _row('NORMAL_URL', _buildUrl({ reset:null, b: build }))
+    );
+
+    box.innerHTML = `
+      <div class="text-secondary mb-2" style="font-size:12px;">生成日時: ${_nowJP()}</div>
+      ${vCard}${dCard}${sCard}${lCard}${bCard}${uCard}
+    `;
+    _toast('診断カードを表示しました');
+  }
+
   // ====== public (called from buttons) ======
   window.spAdminCopyCurrentUrl = async function() {
     const u = _buildUrl({});
@@ -6687,10 +6781,11 @@ if ("serviceWorker" in navigator) {
   window.spAdminCopyDiagNoFb = async function() {
     const text = await _buildDiagTextNoFb();
     _setSelfcheckLog(text);
-    const ok = await _copy(text);
-    if (!ok) {
-      // textarea に出してあるので長押しコピー
-    }
+    await _copy(text);
+  };
+
+  window.spAdminShowDiagCardsNoFb = async function() {
+    await _renderCardsNoFb();
   };
 })();
 </script>
