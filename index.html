@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.45
+VERSION: v19.9.52
 P26-02-08 20:45 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
@@ -25,7 +25,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <title>Smart Price v19.9.45</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.51';
+    window.VERSION_INFO = 'v19.9.52';
     window.APP_VERSION = 'v19.9.45';
     window.FULL_VERSION = 'v19.9.45 [0207]';
     P26-02-08_2045_initfix_exportimport_nofb';
@@ -6451,10 +6451,10 @@ if ("serviceWorker" in navigator) {
 
 <!--
   Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.51
+  VERSION: v19.9.52
   AUTHOR: Yui
   DATE(JST): 2026-02-08 20:45 JST
-  BUILD(b): 2026-02-08_2045_initfix_exportimport_nofb
+  P26-02-08_2053_admin_overlay_tools_nofb
   POLICY:
   - Firebase/UID/接続先URLには触れない
   - UI凍結：管理者モード（DEBUG PANEL）内にだけ機能追加
@@ -6724,6 +6724,197 @@ if ("serviceWorker" in navigator) {
   const mo = new MutationObserver(()=>{ const p=_findDebugPanel(); if(p) _inject(p); });
   mo.observe(document.body, {childList:true, subtree:true});
   const p0=_findDebugPanel(); if(p0) _inject(p0);
+
+})();
+</script>
+
+
+<!--
+  Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
+  VERSION: v19.9.52
+  AUTHOR: Yui
+  DATE(JST): 2026-02-08 20:53 JST
+  BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
+  POLICY:
+  - debug=1 のときだけ表示（通常UIは一切変更しない）
+  - Firebase/UID/接続先URLには触れない
+-->
+<script>
+(function(){
+  'use strict';
+  function qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
+  const P = qs();
+  const isDebug = (P.get('debug') === '1');
+  const isAdmin = (P.get('mode') === 'admin');
+  if (!isDebug || !isAdmin) return;
+
+  function nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
+  function getBuild(){ return P.get('b') || (window.BUILD_ID||'') || 'N/A'; }
+  function getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
+
+  function toast(msg){
+    try{ if (typeof showToast === 'function') showToast(String(msg), 6000); }catch(e){}
+    try{ if (typeof debugLog === 'function') debugLog(String(msg)); }catch(e){}
+  }
+
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(String(t)); toast('コピーしました'); return true; }
+    catch(e){ toast('コピーできません（下の欄を長押しコピー）'); return false; }
+  }
+
+  function safeParse(s){ try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, err:String(e)}; } }
+  function dbEmpty(db){
+    try{
+      if(!db||typeof db!=='object') return true;
+      const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
+      const pr = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
+      return (p===0 && pr===0);
+    }catch(e){ return true; }
+  }
+  function ensureDbFromLS(){
+    try{
+      if (!dbEmpty(window.db)) return;
+      const dbStr = localStorage.getItem('smart_price_db');
+      if (dbStr) {
+        const r = safeParse(dbStr);
+        if (r.ok && r.v && typeof r.v === 'object') {
+          window.db = r.v;
+          return;
+        }
+      }
+      window.db = window.db || {products: {}, stores: {}, purchases: []};
+    }catch(e){
+      window.db = window.db || {products: {}, stores: {}, purchases: []};
+    }
+  }
+
+  function buildUrlReset(){
+    const u = new URL(location.href);
+    u.searchParams.set('reset','sw');
+    u.searchParams.set('b', getBuild());
+    return u.toString();
+  }
+
+  function buildDiag(){
+    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
+    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
+    let out='';
+    out+='【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
+    out+='日時: '+nowJP()+'\n\n';
+    out+='■ VERSION\n';
+    out+='VERSION: '+getVersion()+'\n';
+    out+='BUILD(b): '+getBuild()+'\n';
+    out+='URL: '+location.href+'\n';
+    out+='PATH: '+location.pathname+'\n\n';
+    out+='■ LOCAL STORAGE\n';
+    out+='キー数: '+keys+'\n';
+    out+='smart_price_db: '+(hasDb?'あり':'なし')+'\n\n';
+    out+='■ DB（端末内 / window.db）\n';
+    try{
+      const db = window.db||{};
+      const pc = Array.isArray(db.purchases)?db.purchases.length:0;
+      const prc = db.products&&typeof db.products==='object'?Object.keys(db.products).length:0;
+      out+='購入件数: '+pc+'\n';
+      out+='商品件数: '+prc+'\n';
+    }catch(e){ out+='購入件数: ERROR\n商品件数: ERROR\n'; }
+    out+='\n■ URL QUICK LINKS\n';
+    out+='RESET_URL: '+buildUrlReset()+'\n';
+    out+='NORMAL_URL: '+(new URL(location.href)).toString()+'\n';
+    return out;
+  }
+
+  function exportPayload(){
+    const dbStr = localStorage.getItem('smart_price_db') || '';
+    const dataStr = localStorage.getItem('smart_price_data') || '';
+    const payload = {
+      kind:'SmartPriceExport',
+      version:getVersion(),
+      build:getBuild(),
+      exportedAtJST: nowJP(),
+      smart_price_db: dbStr,
+      smart_price_data: dataStr
+    };
+    return JSON.stringify(payload);
+  }
+
+  function importPayload(text){
+    const r = safeParse(text||'');
+    if(!r.ok){ toast('インポート失敗：JSONとして読めません'); return false; }
+    const obj=r.v;
+    let dbStr='', dataStr='';
+    if(obj && obj.kind==='SmartPriceExport'){ dbStr=String(obj.smart_price_db||''); dataStr=String(obj.smart_price_data||''); }
+    else if(obj && typeof obj==='object' && obj.products && obj.purchases){ dbStr=JSON.stringify(obj); }
+    else { toast('インポート失敗：形式が違います（Export文字列を貼ってください）'); return false; }
+
+    if(!dbStr){ toast('インポート失敗：smart_price_db が空'); return false; }
+    const dbCheck = safeParse(dbStr);
+    if(!dbCheck.ok){ toast('インポート失敗：smart_price_db が壊れてます'); return false; }
+
+    try{
+      localStorage.setItem('smart_price_db', dbStr);
+      if(dataStr) localStorage.setItem('smart_price_data', dataStr);
+      window.db = dbCheck.v;
+      toast('インポートOK：再描画します');
+      try{ if(typeof renderHistory==='function') renderHistory(); }catch(e){}
+      return true;
+    }catch(e){ toast('インポート失敗：保存できません'); return false; }
+  }
+
+  // overlay UI
+  const box = document.createElement('div');
+  box.id='sp-admin-overlay-tools';
+  box.style.position='fixed';
+  box.style.right='10px';
+  box.style.bottom='10px';
+  box.style.zIndex='99999';
+  box.style.width='min(360px, calc(100vw - 20px))';
+  box.style.background='rgba(0,0,0,0.82)';
+  box.style.border='1px solid rgba(255,255,255,0.25)';
+  box.style.borderRadius='12px';
+  box.style.padding='10px';
+  box.style.color='#fff';
+  box.style.fontSize='13px';
+  box.style.backdropFilter='blur(6px)';
+
+  box.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;">'
+    + '<div style="font-weight:700;">ADMIN TOOLS</div>'
+    + '<div style="opacity:.8;">(debug=1)</div>'
+    + '<button id="spov-close" style="margin-left:auto;border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;">×</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-url" style="flex:1;padding:8px;border-radius:10px;border:0;">URL</button>'
+    + '  <button id="spov-reset" style="flex:1;padding:8px;border-radius:10px;border:0;">SW解除URL</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-diag" style="flex:1;padding:8px;border-radius:10px;border:0;font-weight:700;">診断ログ</button>'
+    + '  <button id="spov-exp" style="flex:1;padding:8px;border-radius:10px;border:0;">EXPORT</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-imp" style="flex:1;padding:8px;border-radius:10px;border:0;">IMPORT</button>'
+    + '</div>'
+    + '<textarea id="spov-in" rows="3" placeholder="IMPORT用：ここにExport文字列を貼る" '
+    + ' style="margin-top:8px;width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
+    + '<textarea id="spov-out" rows="6" readonly '
+    + ' style="margin-top:8px;width:100%;display:none;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
+    + '<div style="margin-top:6px;opacity:.8;font-size:12px;">コピー不可なら下の欄を長押しコピーでOK</div>';
+
+  document.documentElement.appendChild(box);
+
+  const out = box.querySelector('#spov-out');
+  function showOut(t){ out.style.display='block'; out.value=String(t||''); }
+
+  box.querySelector('#spov-close').onclick=()=>{ box.remove(); };
+  box.querySelector('#spov-url').onclick=async()=>{ const ok=await copyText(location.href); if(!ok) showOut(location.href); };
+  box.querySelector('#spov-reset').onclick=async()=>{ const u=buildUrlReset(); const ok=await copyText(u); if(!ok) showOut(u); };
+  box.querySelector('#spov-diag').onclick=async()=>{ ensureDbFromLS(); const t=buildDiag(); showOut(t); await copyText(t); };
+  box.querySelector('#spov-exp').onclick=async()=>{ const t=exportPayload(); showOut(t); await copyText(t); };
+  box.querySelector('#spov-imp').onclick=()=>{
+    const t=(box.querySelector('#spov-in').value||'').trim();
+    if(!t){ toast('貼り付けが空'); return; }
+    ensureDbFromLS();
+    importPayload(t);
+  };
 
 })();
 </script>
