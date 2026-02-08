@@ -2,16 +2,16 @@
 <!--
 APP: Smart Price
 VERSION: v19.9.45
-P26-02-08 12:21 JST
+P26-02-08 12:28 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
-- Admin診断（UI重視/Firebaseなし）：検証ツール内に「診断カード表示」ボタン追加。文字列だけでなく見やすいカード表示に戻す。
+- Admin診断（UI依存ゼロ/Firebaseなし）：管理者モードで右下に小さな診断FABを表示→カード表示/URLコピー/ログコピー（ボタン全滅対策）
 - 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
 - Firebase URLは通常ユーザーに非表示、admin時のみ読み取り専用で表示
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-08_1221_admin-ui-restore-diag2
+BUILD_PARAM(b): ?b=2026-02-08_1228_admin-fab-diag-nofb
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -29,7 +29,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     window.VERSION_INFO = 'v19.9.45';
     window.APP_VERSION = 'v19.9.45';
     window.FULL_VERSION = 'v19.9.45 [0207]';
-    P26-02-08_1221_admin-ui-restore-diag2';
+    P26-02-08_1228_admin-fab-diag-nofb';
   </script>
   <!-- ✅ SW RESET TOOL (v19.9.45) : ?reset=sw -->
   <script>
@@ -328,6 +328,68 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
       transform: scale(0.95);
     }
   </style>
+
+<style id="sp-adminfab-style">
+  .sp-adminfab{
+    position:fixed; right:16px; bottom:88px; z-index:2147483000;
+    width:56px; height:56px; border-radius:28px;
+    display:flex; align-items:center; justify-content:center;
+    background:#ffcc00; color:#111; border:1px solid rgba(0,0,0,.35);
+    box-shadow: 0 10px 26px rgba(0,0,0,.45);
+    font-weight:900; user-select:none;
+  }
+  .sp-adminfab:active{ transform:scale(0.98); }
+  .sp-adminfab small{font-size:11px; line-height:1; text-align:center;}
+  .sp-adminfab-hide{ display:none !important; }
+
+  .sp-adminmodal-backdrop{
+    position:fixed; inset:0; z-index:2147483001;
+    background: rgba(0,0,0,.55);
+  }
+  .sp-adminmodal{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:2147483002;
+    width:min(92vw, 560px);
+    max-height: 82vh;
+    overflow:auto;
+    background:#121212;
+    border:1px solid #333;
+    border-radius:16px;
+    box-shadow: 0 18px 45px rgba(0,0,0,.55);
+    padding:14px;
+    color:#eaeaea;
+  }
+  .sp-adminmodal h3{ margin:0 0 10px; font-size:16px; }
+  .sp-adminmodal .meta{ font-size:12px; color:#aaa; margin-bottom:12px; line-height:1.5;}
+  .sp-card{
+    border:1px solid #2f2f2f; border-radius:14px;
+    background:#151515; padding:12px; margin-bottom:10px;
+  }
+  .sp-card .title{ font-weight:800; font-size:13px; margin-bottom:8px; }
+  .sp-row{
+    display:flex; justify-content:space-between; gap:10px;
+    border-bottom:1px dashed #2a2a2a; padding:6px 0;
+    font-size:12px;
+  }
+  .sp-row:last-child{ border-bottom:none; }
+  .sp-k{ color:#9aa0a6; min-width:120px; }
+  .sp-v{ color:#fff; text-align:right; word-break:break-all; }
+  .sp-btnbar{ display:flex; gap:8px; margin:10px 0 6px; }
+  .sp-btn{
+    flex:1; padding:10px 10px; border-radius:12px;
+    border:1px solid #3a3a3a; background:#1b1b1b; color:#fff;
+    font-weight:800; font-size:12px;
+  }
+  .sp-btn.warn{ background:#ffcc00; color:#111; border-color:#d9b100; }
+  .sp-btn:active{ transform:scale(0.99); }
+  .sp-textarea{
+    width:100%; box-sizing:border-box; min-height:160px;
+    background:#0f0f0f; color:#9ff; border:1px solid #333;
+    border-radius:12px; padding:10px; font-size:12px; line-height:1.4;
+    white-space:pre-wrap; word-break:break-word;
+  }
+</style>
+
 </head>
 
 <body>
@@ -534,25 +596,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
             <div class="mt-2">
               <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="spRunSelfCheck()">検証する</button>
               <textarea id="selfcheck-log" class="form-control bg-dark text-white border-secondary" rows="6" readonly></textarea>
-              <div id="selfcheck-cards" class="mt-2" style="display:none;"></div>
               <div class="d-flex gap-2 mt-2">
                 <button class="btn btn-dark flex-grow-1" onclick="spCopy('selfcheck-log')">ログコピー</button>
-              </div>
-
-              <!-- ✅ Admin診断（UI重視 / Firebaseなし） -->
-              <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-warning w-100 fw-bold" onclick="spAdminShowDiagCardsNoFb()">診断カード表示（Firebaseなし）</button>
-              </div>
-              <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyDiagNoFb()">診断ログをコピー</button>
-                <button class="btn btn-dark flex-grow-1" onclick="spAdminCopyResetUrl()">SW解除URL</button>
-              </div>
-              <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-dark w-100" onclick="spAdminCopyCurrentUrl()">URLコピー</button>
-              </div>
-              <div class="hint mt-2" style="margin:0;opacity:.9;">
-                ※カード表示が見やすい版です。コピーは「診断ログをコピー」を使ってください。<br>
-                ※クリップボード不可端末は、ログ欄を長押しコピーでOK。
               </div>
             </div>
           </details>
@@ -625,7 +670,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 <script>
   const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
   const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  P26-02-08_1221_admin-ui-restore-diag2"; // ヘッダーと一致させる
+  P26-02-08_1228_admin-fab-diag-nofb"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -6468,325 +6513,290 @@ if ("serviceWorker" in navigator) {
   </script>
 
 <!--
-  Admin Diag Tool (NO FIREBASE / UI CARDS)
+  Admin FAB Diag (NO FIREBASE / UI-INDEPENDENT)
   AUTHOR: Yui
-  DATE(JST): 2026-02-08 12:21 JST
-  BUILD(b): 2026-02-08_1221_admin-ui-restore-diag2
-  POLICY: Firebase/UID/接続先URLには触れない。運営者メニュー（検証ツール）にだけ追加。
+  DATE(JST): 2026-02-08 12:28 JST
+  BUILD(b): 2026-02-08_1228_admin-fab-diag-nofb
+  POLICY: Firebase/UID/接続先URLには触れない。UI差分に依存せず、管理者モードでだけ表示。
 -->
 <script>
-(function() {
+(function(){
   'use strict';
 
-  function _toast(msg) {
-    try { if (typeof showToast === 'function') showToast(String(msg), 4500); } catch(e) {}
+  function qs(){
+    try{ return new URL(location.href).searchParams; }catch(e){ return new URLSearchParams(); }
   }
-
-  async function _copy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      _toast('コピーしました');
-      return true;
-    } catch(e) {
-      _toast('コピーできませんでした。ログ欄を長押しでコピーしてください');
-      return false;
-    }
+  function isAdmin(){
+    const p = qs();
+    return (p.get('mode')||'') === 'admin';
   }
-
-  function _buildUrl(edits) {
+  function getBuild(){
+    const p = qs();
+    return p.get('b') || (window.BUILD_ID||'') || 'N/A';
+  }
+  function getVersion(){
+    return (window.VERSION_INFO||'').trim()
+      || (document.getElementById('version-badge')?.textContent||'').trim()
+      || ((document.title.match(/v[\d.]+/)||[])[0] || 'N/A');
+  }
+  function nowJP(){
+    try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); }
+  }
+  function buildUrl(edits){
     const u = new URL(location.href);
     const p = u.searchParams;
-
-    if (edits && Object.prototype.hasOwnProperty.call(edits, 'reset')) {
-      if (edits.reset === null) p.delete('reset');
-      else p.set('reset', String(edits.reset));
+    if (edits && Object.prototype.hasOwnProperty.call(edits,'reset')) {
+      if (edits.reset === null) p.delete('reset'); else p.set('reset', String(edits.reset));
     }
-    if (edits && Object.prototype.hasOwnProperty.call(edits, 'b')) {
-      if (edits.b === null) p.delete('b');
-      else p.set('b', String(edits.b));
+    if (edits && Object.prototype.hasOwnProperty.call(edits,'b')) {
+      if (edits.b === null) p.delete('b'); else p.set('b', String(edits.b));
     }
-
     u.search = p.toString();
     return u.toString();
   }
-
-  function _getBuild() {
-    try {
-      const p = new URL(location.href).searchParams;
-      return p.get('b') || (window.BUILD_ID || '') || 'N/A';
-    } catch(e) {
-      return (window.BUILD_ID || '') || 'N/A';
-    }
+  async function copy(text){
+    try{ await navigator.clipboard.writeText(text); toast('コピーしました'); return true; }
+    catch(e){ toast('コピー不可：ログ欄を長押しコピーしてください'); return false; }
+  }
+  function toast(msg){
+    try{ if (typeof showToast === 'function') showToast(String(msg), 4500); else console.log('[toast]', msg); }
+    catch(e){}
   }
 
-  function _getVersion() {
-    return (window.VERSION_INFO || '').trim()
-      || (document.getElementById('version-badge')?.textContent || '').trim()
-      || ((document.title.match(/v[\d.]+/) || [])[0] || 'N/A');
-  }
-
-  function _nowJP() {
-    try { return new Date().toLocaleString('ja-JP'); } catch(e) { return String(new Date()); }
-  }
-
-  function _deviceInfo() {
+  function deviceInfo(){
     const ua = navigator.userAgent || '';
     const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth || 0;
-    const h = window.innerHeight || 0;
-
+    const w = window.innerWidth || 0, h = window.innerHeight || 0;
     let displayMode = 'browser';
     try {
-      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) displayMode = 'standalone';
-      if (navigator.standalone) displayMode = 'standalone(iOS)';
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) displayMode='standalone';
+      if (navigator.standalone) displayMode='standalone(iOS)';
     } catch(e) {}
-
     return {
       viewport: `${w}x${h}`,
       dpr,
       displayMode,
-      lang: navigator.language || '',
-      platform: navigator.platform || '',
-      hardwareConcurrency: navigator.hardwareConcurrency || 'N/A',
-      deviceMemory: navigator.deviceMemory || 'N/A',
+      lang: navigator.language||'',
+      platform: navigator.platform||'',
+      hardwareConcurrency: navigator.hardwareConcurrency||'N/A',
+      deviceMemory: navigator.deviceMemory||'N/A',
       ua
     };
   }
 
-  async function _swCacheInfo() {
-    let swCount = 'N/A';
-    let swScopes = [];
+  async function swCacheInfo(){
+    let swCount='N/A', swScopes=[];
     if ('serviceWorker' in navigator) {
-      try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        swCount = regs.length;
-        swScopes = regs.map(r => r.scope).filter(Boolean);
-      } catch(e) {
-        swCount = 'ERROR';
-      }
+      try{ const regs = await navigator.serviceWorker.getRegistrations(); swCount=regs.length; swScopes=regs.map(r=>r.scope).filter(Boolean); }
+      catch(e){ swCount='ERROR'; }
     }
-
-    let cacheCount = 'N/A';
-    let cacheNames = [];
+    let cacheCount='N/A', cacheNames=[];
     if ('caches' in window) {
-      try {
-        const keys = await caches.keys();
-        cacheCount = keys.length;
-        cacheNames = keys;
-      } catch(e) {
-        cacheCount = 'ERROR';
-      }
+      try{ const keys = await caches.keys(); cacheCount=keys.length; cacheNames=keys; }
+      catch(e){ cacheCount='ERROR'; }
     }
-
-    return { swCount, swScopes, cacheCount, cacheNames };
+    return {swCount, swScopes, cacheCount, cacheNames};
   }
 
-  function _localStorageInfo() {
+  function localStorageInfo(){
     try {
-      const keys = Object.keys(localStorage || {}).sort();
-      const list = keys.map(k => ({ key: k, size: (localStorage.getItem(k) || '').length }));
-      const total = list.reduce((s, x) => s + x.size, 0);
-      return { ok: true, total, list };
+      const keys = Object.keys(localStorage||{}).sort();
+      const list = keys.map(k=>({key:k, size:(localStorage.getItem(k)||'').length}));
+      const total = list.reduce((s,x)=>s+x.size,0);
+      return {ok:true,total,list};
     } catch(e) {
-      return { ok: false, total: 'ERROR', list: [] };
+      return {ok:false,total:'ERROR',list:[]};
     }
   }
 
-  function _dbInfo() {
+  function dbInfo(){
     const db = window.db || {};
     const purchases = db.purchases || [];
     const products = db.products || {};
-    const latest = purchases.length ? purchases[purchases.length - 1] : null;
+    const latest = purchases.length ? purchases[purchases.length-1] : null;
     return {
       purchasesCount: purchases.length,
-      productsCount: (products && typeof products === 'object') ? Object.keys(products).length : 0,
+      productsCount: (products && typeof products==='object') ? Object.keys(products).length : 0,
       latestAt: latest ? (latest.timestamp || latest.date || 'N/A') : 'N/A',
       latestId: latest ? (latest.id || 'N/A') : 'N/A'
     };
   }
 
-  function _setSelfcheckLog(text) {
-    try {
-      const ta = document.getElementById('selfcheck-log');
-      if (ta) ta.value = text;
-    } catch(e) {}
-  }
+  async function buildDiagText(){
+    const device = deviceInfo();
+    const swc = await swCacheInfo();
+    const ls = localStorageInfo();
+    const db = dbInfo();
+    const build = getBuild();
+    const ver = getVersion();
 
-  function _ensureCardsContainer() {
-    const box = document.getElementById('selfcheck-cards');
-    if (!box) return null;
-    box.style.display = 'block';
-    return box;
-  }
-
-  function _card(title, rowsHtml) {
-    return `
-      <div class="p-3 mb-2" style="border:1px solid #3a3a3a;border-radius:12px;background:#141414;">
-        <div class="fw-bold mb-2" style="font-size:14px;">${title}</div>
-        <div style="font-size:12px;line-height:1.6;">${rowsHtml}</div>
-      </div>
-    `;
-  }
-
-  function _row(k, v) {
-    return `
-      <div class="d-flex justify-content-between" style="gap:10px;border-bottom:1px dashed #2a2a2a;padding:6px 0;">
-        <div class="text-secondary" style="min-width:120px;">${k}</div>
-        <div class="text-white" style="text-align:right;word-break:break-all;">${v}</div>
-      </div>
-    `;
-  }
-
-  async function _buildDiagTextNoFb() {
-    const device = _deviceInfo();
-    const swc = await _swCacheInfo();
-    const ls = _localStorageInfo();
-    const db = _dbInfo();
-    const build = _getBuild();
-    const ver = _getVersion();
-
-    let out = '';
+    let out='';
     out += `【Smart Price 診断ログ（運営者／Firebaseなし）】\n`;
-    out += `日時: ${_nowJP()}\n\n`;
-
-    out += `■ VERSION\n`;
-    out += `VERSION: ${ver}\n`;
-    out += `BUILD(b): ${build}\n`;
-    out += `URL: ${location.href}\n`;
-    out += `PATH: ${location.pathname}\n\n`;
-
-    out += `■ DEVICE\n`;
-    out += `viewport: ${device.viewport} (dpr=${device.dpr})\n`;
-    out += `display-mode: ${device.displayMode}\n`;
-    out += `lang: ${device.lang}\n`;
-    out += `platform: ${device.platform}\n`;
-    out += `cpu: ${device.hardwareConcurrency}, mem: ${device.deviceMemory}\n`;
-    out += `ua: ${device.ua}\n\n`;
-
-    out += `■ SW/CACHE\n`;
-    out += `SW登録数: ${swc.swCount}\n`;
+    out += `日時: ${nowJP()}\n\n`;
+    out += `■ VERSION\nVERSION: ${ver}\nBUILD(b): ${build}\nURL: ${location.href}\nPATH: ${location.pathname}\n\n`;
+    out += `■ DEVICE\nviewport: ${device.viewport} (dpr=${device.dpr})\ndisplay-mode: ${device.displayMode}\nlang: ${device.lang}\nplatform: ${device.platform}\ncpu: ${device.hardwareConcurrency}, mem: ${device.deviceMemory}\nua: ${device.ua}\n\n`;
+    out += `■ SW/CACHE\nSW登録数: ${swc.swCount}\n`;
     if (swc.swScopes && swc.swScopes.length) out += `SW scope: ${swc.swScopes.join(' | ')}\n`;
     out += `Cache数: ${swc.cacheCount}\n`;
     if (swc.cacheNames && swc.cacheNames.length) out += `Cache名: ${swc.cacheNames.join(' | ')}\n`;
     out += `\n`;
-
     out += `■ LOCAL STORAGE\n`;
-    if (!ls.ok) {
-      out += `取得: ERROR\n\n`;
-    } else {
+    if (!ls.ok) out += `取得: ERROR\n\n`;
+    else {
       out += `総文字数: ${ls.total}\n`;
       const top = ls.list.slice(0, 15);
       for (const item of top) out += `- ${item.key}: ${item.size}\n`;
-      if (ls.list.length > top.length) out += `...（他 ${ls.list.length - top.length} 件）\n`;
+      if (ls.list.length > top.length) out += `...（他 ${ls.list.length-top.length} 件）\n`;
       out += `\n`;
     }
-
-    out += `■ DB（端末内 / window.db）\n`;
-    out += `購入件数: ${db.purchasesCount}\n`;
-    out += `商品件数: ${db.productsCount}\n`;
-    out += `最終更新: ${db.latestAt}\n`;
-    out += `最終ID: ${db.latestId}\n\n`;
-
-    out += `■ URL QUICK LINKS\n`;
-    out += `RESET_URL: ${_buildUrl({ reset: 'sw', b: build })}\n`;
-    out += `NORMAL_URL: ${_buildUrl({ reset: null, b: build })}\n`;
-
+    out += `■ DB（端末内 / window.db）\n購入件数: ${db.purchasesCount}\n商品件数: ${db.productsCount}\n最終更新: ${db.latestAt}\n最終ID: ${db.latestId}\n\n`;
+    out += `■ URL QUICK LINKS\nRESET_URL: ${buildUrl({reset:'sw', b: build})}\nNORMAL_URL: ${buildUrl({reset:null, b: build})}\n`;
     return out;
   }
 
-  async function _renderCardsNoFb() {
-    const box = _ensureCardsContainer();
-    if (!box) {
-      _toast('表示領域が見つかりませんでした');
-      return;
-    }
+  function row(k,v){ return `<div class="sp-row"><div class="sp-k">${k}</div><div class="sp-v">${v}</div></div>`; }
+  function card(title, rows){ return `<div class="sp-card"><div class="title">${title}</div>${rows}</div>`; }
 
-    const build = _getBuild();
-    const ver = _getVersion();
-    const device = _deviceInfo();
-    const swc = await _swCacheInfo();
-    const ls = _localStorageInfo();
-    const db = _dbInfo();
+  async function renderCards(container){
+    const build = getBuild();
+    const ver = getVersion();
+    const device = deviceInfo();
+    const swc = await swCacheInfo();
+    const ls = localStorageInfo();
+    const db = dbInfo();
 
-    const vCard = _card('VERSION', 
-      _row('VERSION', ver) +
-      _row('BUILD(b)', build) +
-      _row('PATH', location.pathname) +
-      _row('URL', location.href)
+    let html='';
+    html += card('VERSION', 
+      row('VERSION', ver) +
+      row('BUILD(b)', build) +
+      row('PATH', location.pathname) +
+      row('URL', location.href)
     );
 
-    const dCard = _card('DEVICE',
-      _row('viewport', `${device.viewport} (dpr=${device.dpr})`) +
-      _row('display-mode', device.displayMode) +
-      _row('lang', device.lang) +
-      _row('platform', device.platform) +
-      _row('cpu / mem', `${device.hardwareConcurrency} / ${device.deviceMemory}`) +
-      _row('ua', device.ua)
+    html += card('DEVICE',
+      row('viewport', `${device.viewport} (dpr=${device.dpr})`) +
+      row('display-mode', device.displayMode) +
+      row('lang', device.lang) +
+      row('platform', device.platform) +
+      row('cpu / mem', `${device.hardwareConcurrency} / ${device.deviceMemory}`) +
+      row('ua', device.ua)
     );
 
-    const sCard = _card('SW / CACHE',
-      _row('SW登録数', swc.swCount) +
-      _row('SW scope', (swc.swScopes && swc.swScopes.length) ? swc.swScopes.join(' | ') : '-') +
-      _row('Cache数', swc.cacheCount) +
-      _row('Cache名', (swc.cacheNames && swc.cacheNames.length) ? swc.cacheNames.join(' | ') : '-')
+    html += card('SW / CACHE',
+      row('SW登録数', swc.swCount) +
+      row('SW scope', (swc.swScopes && swc.swScopes.length) ? swc.swScopes.join(' | ') : '-') +
+      row('Cache数', swc.cacheCount) +
+      row('Cache名', (swc.cacheNames && swc.cacheNames.length) ? swc.cacheNames.join(' | ') : '-')
     );
 
-    let lsRows = '';
-    if (!ls.ok) {
-      lsRows = _row('取得', 'ERROR');
-    } else {
-      lsRows += _row('総文字数', String(ls.total));
+    let lsRows='';
+    if (!ls.ok) lsRows = row('取得', 'ERROR');
+    else {
+      lsRows += row('総文字数', String(ls.total));
       const top = ls.list.slice(0, 8);
-      for (const item of top) {
-        lsRows += _row(item.key, String(item.size));
-      }
-      if (ls.list.length > top.length) {
-        lsRows += _row('他', `+${ls.list.length - top.length} 件`);
-      }
+      for (const item of top) lsRows += row(item.key, String(item.size));
+      if (ls.list.length > top.length) lsRows += row('他', `+${ls.list.length-top.length} 件`);
     }
-    const lCard = _card('LOCAL STORAGE（上位のみ）', lsRows);
+    html += card('LOCAL STORAGE（上位のみ）', lsRows);
 
-    const bCard = _card('DB（端末内 / window.db）',
-      _row('購入件数', db.purchasesCount) +
-      _row('商品件数', db.productsCount) +
-      _row('最終更新', db.latestAt) +
-      _row('最終ID', db.latestId)
+    html += card('DB（端末内 / window.db）',
+      row('購入件数', db.purchasesCount) +
+      row('商品件数', db.productsCount) +
+      row('最終更新', db.latestAt) +
+      row('最終ID', db.latestId)
     );
 
-    const uCard = _card('URL QUICK LINKS',
-      _row('RESET_URL', _buildUrl({ reset:'sw', b: build })) +
-      _row('NORMAL_URL', _buildUrl({ reset:null, b: build }))
+    html += card('URL QUICK LINKS',
+      row('RESET_URL', buildUrl({reset:'sw', b: build})) +
+      row('NORMAL_URL', buildUrl({reset:null, b: build}))
     );
 
-    box.innerHTML = `
-      <div class="text-secondary mb-2" style="font-size:12px;">生成日時: ${_nowJP()}</div>
-      ${vCard}${dCard}${sCard}${lCard}${bCard}${uCard}
-    `;
-    _toast('診断カードを表示しました');
+    container.innerHTML = html;
   }
 
-  // ====== public (called from buttons) ======
-  window.spAdminCopyCurrentUrl = async function() {
-    const u = _buildUrl({});
-    const ok = await _copy(u);
-    if (!ok) _setSelfcheckLog(u);
-  };
+  function openModal(){
+    document.getElementById('sp-adminmodal-backdrop')?.remove();
+    document.getElementById('sp-adminmodal')?.remove();
 
-  window.spAdminCopyResetUrl = async function() {
-    const u = _buildUrl({ reset: 'sw', b: _getBuild() });
-    const ok = await _copy(u);
-    if (!ok) _setSelfcheckLog(u);
-  };
+    const bd = document.createElement('div');
+    bd.id = 'sp-adminmodal-backdrop';
+    bd.className = 'sp-adminmodal-backdrop';
 
-  window.spAdminCopyDiagNoFb = async function() {
-    const text = await _buildDiagTextNoFb();
-    _setSelfcheckLog(text);
-    await _copy(text);
-  };
+    const modal = document.createElement('div');
+    modal.id = 'sp-adminmodal';
+    modal.className = 'sp-adminmodal';
+    modal.innerHTML = `
+      <h3>管理者診断（Firebaseなし）</h3>
+      <div class="meta">日時: ${nowJP()}<br>BUILD: ${getBuild()} / VERSION: ${getVersion()}</div>
 
-  window.spAdminShowDiagCardsNoFb = async function() {
-    await _renderCardsNoFb();
-  };
+      <div class="sp-btnbar">
+        <button class="sp-btn warn" id="sp-btn-cards">カード更新</button>
+        <button class="sp-btn" id="sp-btn-copylog">ログコピー</button>
+      </div>
+      <div class="sp-btnbar">
+        <button class="sp-btn" id="sp-btn-copyurl">URLコピー</button>
+        <button class="sp-btn" id="sp-btn-copyreset">SW解除URL</button>
+      </div>
+
+      <div id="sp-cards"></div>
+
+      <div class="meta" style="margin-top:10px;">※コピーできない端末は、下の欄を長押しコピーでOK</div>
+      <textarea id="sp-log" class="sp-textarea" readonly></textarea>
+
+      <div class="sp-btnbar">
+        <button class="sp-btn" id="sp-btn-close">閉じる</button>
+      </div>
+    `;
+
+    document.body.appendChild(bd);
+    document.body.appendChild(modal);
+
+    const close = ()=>{ bd.remove(); modal.remove(); };
+    bd.addEventListener('click', close);
+    modal.querySelector('#sp-btn-close').addEventListener('click', close);
+
+    modal.querySelector('#sp-btn-copyurl').addEventListener('click', async()=>{
+      const u = buildUrl({});
+      const ok = await copy(u);
+      if (!ok) modal.querySelector('#sp-log').value = u;
+    });
+    modal.querySelector('#sp-btn-copyreset').addEventListener('click', async()=>{
+      const u = buildUrl({reset:'sw', b:getBuild()});
+      const ok = await copy(u);
+      if (!ok) modal.querySelector('#sp-log').value = u;
+    });
+    modal.querySelector('#sp-btn-copylog').addEventListener('click', async()=>{
+      const t = await buildDiagText();
+      modal.querySelector('#sp-log').value = t;
+      await copy(t);
+    });
+    modal.querySelector('#sp-btn-cards').addEventListener('click', async()=>{
+      const box = modal.querySelector('#sp-cards');
+      await renderCards(box);
+      const t = await buildDiagText();
+      modal.querySelector('#sp-log').value = t;
+    });
+
+    modal.querySelector('#sp-btn-cards').click();
+  }
+
+  function ensureFab(){
+    if (!isAdmin()) return;
+    if (document.getElementById('sp-adminfab')) return;
+
+    const fab = document.createElement('div');
+    fab.id = 'sp-adminfab';
+    fab.className = 'sp-adminfab';
+    fab.innerHTML = '<small>診断</small>';
+    fab.addEventListener('click', openModal);
+    document.body.appendChild(fab);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureFab);
+  } else {
+    ensureFab();
+  }
 })();
 </script>
 
