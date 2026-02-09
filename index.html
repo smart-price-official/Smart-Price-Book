@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-07_1830_settings-unified
+BUILD_PARAM(b): ?b=2026-02-09_2318_fix01
 DEBUG_PARAM: &debug=1　
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,12 +22,17 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.43</title>
+  <title>Smart Price v19.9.44</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.43';
-    window.APP_VERSION = 'v19.9.43';
+    window.VERSION_INFO = 'v19.9.44';
+    window.APP_VERSION  = 'v19.9.44';
     window.FULL_VERSION = 'v19.9.43 [0207]';
+// VERSION SSOT (Single Source of Truth)
+window.VERSION_SSOT = 'v19.9.44';
+window.BUILD_SSOT   = '2026-02-09_2318_fix01';
+window.AUTHOR_SSOT  = 'YUI';
+
     window.BUILD_ID = '2026-02-07_1830_settings-unified';
   </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
