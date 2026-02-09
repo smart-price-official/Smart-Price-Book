@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.43
+VERSION: v19.9.44
 DATE(JST): 2026-02-07 18:30
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
@@ -27,14 +27,15 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <script>
     window.VERSION_INFO = 'v19.9.44';
     window.APP_VERSION  = 'v19.9.44';
-    window.FULL_VERSION = 'v19.9.43 [0207]';
+    window.FULL_VERSION = 'v19.9.44 [0207]';
 // VERSION SSOT (Single Source of Truth)
 window.VERSION_SSOT = 'v19.9.44';
 window.BUILD_SSOT   = '2026-02-09_2318_fix01';
 window.AUTHOR_SSOT  = 'YUI';
 
-    window.BUILD_ID = '2026-02-07_1830_settings-unified';
-  </script>
+    window.BUILD_ID     = '2026-02-10_0000_fix02';
+  window.BUILD_AT_JST = '2026-02-10 00:00 JST';
+</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -271,7 +272,7 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.43</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.44</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -545,8 +546,8 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.43"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.43 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.44"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.44 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-07_1830_settings-unified"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5598,7 +5599,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.43 / 2026-02-07_1830_settings-unified) === */
+/* === Smart Price Settings Unified Patch (v19.9.44 / 2026-02-07_1830_settings-unified) === */
 (function () {
   "use strict";
 
@@ -6252,7 +6253,7 @@ if ("serviceWorker" in navigator) {
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.43'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.44'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6274,7 +6275,7 @@ if ("serviceWorker" in navigator) {
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.43');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.44');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
