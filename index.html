@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.47
+VERSION: v19.9.48
 P26-02-10 00:43
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-10_0054_fix05
+BUILD_PARAM(b): ?b=2026-02-11_1910_fix05
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,18 +22,18 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.47 [0207]</title>
+  <title>Smart Price v19.9.48 [0207]</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.47';
-    window.APP_VERSION = 'v19.9.47';
-    window.FULL_VERSION = 'v19.9.47 [0207]';
+    window.VERSION_INFO = 'v19.9.48';
+    window.APP_VERSION = 'v19.9.48';
+    window.FULL_VERSION = 'v19.9.48 [0207]';
 // VERSION SSOT (Single Source of Truth)
-window.VERSION_SSOT = 'v19.9.47';
+window.VERSION_SSOT = 'v19.9.46';
 window.BUILD_SSOT   = '2026-02-09_2318_fix01';
 window.AUTHOR_SSOT  = 'YUI';
 
-    window.BUILD_ID = '2026-02-10_0054_fix05';
+    window.BUILD_ID = '2026-02-11_1910_fix05';
   window.BUILD_AT_JST = '2026-02-10 00:00 JST';
 </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -288,7 +288,7 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.47</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.46</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -387,25 +387,27 @@ window.AUTHOR_SSOT  = 'YUI';
   <div class="modal-content">
     <h5 class="text-white mb-4 text-center">設定</h5>
 
-    <div class="mb-3" id="settingsMainPanel">
+    <div class="mb-3">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="">
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：、つくば市">
       <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
       <div id="city-history-chips" class="city-chips"></div>
-
-      <div class="mt-3">
-        <button id="btnSettingsReferral" class="btn btn-outline-secondary w-100 mb-2">① 友人紹介</button>
-        <button id="btnSettingsFamily" class="btn btn-outline-secondary w-100 mb-2">② 家族共有</button>
-        <button id="btnSettingsSupport" class="btn btn-outline-secondary w-100 mb-2">③ 運営者へ質問／不具合報告</button>
-        <button id="btnSettingsAdmin" class="btn btn-outline-secondary w-100 mb-2">④ 管理メニュー</button>
-      </div>
     </div>
 
-    <!-- ① 友人紹介 -->
-    <div class="mb-3" id="settingsPanelReferral" style="display:none;">
-      <button class="btn btn-sm btn-outline-secondary mb-2" id="btnSettingsBackFromReferral">戻る</button>
-      <div class="small text-secondary mb-2">友人紹介</div>
-      <div class="mt-2">
+    <div id="settingsMainMenu" class="mt-3">
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelReferral">① 友人紹介</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelFamily">② 家族共有</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelSupport">③ 運営者へ質問／不具合報告</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelOperator">④ 管理メニュー</button>
+        </div>
+      </div>
+
+      <div id="panelReferral" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">
+          この「紹介リンク」を友人に送ってください。友人が開くと、あなたの紹介IDが記録されます。
+        </div>
+        <div class="mt-2">
         <div class="small text-secondary mb-1">あなたの紹介ID</div>
         <div class="d-flex gap-2 mb-2">
           <input id="ref-my-id" class="form-control bg-dark text-white border-secondary" readonly>
@@ -420,14 +422,7 @@ window.AUTHOR_SSOT  = 'YUI';
           <button class="btn btn-danger flex-grow-1" onclick="spShareReferral()">共有</button>
         </div>
 
-        <div class="small text-secondary mb-1">
-    </div>
-
-    <!-- ② 家族共有 -->
-    <div class="mb-3" id="settingsPanelFamily" style="display:none;">
-      <button class="btn btn-sm btn-outline-secondary mb-2" id="btnSettingsBackFromFamily">戻る</button>
-      <div class="small text-secondary mb-2">家族共有</div>
-      家族共有コード（任意）</div>
+        <div class="small text-secondary mb-1">家族共有コード（任意）</div>
         <div class="d-flex gap-2 mb-2">
           <input id="family-code-input" class="form-control bg-dark text-white border-secondary" placeholder="例：FAMILY-001">
           <button class="btn btn-warning" onclick="spSaveFamilyCode()">保存</button>
@@ -436,13 +431,32 @@ window.AUTHOR_SSOT  = 'YUI';
 
         <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
       </div>
-    </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
 
-    <!-- ③ 運営者へ質問／不具合報告 -->
-    <div class="mb-3" id="settingsPanelSupport" style="display:none;">
-      <button class="btn btn-sm btn-outline-secondary mb-2" id="btnSettingsBackFromSupport">戻る</button>
-      <div class="small text-secondary mb-2">運営者へ質問／不具合報告</div>
-      <div class="mt-2">
+      <div id="panelFamily" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">
+          同じ購入データを別の端末でも使いたいときは、ここで「共有ID」を使います（準備中のため、まずは画面だけ整えています）。
+        </div>
+        <label class="small text-secondary">共有ID（相手のIDを貼り付け）</label>
+        <input id="family-share-id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：AB12CD（半角）">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="family-hide-purchases">
+          <label class="form-check-label small text-secondary" for="family-hide-purchases">購入商品を隠す（家族共有用／準備中）</label>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-secondary" id="familySaveBtn">保存</button>
+        </div>
+        <div id="familyMsg" class="small text-secondary mt-2"></div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
+
+      <div id="panelSupport" class="sp-panel mt-3" style="display:none;">
+        <div class="mt-2">
         <label class="small text-secondary">症状（何が起きたか）</label>
         <textarea id="support-symptom" class="form-control bg-dark text-white border-secondary mb-2" rows="3" placeholder="例：バーコード読み込み後、商品名が違う…"></textarea>
 
@@ -474,13 +488,23 @@ window.AUTHOR_SSOT  = 'YUI';
 
         <div class="hint" style="margin:0;">※コピーした文章に、必要ならスクショも添えて送ってください。</div>
       </div>
-    </div>
+        <div class="d-grid gap-2 mt-2">
+          <button type="button" class="btn btn-outline-secondary" id="supportDiagnoseBtn">不具合の検出（情報を埋める）</button>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
 
-    <!-- ④ 管理メニュー -->
-    <div class="mb-3" id="settingsPanelAdmin" style="display:none;">
-      <button class="btn btn-sm btn-outline-secondary mb-2" id="btnSettingsBackFromAdmin">戻る</button>
-      <div class="small text-secondary mb-2">管理メニュー</div>
-      <div class="mt-2">
+      <div id="panelOperator" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
+        <div class="d-flex gap-2 mb-2">
+          <input id="operatorPass" type="password" class="form-control bg-dark text-white border-secondary" placeholder="パスワード">
+          <button type="button" class="btn btn-secondary" id="operatorUnlockBtn">開く</button>
+        </div>
+        <div id="operatorPassMsg" class="small text-secondary mb-2"></div>
+        <div id="operatorPanelBody" style="display:none;">
+          <div class="mt-2">
         <div id="operatorNote" class="hint mb-2">※運営者モード（URLに <b>&amp;mode=admin</b> ）で有効化されます。</div>
 
         <div id="operatorEnabled" style="display:none;">
@@ -498,13 +522,22 @@ window.AUTHOR_SSOT  = 'YUI';
               <div id="admin-unconfirmed-list" class="small"></div>
               <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
             </div>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+    <div id="debugBackupButtons" style="display:none;">
+      <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
+      <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
     </div>
-
-    <button class="btn btn-warning w-100 mt-2" onclick="saveHomeSettings()">設定保存と同期</button>
-    <button class="btn btn-secondary w-100 mt-2" onclick="openWeb()">ブラウザ版へ（URL表示）</button>
-    <button class="btn btn-outline-light w-100 mt-2" onclick="closeSettings()">閉じる</button>
+    <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
   </div>
 </div>
+
+</div>
+
 <div id="webModal" class="modal">
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">ブラウザ版（URL）</h5>
@@ -556,8 +589,8 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.47"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.47 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.46"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.46 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-07_1830_settings-unified"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5607,7 +5640,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.47 / 2026-02-07_1830_settings-unified) === */
+/* === Smart Price Settings Unified Patch (v19.9.46 / 2026-02-07_1830_settings-unified) === */
 (function () {
   "use strict";
 
@@ -6168,54 +6201,6 @@ function spMaybeUnlockAdmin(ev){
   };
 
   // --- Settings UI wiring ---
-  function spOpenSettingsMain() {
-    const main = document.getElementById('settingsMainPanel');
-    const p1 = document.getElementById('settingsPanelReferral');
-    const p2 = document.getElementById('settingsPanelFamily');
-    const p3 = document.getElementById('settingsPanelSupport');
-    const p4 = document.getElementById('settingsPanelAdmin');
-    if (main) main.style.display = '';
-    if (p1) p1.style.display = 'none';
-    if (p2) p2.style.display = 'none';
-    if (p3) p3.style.display = 'none';
-    if (p4) p4.style.display = 'none';
-  }
-
-  function spShowSettingsPanel(which) {
-    spOpenSettingsMain();
-    const main = document.getElementById('settingsMainPanel');
-    if (main) main.style.display = 'none';
-    const map = {
-      referral: 'settingsPanelReferral',
-      family: 'settingsPanelFamily',
-      support: 'settingsPanelSupport',
-      admin: 'settingsPanelAdmin',
-    };
-    const id = map[which];
-    const el = id ? document.getElementById(id) : null;
-    if (el) el.style.display = '';
-  }
-
-  function spBindSettingsNavOnce() {
-    if (window.__sp_settingsNavBound) return;
-    window.__sp_settingsNavBound = true;
-
-    const bind = (id, fn) => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('click', fn);
-    };
-
-    bind('btnSettingsReferral', () => spShowSettingsPanel('referral'));
-    bind('btnSettingsFamily', () => spShowSettingsPanel('family'));
-    bind('btnSettingsSupport', () => spShowSettingsPanel('support'));
-    bind('btnSettingsAdmin', () => spShowSettingsPanel('admin'));
-
-    bind('btnSettingsBackFromReferral', spOpenSettingsMain);
-    bind('btnSettingsBackFromFamily', spOpenSettingsMain);
-    bind('btnSettingsBackFromSupport', spOpenSettingsMain);
-    bind('btnSettingsBackFromAdmin', spOpenSettingsMain);
-  }
-
   function spSetupSettingsUnified() {
     // Referral UI
     const myId = spGetOrCreateMyRef();
@@ -6271,8 +6256,6 @@ function spMaybeUnlockAdmin(ev){
     }
     try {
       spSetupSettingsUnified();
-    spBindSettingsNavOnce();
-    spOpenSettingsMain();
     } catch(e) {
       console.warn('[spSetupSettingsUnified] failed', e);
     }
@@ -6330,7 +6313,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.47'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.46'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6352,7 +6335,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.47');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.46');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6444,6 +6427,158 @@ function spMaybeUnlockAdmin(ev){
 })();
 </script>
 <!-- /DEBUG PANEL v4 -->
+
+
+<script>
+/* PATCH: v19.9.48 / 2026-02-11_1910_fix05 — settings menu panels + diagnostics + OS detect + remove sample city */
+(function(){
+  const VERSION_SSOT = "v19.9.48";
+  const BUILD_SSOT = "2026-02-11_1910_fix05";
+  function q(sel, root=document){ return root.querySelector(sel); }
+  function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  function detectWindows11() {
+    // Windows 10 and 11 often show "Windows NT 10.0" in UA.
+    // If UA-CH is available, platformVersion >= 13 is Windows 11.
+    const uaData = navigator.userAgentData;
+    if (uaData && uaData.platform === "Windows" && uaData.getHighEntropyValues) {
+      return uaData.getHighEntropyValues(["platformVersion"]).then(v => {
+        const pv = (v && v.platformVersion) ? String(v.platformVersion) : "";
+        const major = parseInt(pv.split(".")[0] || "0", 10);
+        if (major >= 13) return "Windows 11";
+        return "Windows 10";
+      }).catch(()=> "Windows");
+    }
+    const ua = navigator.userAgent || "";
+    if (/Windows/i.test(ua)) return "Windows";
+    if (/Android/i.test(ua)) return "Android";
+    if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+    if (/Mac OS X/i.test(ua)) return "macOS";
+    return "不明";
+  }
+
+  function buildDiagSummary() {
+    try {
+      const lsKeys = Object.keys(localStorage||{});
+      const safeKeys = lsKeys.slice(0, 200);
+      const st = {
+        kind: "SmartPriceDiag",
+        version: (window.VERSION_INFO||window.APP_VERSION||VERSION_SSOT||""),
+        build: (window.BUILD_ID||BUILD_SSOT||""),
+        atJST: new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+        url: location.href,
+        path: location.pathname,
+        localStorageKeys: safeKeys.length,
+        localStorageHasDB: !!localStorage.getItem("smart_price_db"),
+        swControlled: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+      };
+      return JSON.stringify(st, null, 2);
+    } catch(e) {
+      return "診断情報の生成に失敗しました: " + (e && e.message ? e.message : e);
+    }
+  }
+
+  function showPanel(panelId) {
+    const main = q("#settingsMainMenu");
+    if (main) main.style.display = "none";
+    qa(".sp-panel").forEach(el => el.style.display = "none");
+    const p = q("#"+panelId);
+    if (p) p.style.display = "";
+  }
+
+  function showMain() {
+    qa(".sp-panel").forEach(el => el.style.display = "none");
+    const main = q("#settingsMainMenu");
+    if (main) main.style.display = "";
+  }
+
+  function bindSettingsMenu() {
+    qa(".sp-menu-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const pid = btn.getAttribute("data-panel");
+        if (pid) showPanel(pid);
+      });
+    });
+    qa(".sp-back-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        showMain();
+      });
+    });
+
+    // Remove sample city remnants and do not keep sample in storage
+    try {
+      const key = "life_area_city";
+      const v = localStorage.getItem(key);
+      if (v && v.trim() === "") localStorage.removeItem(key);
+      if (v && /土浦市|つくば市/.test(v)) {
+        localStorage.removeItem(key);
+      }
+    } catch(e){}
+
+    const lifeInput = q("#lifeAreaCityInput");
+    if (lifeInput) {
+      if (/土浦市|つくば市/.test(lifeInput.value||"")) lifeInput.value = "";
+      if (!lifeInput.getAttribute("placeholder")) lifeInput.setAttribute("placeholder","市名を入力");
+    }
+
+    // Support: fix OS label
+    const osEl = q("#supportOS");
+    detectWindows11().then(osName => {
+      if (osEl) osEl.value = osName;
+      const devEl = q("#supportDevice");
+      if (devEl && !devEl.value) devEl.value = (/Android|iOS/.test(osName) ? "Mobile" : "Windows PC");
+    });
+
+    // Support: diagnostics button
+    const diagBtn = q("#supportDiagnoseBtn");
+    if (diagBtn) {
+      diagBtn.addEventListener("click", () => {
+        const symptom = q("#supportSymptom");
+        if (symptom) {
+          const header = "■ 不具合の検出（自動）\n";
+          symptom.value = header + buildDiagSummary() + "\n\n" + (symptom.value||"");
+        }
+      });
+    }
+
+    // Operator password gate
+    const unlockBtn = q("#operatorUnlockBtn");
+    if (unlockBtn) {
+      unlockBtn.addEventListener("click", () => {
+        const pass = (q("#operatorPass")?.value||"").trim();
+        const msg = q("#operatorPassMsg");
+        const body = q("#operatorPanelBody");
+        if (pass === "55533557") {
+          if (msg) msg.textContent = "OK（管理メニューを表示します）";
+          if (body) body.style.display = "";
+        } else {
+          if (msg) msg.textContent = "パスワードが違います";
+          if (body) body.style.display = "none";
+        }
+      });
+    }
+
+    // Family share save placeholder (no data sync yet)
+    const famSave = q("#familySaveBtn");
+    if (famSave) {
+      famSave.addEventListener("click", () => {
+        const id = (q("#family-share-id")?.value||"").trim();
+        const hide = !!q("#family-hide-purchases")?.checked;
+        try {
+          localStorage.setItem("family_share_target", id);
+          localStorage.setItem("family_share_hide_purchases", hide ? "1":"0");
+        } catch(e){}
+        const msg = q("#familyMsg");
+        if (msg) msg.textContent = "保存しました（共有の実処理は次の段階で入れます）";
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bindSettingsMenu();
+  });
+})();
+</script>
 
 </body>
 </html>
