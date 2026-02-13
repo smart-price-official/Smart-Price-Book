@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.58
+VERSION: v19.9.59
 P26-02-13 16:15 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-13_1827_settingsnav-r4
+BUILD_PARAM(b): ?b=2026-02-13_1845_settingsnav-r5
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,14 +22,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.58</title>
+  <title>Smart Price v19.9.59</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.58';
-　window.APP_VERSION = 'v19.9.58';
-　window.FULL_VERSION = 'v19.9.58 [2026-02-13_1804_settingsnav-r3]';
+  window.VERSION_INFO = 'v19.9.59';
+　window.APP_VERSION = 'v19.9.59';
+　window.FULL_VERSION = 'v19.9.59 [2026-02-13_1804_settingsnav-r3]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.58) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.59) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -58,8 +58,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
               'Service Worker とキャッシュを削除しています。<br>自動で最新を読み込みます…' +
               '</div>';
             ov.appendChild(box);
-            document.documentElement.appendChild(ov);
-          } catch(e) {}
+            document.documentElement.appendChild(ov);  } catch(e) {}
         }
 
         (async function() {
@@ -349,7 +348,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.58 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.59 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -359,7 +358,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.58</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.59</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -660,8 +659,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.58"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.58 [2026-02-13_1615_buttonsfix]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.59"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.59 [2026-02-13_1615_buttonsfix]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-13_1615_buttonsfix"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5347,7 +5346,7 @@ function isQuotaError(e) {
   // ✅ Modal safety: 設定を開く前に他のパネルを閉じる
   try {
     var dp = document.getElementById('debug-panel');
-    if (dp) dp.classList.remove('show');
+    if (dp) { dp.classList.remove('show'); dp.style.display='none'; }
   } catch(e) {}
 
   clearToasts();
@@ -5400,7 +5399,7 @@ function isQuotaError(e) {
     var panels = qsa('.sp-settings-panel', root);
     panels.forEach(function(p){ p.style.display = 'none'; });
 
-    var menu = qs('#settingsMenu', root);
+    var menu = qs('#settingsMainMenu', root);
     if(menu) menu.style.display = (panelId ? 'none' : 'block');
 
     var back = qs('#sp-settings-back', root);
@@ -5504,13 +5503,13 @@ function openSettingsPatched() {
     }
 
     // Menu container
-    var menu = qs('#settingsMenu', root);
+    var menu = qs('#settingsMainMenu', root);
     if(!menu){
       // if existing menu container is missing, wrap buttons
       var btns = qsa('.sp-menu-btn', root);
       if(btns.length){
         menu = document.createElement('div');
-        menu.id = 'settingsMenu';
+        menu.id = 'settingsMainMenu';
         // insert before first panel
         var firstPanel = qs('.sp-settings-panel', root);
         if(firstPanel && firstPanel.parentNode){
@@ -5918,7 +5917,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.58 / 2026-02-07_2000_sw-reset) === */
+/* === Smart Price Settings Unified Patch (v19.9.59 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -6591,7 +6590,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.58'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.59'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6613,7 +6612,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.58');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.59');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6736,7 +6735,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.58
+  VERSION: v19.9.59
   AUTHOR: Yui
   DATE(JST): 2026-02-08 20:45 JST
   P26-02-08_2053_admin_overlay_tools_nofb
@@ -6801,7 +6800,7 @@ function spMaybeUnlockAdmin(ev){
     }
   }
 
-  // ===== v19.9.58+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
+  // ===== v19.9.59+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
   function _ensureDbFromLocalStorage() {
     try {
       if (!_dbEmpty(window.db)) return;
@@ -7016,7 +7015,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.58
+  VERSION: v19.9.59
   AUTHOR: Yui
   DATE(JST): 2026-02-08 20:53 JST
   BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
