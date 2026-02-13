@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.48
-P26-02-10 00:43
+VERSION: v19.9.52
+P26-02-08 20:45 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
 - 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-11_1910_fix05
+BUILD_PARAM(b): ?b=2026-02-08_2045_initfix_exportimport_nofb
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,20 +22,78 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.48 [0207]</title>
+  <title>Smart Price v19.9.53</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-    window.VERSION_INFO = 'v19.9.48';
-    window.APP_VERSION = 'v19.9.48';
-    window.FULL_VERSION = 'v19.9.48 [0207]';
-// VERSION SSOT (Single Source of Truth)
-window.VERSION_SSOT = 'v19.9.46';
-window.BUILD_SSOT   = '2026-02-09_2318_fix01';
-window.AUTHOR_SSOT  = 'YUI';
+  window.VERSION_INFO = 'v19.9.53';
+　window.APP_VERSION  = 'v19.9.53';
+　window.FULL_VERSION = 'v19.9.53 [2026-02-08_2045_initfix_exportimport_nofb]';
+  </script>
+  <!-- ✅ SW RESET TOOL (v19.9.45) : ?reset=sw -->
+  <script>
+  (function() {
+    try {
+      var params = new URLSearchParams(location.search);
+      if (params.get('reset') === 'sw') {
+        // remove reset to avoid loops
+        params.delete('reset');
+        var target = location.pathname + (params.toString() ? ('?' + params.toString()) : '');
+        var showMsg = params.has('debug');
 
-    window.BUILD_ID = '2026-02-11_1910_fix05';
-  window.BUILD_AT_JST = '2026-02-10 00:00 JST';
-</script>
+        function showOverlay() {
+          if (!showMsg) return;
+          try {
+            var ov = document.createElement('div');
+            ov.id = 'sw-reset-overlay';
+            ov.style.cssText =
+              'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;' +
+              'display:flex;align-items:center;justify-content:center;padding:24px;';
+            var box = document.createElement('div');
+            box.style.cssText =
+              'background:#1e1e1e;color:#fff;padding:22px 18px;border-radius:14px;' +
+              'border:2px solid #00c853;max-width:420px;width:100%;text-align:center;';
+            box.innerHTML =
+              '<div style="font-size:1.25rem;font-weight:700;margin-bottom:10px;">✅ 更新ツール実行中</div>' +
+              '<div style="color:#bbb;font-size:0.92rem;line-height:1.5;">' +
+              'Service Worker とキャッシュを削除しています。<br>自動で最新を読み込みます…' +
+              '</div>';
+            ov.appendChild(box);
+            document.documentElement.appendChild(ov);
+          } catch(e) {}
+        }
+
+        (async function() {
+          showOverlay();
+          try {
+            // 1) unregister SW
+            if ('serviceWorker' in navigator) {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              for (var i=0; i<regs.length; i++) {
+                try { await regs[i].unregister(); } catch(e) {}
+              }
+            }
+            // 2) delete caches
+            if (window.caches && caches.keys) {
+              var keys = await caches.keys();
+              for (var k=0; k<keys.length; k++) {
+                try { await caches.delete(keys[k]); } catch(e) {}
+              }
+            }
+          } catch(e) {
+            // no alert (UI_FREEZE). debug only: console
+            try { console.warn('[SW-RESET] failed', e); } catch(_e) {}
+          } finally {
+            // 3) redirect without reset
+            try { location.replace(target); } catch(e) { location.href = target; }
+          }
+        })();
+      }
+    } catch(e) {
+      // ignore
+    }
+  })();
+  </script>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -288,7 +346,7 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.46</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.45</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -589,9 +647,9 @@ window.AUTHOR_SSOT  = 'YUI';
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.46"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.46 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-07_1830_settings-unified"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  P26-02-08_2045_initfix_exportimport_nofb"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5640,7 +5698,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.46 / 2026-02-07_1830_settings-unified) === */
+/* === Smart Price Settings Unified Patch (v19.9.45 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -5741,7 +5799,7 @@ function spMaybeUnlockAdmin(ev){
     url.searchParams.delete('debug');
     url.searchParams.delete('mode');
     // ensure b exists
-    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_1830_settings-unified');
+    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_2000_sw-reset');
     return url.toString();
   }
 
@@ -5908,7 +5966,7 @@ function spMaybeUnlockAdmin(ev){
     const family = localStorage.getItem(LS_FAMILY) || '';
     const url = location.href;
     const version = window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || '';
-    const build = window.BUILD_ID || '2026-02-07_1830_settings-unified';
+    const build = window.BUILD_ID || '2026-02-07_2000_sw-reset';
     const ua = spUAInfo();
 
     const lines = [];
@@ -6173,7 +6231,7 @@ function spMaybeUnlockAdmin(ev){
     try {
       log.push('SELF CHECK (' + spNowISO() + ')');
       log.push('VERSION: ' + (window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || ''));
-      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_1830_settings-unified'));
+      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_2000_sw-reset'));
       log.push('MODE: ' + (spIsAdminMode() ? 'admin' : 'normal') + (spIsDebug() ? ' / debug' : ''));
       log.push('');
       // Config
@@ -6313,7 +6371,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.46'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.45'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6335,7 +6393,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.46');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.45');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6429,154 +6487,494 @@ function spMaybeUnlockAdmin(ev){
 <!-- /DEBUG PANEL v4 -->
 
 
+  <!-- ✅ BUILD/VERSION MISMATCH DETECTOR (debug=1 only) -->
+  <script>
+  (function() {
+    try {
+      window.addEventListener('load', function() {
+        var params = new URLSearchParams(location.search);
+        var urlBuild = params.get('b');
+        var buildId = window.BUILD_ID || '';
+        if (urlBuild && buildId && urlBuild !== buildId) {
+          try {
+            console.warn('[BUILD MISMATCH] url b=', urlBuild, ' actual=', buildId);
+          } catch(e) {}
+          if (params.has('debug') && typeof window.showDebugToast === 'function') {
+            window.showDebugToast('⚠️ 旧版の可能性: ?reset=sw を実行してください');
+          }
+        }
+      }, { once: true });
+    } catch(e) {}
+  })();
+  </script>
+
+<!--
+  Smart Price - Init Fix + Export/Import (NO FIREBASE)
+  VERSION: v19.9.52
+  AUTHOR: Yui
+  DATE(JST): 2026-02-08 20:45 JST
+  P26-02-08_2053_admin_overlay_tools_nofb
+  POLICY:
+  - Firebase/UID/接続先URLには触れない
+  - UI凍結：管理者モード（DEBUG PANEL）内にだけ機能追加
+-->
 <script>
-/* PATCH: v19.9.48 / 2026-02-11_1910_fix05 — settings menu panels + diagnostics + OS detect + remove sample city */
 (function(){
-  const VERSION_SSOT = "v19.9.48";
-  const BUILD_SSOT = "2026-02-11_1910_fix05";
-  function q(sel, root=document){ return root.querySelector(sel); }
-  function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+  'use strict';
 
-  function detectWindows11() {
-    // Windows 10 and 11 often show "Windows NT 10.0" in UA.
-    // If UA-CH is available, platformVersion >= 13 is Windows 11.
-    const uaData = navigator.userAgentData;
-    if (uaData && uaData.platform === "Windows" && uaData.getHighEntropyValues) {
-      return uaData.getHighEntropyValues(["platformVersion"]).then(v => {
-        const pv = (v && v.platformVersion) ? String(v.platformVersion) : "";
-        const major = parseInt(pv.split(".")[0] || "0", 10);
-        if (major >= 13) return "Windows 11";
-        return "Windows 10";
-      }).catch(()=> "Windows");
-    }
-    const ua = navigator.userAgent || "";
-    if (/Windows/i.test(ua)) return "Windows";
-    if (/Android/i.test(ua)) return "Android";
-    if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
-    if (/Mac OS X/i.test(ua)) return "macOS";
-    return "不明";
+  // ===== safe helpers =====
+  function _qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
+  function _getBuild(){ const p=_qs(); return p.get('b') || (window.BUILD_ID||'') || 'N/A'; }
+  function _getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
+  function _nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
+
+  function _toast(msg) {
+    try { if (typeof showToast === 'function') showToast(String(msg), 6000); } catch(e) {}
+    try { if (typeof debugLog === 'function') debugLog(String(msg)); } catch(e) {}
   }
 
-  function buildDiagSummary() {
+  async function _copy(text) {
     try {
-      const lsKeys = Object.keys(localStorage||{});
-      const safeKeys = lsKeys.slice(0, 200);
-      const st = {
-        kind: "SmartPriceDiag",
-        version: (window.VERSION_INFO||window.APP_VERSION||VERSION_SSOT||""),
-        build: (window.BUILD_ID||BUILD_SSOT||""),
-        atJST: new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
-        url: location.href,
-        path: location.pathname,
-        localStorageKeys: safeKeys.length,
-        localStorageHasDB: !!localStorage.getItem("smart_price_db"),
-        swControlled: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
-      };
-      return JSON.stringify(st, null, 2);
+      await navigator.clipboard.writeText(text);
+      _toast('コピーしました');
+      return true;
     } catch(e) {
-      return "診断情報の生成に失敗しました: " + (e && e.message ? e.message : e);
+      _toast('コピーできませんでした（下に表示した内容を長押しコピーしてください）');
+      return false;
     }
   }
 
-  function showPanel(panelId) {
-    const main = q("#settingsMainMenu");
-    if (main) main.style.display = "none";
-    qa(".sp-panel").forEach(el => el.style.display = "none");
-    const p = q("#"+panelId);
-    if (p) p.style.display = "";
+  function _buildUrl(edits) {
+    const u = new URL(location.href);
+    const p = u.searchParams;
+    if (edits && Object.prototype.hasOwnProperty.call(edits,'reset')) {
+      if (edits.reset === null) p.delete('reset'); else p.set('reset', String(edits.reset));
+    }
+    if (edits && Object.prototype.hasOwnProperty.call(edits,'b')) {
+      if (edits.b === null) p.delete('b'); else p.set('b', String(edits.b));
+    }
+    u.search = p.toString();
+    return u.toString();
   }
 
-  function showMain() {
-    qa(".sp-panel").forEach(el => el.style.display = "none");
-    const main = q("#settingsMainMenu");
-    if (main) main.style.display = "";
+  function _dbEmpty(db) {
+    if (!db) return true;
+    if (typeof db !== 'object') return true;
+    const keys = Object.keys(db);
+    if (!keys.length) return true;
+    const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
+    const prod = db.products && typeof db.products === 'object' ? Object.keys(db.products).length : 0;
+    return (p===0 && prod===0 && keys.length<=3);
   }
 
-  function bindSettingsMenu() {
-    qa(".sp-menu-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const pid = btn.getAttribute("data-panel");
-        if (pid) showPanel(pid);
-      });
-    });
-    qa(".sp-back-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        showMain();
-      });
-    });
-
-    // Remove sample city remnants and do not keep sample in storage
+  function _safeParse(jsonStr) {
     try {
-      const key = "life_area_city";
-      const v = localStorage.getItem(key);
-      if (v && v.trim() === "") localStorage.removeItem(key);
-      if (v && /土浦市|つくば市/.test(v)) {
-        localStorage.removeItem(key);
-      }
-    } catch(e){}
-
-    const lifeInput = q("#lifeAreaCityInput");
-    if (lifeInput) {
-      if (/土浦市|つくば市/.test(lifeInput.value||"")) lifeInput.value = "";
-      if (!lifeInput.getAttribute("placeholder")) lifeInput.setAttribute("placeholder","市名を入力");
-    }
-
-    // Support: fix OS label
-    const osEl = q("#supportOS");
-    detectWindows11().then(osName => {
-      if (osEl) osEl.value = osName;
-      const devEl = q("#supportDevice");
-      if (devEl && !devEl.value) devEl.value = (/Android|iOS/.test(osName) ? "Mobile" : "Windows PC");
-    });
-
-    // Support: diagnostics button
-    const diagBtn = q("#supportDiagnoseBtn");
-    if (diagBtn) {
-      diagBtn.addEventListener("click", () => {
-        const symptom = q("#supportSymptom");
-        if (symptom) {
-          const header = "■ 不具合の検出（自動）\n";
-          symptom.value = header + buildDiagSummary() + "\n\n" + (symptom.value||"");
-        }
-      });
-    }
-
-    // Operator password gate
-    const unlockBtn = q("#operatorUnlockBtn");
-    if (unlockBtn) {
-      unlockBtn.addEventListener("click", () => {
-        const pass = (q("#operatorPass")?.value||"").trim();
-        const msg = q("#operatorPassMsg");
-        const body = q("#operatorPanelBody");
-        if (pass === "55533557") {
-          if (msg) msg.textContent = "OK（管理メニューを表示します）";
-          if (body) body.style.display = "";
-        } else {
-          if (msg) msg.textContent = "パスワードが違います";
-          if (body) body.style.display = "none";
-        }
-      });
-    }
-
-    // Family share save placeholder (no data sync yet)
-    const famSave = q("#familySaveBtn");
-    if (famSave) {
-      famSave.addEventListener("click", () => {
-        const id = (q("#family-share-id")?.value||"").trim();
-        const hide = !!q("#family-hide-purchases")?.checked;
-        try {
-          localStorage.setItem("family_share_target", id);
-          localStorage.setItem("family_share_hide_purchases", hide ? "1":"0");
-        } catch(e){}
-        const msg = q("#familyMsg");
-        if (msg) msg.textContent = "保存しました（共有の実処理は次の段階で入れます）";
-      });
+      return { ok:true, value: JSON.parse(jsonStr) };
+    } catch(e) {
+      return { ok:false, error: String(e) };
     }
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    bindSettingsMenu();
+  // ===== v19.9.50+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
+  function _ensureDbFromLocalStorage() {
+    try {
+      if (!_dbEmpty(window.db)) return;
+      const dbStr = localStorage.getItem('smart_price_db');
+      if (dbStr) {
+        const parsed = _safeParse(dbStr);
+        if (parsed.ok && parsed.value && typeof parsed.value === 'object') {
+          window.db = parsed.value;
+          return;
+        }
+      }
+      // fallback
+      window.db = window.db || { products: {}, stores: {}, purchases: [] };
+    } catch(e) {
+      window.db = window.db || { products: {}, stores: {}, purchases: [] };
+    }
+  }
+
+  // ===== export/import (admin only) =====
+  function spAdminExportDb() {
+    const dbStr = localStorage.getItem('smart_price_db') || '';
+    const dataStr = localStorage.getItem('smart_price_data') || '';
+    const payload = {
+      kind: 'SmartPriceExport',
+      version: _getVersion(),
+      build: _getBuild(),
+      exportedAtJST: _nowJP(),
+      smart_price_db: dbStr,
+      smart_price_data: dataStr
+    };
+    const text = JSON.stringify(payload);
+    _showOut(text);
+    _copy(text);
+  }
+
+  function spAdminImportDbFromText(text) {
+    const parsed = _safeParse(text || '');
+    if (!parsed.ok) {
+      _toast('インポート失敗：JSONとして読めません');
+      return false;
+    }
+    const obj = parsed.value;
+    // 期待形式 or 生のsmart_price_db文字列
+    let dbStr = '';
+    let dataStr = '';
+    if (obj && obj.kind === 'SmartPriceExport') {
+      dbStr = String(obj.smart_price_db || '');
+      dataStr = String(obj.smart_price_data || '');
+    } else if (typeof obj === 'object' && obj.products && obj.purchases) {
+      dbStr = JSON.stringify(obj);
+    } else {
+      _toast('インポート失敗：形式が違います（Export文字列を貼ってください）');
+      return false;
+    }
+
+    if (!dbStr) {
+      _toast('インポート失敗：smart_price_db が空です');
+      return false;
+    }
+
+    // dbStr の中身がJSONとして壊れてないか確認
+    const dbParsed = _safeParse(dbStr);
+    if (!dbParsed.ok) {
+      _toast('インポート失敗：smart_price_db が壊れています');
+      return false;
+    }
+
+    try {
+      localStorage.setItem('smart_price_db', dbStr);
+      if (dataStr) localStorage.setItem('smart_price_data', dataStr);
+      window.db = dbParsed.value;
+      _toast('インポートOK：再描画します');
+      try { if (typeof renderHistory === 'function') renderHistory(); } catch(e) {}
+      return true;
+    } catch(e) {
+      _toast('インポート失敗：保存できませんでした');
+      return false;
+    }
+  }
+
+  // ===== diag text (no firebase) =====
+  async function spAdminBuildDiagText() {
+    let swCount='N/A', cacheCount='N/A';
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        swCount = regs.length;
+      }
+    } catch(e) { swCount='ERROR'; }
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        cacheCount = keys.length;
+      }
+    } catch(e) { cacheCount='ERROR'; }
+
+    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
+    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
+
+    let out = '';
+    out += '【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
+    out += '日時: ' + _nowJP() + '\n\n';
+    out += '■ VERSION\n';
+    out += 'VERSION: ' + _getVersion() + '\n';
+    out += 'BUILD(b): ' + _getBuild() + '\n';
+    out += 'URL: ' + location.href + '\n';
+    out += 'PATH: ' + location.pathname + '\n\n';
+    out += '■ SW/CACHE\n';
+    out += 'SW登録数: ' + swCount + '\n';
+    out += 'Cache数: ' + cacheCount + '\n\n';
+    out += '■ LOCAL STORAGE\n';
+    out += 'キー数: ' + keys + '\n';
+    out += 'smart_price_db: ' + (hasDb ? 'あり' : 'なし') + '\n\n';
+    out += '■ DB（端末内 / window.db）\n';
+    try {
+      const db = window.db || {};
+      const pc = Array.isArray(db.purchases) ? db.purchases.length : 0;
+      const prc = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
+      out += '購入件数: ' + pc + '\n';
+      out += '商品件数: ' + prc + '\n';
+    } catch(e) {
+      out += '購入件数: ERROR\n商品件数: ERROR\n';
+    }
+    out += '\n■ URL QUICK LINKS\n';
+    out += 'RESET_URL: ' + _buildUrl({ reset:'sw', b:_getBuild() }) + '\n';
+    out += 'NORMAL_URL: ' + _buildUrl({ reset:null, b:_getBuild() }) + '\n';
+    return out;
+  }
+
+  // ===== DEBUG PANEL injector =====
+  let _outEl = null;
+  let _inEl = null;
+
+  function _findDebugPanel() {
+    const known = document.querySelector('#debug-panel, #debugPanel, [data-debug-panel], .debug-panel');
+    if (known) return known;
+    const cand = document.querySelectorAll('div,section,aside,dialog');
+    for (const el of cand) {
+      if (el && el.textContent && el.textContent.indexOf('DEBUG PANEL') >= 0) return el;
+    }
+    return null;
+  }
+
+  function _showOut(text) {
+    if (_outEl) {
+      _outEl.style.display = 'block';
+      _outEl.value = String(text || '');
+    }
+  }
+
+  function _inject(panel) {
+    if (!panel) return false;
+    if (panel.querySelector('#sp-admin-tools-v1951')) return true;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'sp-admin-tools-v1951';
+    wrap.style.marginTop = '10px';
+    wrap.innerHTML =
+      '<div class="d-flex gap-2 mt-2">'
+      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-url">URLコピー</button>'
+      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-reset">SW解除URL</button>'
+      + '</div>'
+      + '<div class="d-flex gap-2 mt-2">'
+      + '<button class="btn btn-sm btn-warning w-100 fw-bold" id="sp-diag">診断ログをコピー</button>'
+      + '</div>'
+      + '<div class="d-flex gap-2 mt-2">'
+      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-export">DBエクスポート</button>'
+      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-import">DBインポート</button>'
+      + '</div>'
+      + '<textarea id="sp-in" class="form-control bg-dark text-white border-secondary mt-2" rows="4" '
+      + ' placeholder="ここに『DBエクスポート』の文字列を貼ってから、DBインポート" '
+      + ' style="white-space:pre-wrap;word-break:break-all;"></textarea>'
+      + '<textarea id="sp-out" class="form-control bg-dark text-white border-secondary mt-2" rows="6" readonly '
+      + ' style="display:none;white-space:pre-wrap;word-break:break-all;"></textarea>'
+      + '<div class="small text-secondary mt-1" style="opacity:.9;">'
+      + '※コピーできない端末は、下の欄を長押しコピーでOK。Firebaseは使いません。'
+      + '</div>';
+
+    panel.appendChild(wrap);
+    _outEl = wrap.querySelector('#sp-out');
+    _inEl = wrap.querySelector('#sp-in');
+
+    wrap.querySelector('#sp-url')?.addEventListener('click', async()=>{ const ok=await _copy(location.href); if(!ok)_showOut(location.href); });
+    wrap.querySelector('#sp-reset')?.addEventListener('click', async()=>{ const u=_buildUrl({reset:'sw', b:_getBuild()}); const ok=await _copy(u); if(!ok)_showOut(u); });
+    wrap.querySelector('#sp-diag')?.addEventListener('click', async()=>{ const t=await spAdminBuildDiagText(); _showOut(t); await _copy(t); });
+    wrap.querySelector('#sp-export')?.addEventListener('click', ()=> spAdminExportDb() );
+    wrap.querySelector('#sp-import')?.addEventListener('click', ()=> {
+      const text = (_inEl && _inEl.value) ? _inEl.value : '';
+      if (!text.trim()) { _toast('貼り付けが空です'); return; }
+      spAdminImportDbFromText(text.trim());
+    });
+
+    return true;
+  }
+
+  // expose minimal API for compatibility
+  window.spAdminExportDb = spAdminExportDb;
+  window.spAdminImportDbFromText = spAdminImportDbFromText;
+
+  // init fix should run early after load
+  document.addEventListener('DOMContentLoaded', function() {
+    _ensureDbFromLocalStorage();
   });
+
+  const mo = new MutationObserver(()=>{ const p=_findDebugPanel(); if(p) _inject(p); });
+  mo.observe(document.body, {childList:true, subtree:true});
+  const p0=_findDebugPanel(); if(p0) _inject(p0);
+
+})();
+</script>
+
+
+<!--
+  Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
+  VERSION: v19.9.52
+  AUTHOR: Yui
+  DATE(JST): 2026-02-08 20:53 JST
+  BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
+  POLICY:
+  - debug=1 のときだけ表示（通常UIは一切変更しない）
+  - Firebase/UID/接続先URLには触れない
+-->
+<script>
+(function(){
+  'use strict';
+  function qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
+  const P = qs();
+  const isDebug = (P.get('debug') === '1');
+  const isAdmin = (P.get('mode') === 'admin');
+  if (!isDebug || !isAdmin) return;
+
+  function nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
+  function getBuild(){ return P.get('b') || (window.BUILD_ID||'') || 'N/A'; }
+  function getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
+
+  function toast(msg){
+    try{ if (typeof showToast === 'function') showToast(String(msg), 6000); }catch(e){}
+    try{ if (typeof debugLog === 'function') debugLog(String(msg)); }catch(e){}
+  }
+
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(String(t)); toast('コピーしました'); return true; }
+    catch(e){ toast('コピーできません（下の欄を長押しコピー）'); return false; }
+  }
+
+  function safeParse(s){ try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, err:String(e)}; } }
+  function dbEmpty(db){
+    try{
+      if(!db||typeof db!=='object') return true;
+      const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
+      const pr = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
+      return (p===0 && pr===0);
+    }catch(e){ return true; }
+  }
+  function ensureDbFromLS(){
+    try{
+      if (!dbEmpty(window.db)) return;
+      const dbStr = localStorage.getItem('smart_price_db');
+      if (dbStr) {
+        const r = safeParse(dbStr);
+        if (r.ok && r.v && typeof r.v === 'object') {
+          window.db = r.v;
+          return;
+        }
+      }
+      window.db = window.db || {products: {}, stores: {}, purchases: []};
+    }catch(e){
+      window.db = window.db || {products: {}, stores: {}, purchases: []};
+    }
+  }
+
+  function buildUrlReset(){
+    const u = new URL(location.href);
+    u.searchParams.set('reset','sw');
+    u.searchParams.set('b', getBuild());
+    return u.toString();
+  }
+
+  function buildDiag(){
+    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
+    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
+    let out='';
+    out+='【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
+    out+='日時: '+nowJP()+'\n\n';
+    out+='■ VERSION\n';
+    out+='VERSION: '+getVersion()+'\n';
+    out+='BUILD(b): '+getBuild()+'\n';
+    out+='URL: '+location.href+'\n';
+    out+='PATH: '+location.pathname+'\n\n';
+    out+='■ LOCAL STORAGE\n';
+    out+='キー数: '+keys+'\n';
+    out+='smart_price_db: '+(hasDb?'あり':'なし')+'\n\n';
+    out+='■ DB（端末内 / window.db）\n';
+    try{
+      const db = window.db||{};
+      const pc = Array.isArray(db.purchases)?db.purchases.length:0;
+      const prc = db.products&&typeof db.products==='object'?Object.keys(db.products).length:0;
+      out+='購入件数: '+pc+'\n';
+      out+='商品件数: '+prc+'\n';
+    }catch(e){ out+='購入件数: ERROR\n商品件数: ERROR\n'; }
+    out+='\n■ URL QUICK LINKS\n';
+    out+='RESET_URL: '+buildUrlReset()+'\n';
+    out+='NORMAL_URL: '+(new URL(location.href)).toString()+'\n';
+    return out;
+  }
+
+  function exportPayload(){
+    const dbStr = localStorage.getItem('smart_price_db') || '';
+    const dataStr = localStorage.getItem('smart_price_data') || '';
+    const payload = {
+      kind:'SmartPriceExport',
+      version:getVersion(),
+      build:getBuild(),
+      exportedAtJST: nowJP(),
+      smart_price_db: dbStr,
+      smart_price_data: dataStr
+    };
+    return JSON.stringify(payload);
+  }
+
+  function importPayload(text){
+    const r = safeParse(text||'');
+    if(!r.ok){ toast('インポート失敗：JSONとして読めません'); return false; }
+    const obj=r.v;
+    let dbStr='', dataStr='';
+    if(obj && obj.kind==='SmartPriceExport'){ dbStr=String(obj.smart_price_db||''); dataStr=String(obj.smart_price_data||''); }
+    else if(obj && typeof obj==='object' && obj.products && obj.purchases){ dbStr=JSON.stringify(obj); }
+    else { toast('インポート失敗：形式が違います（Export文字列を貼ってください）'); return false; }
+
+    if(!dbStr){ toast('インポート失敗：smart_price_db が空'); return false; }
+    const dbCheck = safeParse(dbStr);
+    if(!dbCheck.ok){ toast('インポート失敗：smart_price_db が壊れてます'); return false; }
+
+    try{
+      localStorage.setItem('smart_price_db', dbStr);
+      if(dataStr) localStorage.setItem('smart_price_data', dataStr);
+      window.db = dbCheck.v;
+      toast('インポートOK：再描画します');
+      try{ if(typeof renderHistory==='function') renderHistory(); }catch(e){}
+      return true;
+    }catch(e){ toast('インポート失敗：保存できません'); return false; }
+  }
+
+  // overlay UI
+  const box = document.createElement('div');
+  box.id='sp-admin-overlay-tools';
+  box.style.position='fixed';
+  box.style.right='10px';
+  box.style.bottom='10px';
+  box.style.zIndex='99999';
+  box.style.width='min(360px, calc(100vw - 20px))';
+  box.style.background='rgba(0,0,0,0.82)';
+  box.style.border='1px solid rgba(255,255,255,0.25)';
+  box.style.borderRadius='12px';
+  box.style.padding='10px';
+  box.style.color='#fff';
+  box.style.fontSize='13px';
+  box.style.backdropFilter='blur(6px)';
+
+  box.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;">'
+    + '<div style="font-weight:700;">ADMIN TOOLS</div>'
+    + '<div style="opacity:.8;">(debug=1)</div>'
+    + '<button id="spov-close" style="margin-left:auto;border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;">×</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-url" style="flex:1;padding:8px;border-radius:10px;border:0;">URL</button>'
+    + '  <button id="spov-reset" style="flex:1;padding:8px;border-radius:10px;border:0;">SW解除URL</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-diag" style="flex:1;padding:8px;border-radius:10px;border:0;font-weight:700;">診断ログ</button>'
+    + '  <button id="spov-exp" style="flex:1;padding:8px;border-radius:10px;border:0;">EXPORT</button>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '  <button id="spov-imp" style="flex:1;padding:8px;border-radius:10px;border:0;">IMPORT</button>'
+    + '</div>'
+    + '<textarea id="spov-in" rows="3" placeholder="IMPORT用：ここにExport文字列を貼る" '
+    + ' style="margin-top:8px;width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
+    + '<textarea id="spov-out" rows="6" readonly '
+    + ' style="margin-top:8px;width:100%;display:none;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
+    + '<div style="margin-top:6px;opacity:.8;font-size:12px;">コピー不可なら下の欄を長押しコピーでOK</div>';
+
+  document.documentElement.appendChild(box);
+
+  const out = box.querySelector('#spov-out');
+  function showOut(t){ out.style.display='block'; out.value=String(t||''); }
+
+  box.querySelector('#spov-close').onclick=()=>{ box.remove(); };
+  box.querySelector('#spov-url').onclick=async()=>{ const ok=await copyText(location.href); if(!ok) showOut(location.href); };
+  box.querySelector('#spov-reset').onclick=async()=>{ const u=buildUrlReset(); const ok=await copyText(u); if(!ok) showOut(u); };
+  box.querySelector('#spov-diag').onclick=async()=>{ ensureDbFromLS(); const t=buildDiag(); showOut(t); await copyText(t); };
+  box.querySelector('#spov-exp').onclick=async()=>{ const t=exportPayload(); showOut(t); await copyText(t); };
+  box.querySelector('#spov-imp').onclick=()=>{
+    const t=(box.querySelector('#spov-in').value||'').trim();
+    if(!t){ toast('貼り付けが空'); return; }
+    ensureDbFromLS();
+    importPayload(t);
+  };
+
 })();
 </script>
 
