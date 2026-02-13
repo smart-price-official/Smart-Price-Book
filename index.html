@@ -346,7 +346,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.45</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">.9.45</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -647,8 +647,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.45"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.45 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = ".9.53"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.53 [0207]"; // デバッグ用（詳細） // デバッグ用（詳細）
   P26-02-08_2045_initfix_exportimport_nofb"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5698,7 +5698,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.45 / 2026-02-07_2000_sw-reset) === */
+/* === Smart Price Settings Unified Patch (v19.9.53 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -6371,7 +6371,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.45'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.53'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6393,7 +6393,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.45');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.53');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
