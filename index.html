@@ -325,7 +325,23 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     #debug-toggle-btn:active {
       transform: scale(0.95);
     }
-  </style>
+  
+  /* summaryをボタンっぽく見せる（UIは増やさず押しやすく） */
+  .sp-summary-btn{
+    list-style:none;
+    cursor:pointer;
+    padding:10px 12px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.10);
+    margin:6px 0;
+    user-select:none;
+  }
+  details[open] > .sp-summary-btn{
+    background:rgba(255,255,255,0.10);
+  }
+
+</style>
 </head>
 
 <body>
@@ -431,14 +447,25 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
     <div class="mb-3">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市、つくば市">
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：、つくば市">
       <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
       <div id="city-history-chips" class="city-chips"></div>
     </div>
 
-    <details id="referralDetails" class="mb-3">
-      <summary class="small text-secondary" style="cursor:pointer;">友人紹介／家族共有</summary>
-      <div class="mt-2">
+    <div id="settingsMainMenu" class="mt-3">
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelReferral">① 友人紹介</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelFamily">② 家族共有</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelSupport">③ 運営者へ質問／不具合報告</button>
+          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelOperator">④ 管理メニュー</button>
+        </div>
+      </div>
+
+      <div id="panelReferral" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">
+          この「紹介リンク」を友人に送ってください。友人が開くと、あなたの紹介IDが記録されます。
+        </div>
+        <div class="mt-2">
         <div class="small text-secondary mb-1">あなたの紹介ID</div>
         <div class="d-flex gap-2 mb-2">
           <input id="ref-my-id" class="form-control bg-dark text-white border-secondary" readonly>
@@ -462,11 +489,32 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
         <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
       </div>
-    </details>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
 
-    <details id="supportDetails" class="mb-3">
-      <summary class="small text-secondary" style="cursor:pointer;">運営者へ質問／不具合報告</summary>
-      <div class="mt-2">
+      <div id="panelFamily" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">
+          同じ購入データを別の端末でも使いたいときは、ここで「共有ID」を使います（準備中のため、まずは画面だけ整えています）。
+        </div>
+        <label class="small text-secondary">共有ID（相手のIDを貼り付け）</label>
+        <input id="family-share-id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：AB12CD（半角）">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="family-hide-purchases">
+          <label class="form-check-label small text-secondary" for="family-hide-purchases">購入商品を隠す（家族共有用／準備中）</label>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-secondary" id="familySaveBtn">保存</button>
+        </div>
+        <div id="familyMsg" class="small text-secondary mt-2"></div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
+
+      <div id="panelSupport" class="sp-panel mt-3" style="display:none;">
+        <div class="mt-2">
         <label class="small text-secondary">症状（何が起きたか）</label>
         <textarea id="support-symptom" class="form-control bg-dark text-white border-secondary mb-2" rows="3" placeholder="例：バーコード読み込み後、商品名が違う…"></textarea>
 
@@ -498,11 +546,23 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
         <div class="hint" style="margin:0;">※コピーした文章に、必要ならスクショも添えて送ってください。</div>
       </div>
-    </details>
+        <div class="d-grid gap-2 mt-2">
+          <button type="button" class="btn btn-outline-secondary" id="supportDiagnoseBtn">不具合の検出（情報を埋める）</button>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>
 
-    <details id="operatorDetails" class="mb-3">
-      <summary class="small text-secondary" style="cursor:pointer;">運営者メニュー</summary>
-      <div class="mt-2">
+      <div id="panelOperator" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
+        <div class="d-flex gap-2 mb-2">
+          <input id="operatorPass" type="password" class="form-control bg-dark text-white border-secondary" placeholder="パスワード">
+          <button type="button" class="btn btn-secondary" id="operatorUnlockBtn">開く</button>
+        </div>
+        <div id="operatorPassMsg" class="small text-secondary mb-2"></div>
+        <div id="operatorPanelBody" style="display:none;">
+          <div class="mt-2">
         <div id="operatorNote" class="hint mb-2">※運営者モード（URLに <b>&amp;mode=admin</b> ）で有効化されます。</div>
 
         <div id="operatorEnabled" style="display:none;">
@@ -520,28 +580,11 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
               <div id="admin-unconfirmed-list" class="small"></div>
               <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
             </div>
-          </details>
-
-          <details class="mb-2">
-            <summary class="small text-secondary" style="cursor:pointer;">お問い合わせ履歴</summary>
-            <div class="mt-2" id="admin-support-list" class="small"></div>
-          </details>
-
-          <details class="mb-2">
-            <summary class="small text-secondary" style="cursor:pointer;">検証ツール</summary>
-            <div class="mt-2">
-              <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="spRunSelfCheck()">検証する</button>
-              <textarea id="selfcheck-log" class="form-control bg-dark text-white border-secondary" rows="6" readonly></textarea>
-              <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-dark flex-grow-1" onclick="spCopy('selfcheck-log')">ログコピー</button>
-              </div>
-            </div>
-          </details>
         </div>
-      </div>
-    </details>
-
-    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </div>id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
@@ -845,12 +888,6 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     homeCities: [],
     customStores: [],
     storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
-  };
-
-  const CITY_STORE_PRESET = {
-    "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
-    "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
-    "東海村": ["カスミ東海店", "ヨークベニマル東海店", "イオン東海店"]
   };
 
   // ========= Image Store (IndexedDB) =========
@@ -1420,6 +1457,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
   let curBarcode = null, curStore = "未設定";
+  // 起動直後は必ず「未設定」から開始（前回選択を引きずらない）
+  let SP_BOOT_RESET_STORE = true;
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -2423,19 +2462,21 @@ function isQuotaError(e) {
       });
     }
     
-    const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
     const customStores = db.config.customStores || [];
     
     // ✅ 近隣店舗候補を統合（nearbyStoreNames）
     const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
-    
-    // ✅ 空なら プリセット + customStores を必ず表示
-    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
-    
-    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
-    if (curStore === "未設定" && finalSet.length > 1) {
-      curStore = finalSet[1]; // 「未設定」以外の最初の候補
-      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
+    // ✅ 候補を統合（未設定は先頭固定）
+    const storeNames = [...new Set([...manualPriority, ...customStores, ...nearbyStores, ...sortedFreq])]
+      .filter(s => s && s !== '未設定');
+    // ✅ 店名で並べる（日本語も自然順）
+    storeNames.sort((a,b)=> (a||'').localeCompare((b||''), 'ja'));
+    const finalSet = ['未設定', ...storeNames];
+
+    // ✅ 起動直後は「未設定」固定（前回選択を引きずらない）
+    if (window.SP_BOOT_RESET_STORE) {
+      curStore = '未設定';
+      window.SP_BOOT_RESET_STORE = false;
     }
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
@@ -5663,10 +5704,29 @@ if ("serviceWorker" in navigator) {
 
   // --- Helpers ---
   function spParams() { return new URLSearchParams(location.search); }
-  function spIsAdminMode() {
-    const p = spParams();
-    return p.get('mode') === 'admin';
+  function spIsAdminMode(){
+  try { return sessionStorage.getItem('sp_admin_unlocked') === '1'; } catch(e){ return false; }
+}
+
+function spMaybeUnlockAdmin(ev){
+  try {
+    if (spIsAdminMode()) return true;
+    if (ev && ev.preventDefault) ev.preventDefault();
+    const pass = prompt('運営者パスワードを入力してください');
+    if (pass === '55533557') {
+      try { sessionStorage.setItem('sp_admin_unlocked','1'); } catch(e) {}
+      showToast('運営者メニューを開きました', 3000);
+      // detailsを開く
+      const det = (ev && ev.target) ? ev.target.closest('details') : null;
+      if (det) det.open = true;
+      return false;
+    }
+    showToast('パスワードが違います', 3500);
+    return false;
+  } catch(e){
+    return true;
   }
+}
   function spIsDebug() {
     const p = spParams();
     return p.has('debug');
