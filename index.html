@@ -1,19 +1,69 @@
-<!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.61
-P26-02-13 16:15 JST
-TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
+FILE: Smart-Price-Book/index.html
+VERSION: v19.9.64
+FULL_VERSION: v19.9.64 [2026-02-13_2140_verify-r2]
+HEAD_COMMIT: （GitHubにpush後に確定）
+BASE_COMMIT: db76a27（v19.9.32）
+BUILD_ID: 2026-02-04_1003_toaststacknfig.json を追加（dev/config.jsonと同一内容）
+- ✅ loadConfig() を二段フォールバック版に置き換え
+  - root: ./config.json → 失敗時 ./dev/config.json
+  - dev/emergency: 従来通り ./config.json
+- ✅ VERSION表示を DOMContentLoaded で最優先実行（loadConfigより先）
+- ✅ loadConfig()失敗時も全停止せず続行（空設定で動作）
+- ✅ BOOT PROBE v3 既存（VERSION_INFO/TITLE分離 + config二段フォールバック診断）
 CHANGES:
-- 設定画面に「友人紹介／家族共有」「運営者へ質問／不具合報告」「運営者メニュー（admin時のみ）」を統合（UI_FREEZE: 画面追加なし）
-- Firebase URLは通常ユーザーに非表示、admin時のみ読み取り専用で表示
-- お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
-- 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
-- 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-13_1935_settingsnav-r6
+【P0: 商品情報・画像取得改善】
+- ✅ LocalStorageキャッシュ優先（共有DB暫定実装）:
+  - JAN検索時、最初にLocalStorageキャッシュをチェック
+  - キャッシュヒット時は即座にフォーム反映（Web検索スキップ）
+  - キャッシュ有効期限: 7日間
+- ✅ 取得順の最適化:
+  1. LocalStorageキャッシュ（共有DB暫定）
+  2. Yahoo Shopping API
+  3. 楽天API
+  4. Open Food Facts API
+  5. 「見つかりませんでした」表示
+- ✅ データ構造拡張:
+  - imageRefType 追加（ec / off / user）
+  - areaId 追加（エリアID、将来の共有DB用）
+  - キャッシュ保存時に自動付与
+- ✅ 画像取得ルール（厳守）:
+  - EC画像はURL参照のみ（コピー保存禁止）
+  - ユーザー撮影画像のみローカル保存可能
+- ✅ 箱買い対応:
+  - 除外しない（既存のスコア方式を継続）
+  - 候補ゼロ化を防止
+【P1: 招待コードでエリア作成】
+- ✅ URL招待コード読み取り:
+  - ?invite=XXXX を起動時に読み取り
+  - ユーザープロファイル（uid, areaId, invitedBy）を自動作成・更新
+- ✅ LocalStorage保存:
+  - smartPrice_userProfile（uid, areaId, invitedBy, createdAt）
+  - smartPrice_jan_[JAN]（商品情報キャッシュ）
+- ✅ UI変更なし（内部処理のみ）
+【その他】
+- ✅ ユーティリティ関数追加:
+  - generateUid() - ランダムUID生成
+  - getUserProfile() / setUserProfile() - ユーザープロファイル管理
+  - parseInviteCode() - URL招待コード読み取り
+  - getJanCache() / setJanCache() - JANキャッシュ管理
+AUTHOR: Rex
+BUILD_PARAM: ?b=2026-01-21_210000_p0-p1-product-invite
 DEBUG_PARAM: &debug=1
-POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
+POLICY: UI変更なし・スキャン周り一切触らない
+
+⚠️ PWAキャッシュ問題の対処法（実機でVERSIONが更新されない場合・定型手順）:
+1. まず確認するのは"UIのバージョン表示"（画面のVERSION/BUILDが古いまま＝キャッシュかURL違い）
+2. 通常タブで開く: ブラウザの通常タブで /?b=2026-01-21_210000_p0-p1-product-invite を開く
+3. だめならサイトデータ削除: 対象サイトのサイトデータを削除
+4. それでもだめならPWA削除→再追加:
+   - スマホのホーム画面からPWAを削除
+   - ブラウザで通常タブで開く
+   - メニューから「ホーム画面に追加」を選択して再追加
 -->
+
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -22,77 +72,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.63</title>
-  <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
-  <script>
-  window.VERSION_INFO = 'v19.9.61';
-　window.APP_VERSION = 'v19.9.61';
-　window.FULL_VERSION = 'v19.9.61 [2026-02-13_2005_settingsnav-r7]';
-  </script>
-  <!-- ✅ SW RESET TOOL (v19.9.61) : ?reset=sw -->
-  <script>
-  (function() {
-    try {
-      var params = new URLSearchParams(location.search);
-      if (params.get('reset') === 'sw') {
-        // remove reset to avoid loops
-        params.delete('reset');
-        var target = location.pathname + (params.toString() ? ('?' + params.toString()) : '');
-        var showMsg = params.has('debug');
-
-        function showOverlay() {
-          if (!showMsg) return;
-          try {
-            var ov = document.createElement('div');
-            ov.id = 'sw-reset-overlay';
-            ov.style.cssText =
-              'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;' +
-              'display:flex;align-items:center;justify-content:center;padding:24px;';
-            var box = document.createElement('div');
-            box.style.cssText =
-              'background:#1e1e1e;color:#fff;padding:22px 18px;border-radius:14px;' +
-              'border:2px solid #00c853;max-width:420px;width:100%;text-align:center;';
-            box.innerHTML =
-              '<div style="font-size:1.25rem;font-weight:700;margin-bottom:10px;">✅ 更新ツール実行中</div>' +
-              '<div style="color:#bbb;font-size:0.92rem;line-height:1.5;">' +
-              'Service Worker とキャッシュを削除しています。<br>自動で最新を読み込みます…' +
-              '</div>';
-            ov.appendChild(box);
-            document.documentElement.appendChild(ov);  } catch(e) {}
-        }
-
-        (async function() {
-          showOverlay();
-          try {
-            // 1) unregister SW
-            if ('serviceWorker' in navigator) {
-              var regs = await navigator.serviceWorker.getRegistrations();
-              for (var i=0; i<regs.length; i++) {
-                try { await regs[i].unregister(); } catch(e) {}
-              }
-            }
-            // 2) delete caches
-            if (window.caches && caches.keys) {
-              var keys = await caches.keys();
-              for (var k=0; k<keys.length; k++) {
-                try { await caches.delete(keys[k]); } catch(e) {}
-              }
-            }
-          } catch(e) {
-            // no alert (UI_FREEZE). debug only: console
-            try { console.warn('[SW-RESET] failed', e); } catch(_e) {}
-          } finally {
-            // 3) redirect without reset
-            try { location.replace(target); } catch(e) { location.href = target; }
-          }
-        })();
-      }
-    } catch(e) {
-      // ignore
-    }
-  })();
-  </script>
-
+  <title>Smart Price v19.9.64</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
@@ -194,40 +174,37 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
     .toast-container{
   position: fixed;
-  top: auto;
-  bottom: 110px; /* fallback */
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(92vw, 420px);
+  left: 12px;
+  right: 12px;
+  top: var(--toast-top, 280px);
   z-index: 5000;
-  pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  pointer-events: none;
+  max-height: calc(100vh - var(--toast-top, 280px) - 16px);
+  overflow: hidden;
 }
 .toast-item{
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
   background: rgba(50,50,50,0.95);
   color: #fff;
   padding: 10px 14px;
   border-radius: 14px;
-  font-size: 0.88rem;
-  line-height: 1.25;
+  font-size: 0.9rem;
   border: 1px solid #777;
   box-shadow: 0 4px 15px rgba(0,0,0,0.5);
   opacity: 0;
   transform: translateY(-6px);
   transition: opacity .18s ease, transform .18s ease;
+  line-height: 1.35;
   word-break: break-word;
-  white-space: pre-wrap;
 }
-.toast-item.show{
-  opacity: 1;
-  transform: translateY(0);
-}
-.toast-item.small{
-  font-size: 0.82rem;
-  padding: 9px 12px;
-}
+.toast-item.show{ opacity: 1; transform: translateY(0); }
+.toast-item.dim{ opacity: .92; }
+
 
     .city-chips { display: flex; overflow-x: auto; gap: 5px; padding: 5px 0; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
     .city-chip { font-size: 0.75rem; padding: 4px 12px; border-radius: 15px; background: #333; color: #ccc; border: 1px solid #555; white-space: nowrap; cursor: pointer; }
@@ -235,141 +212,88 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
     .url-box { font-size: 0.9rem; padding: 12px; border-radius: 12px; }
     .hint { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
+  </style>
 
-    /* ✅ デバッグパネル - 閉じるボタン付き、ドラッグ可能 */
-    #debug-panel {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 92%;
-      max-width: 820px;
-      background: rgba(0,0,0,0.92);
-      color: #9ff;
-      font: 11px/1.5 monospace;
-      padding: 10px 12px 12px 12px;
-      border-radius: 8px;
-      z-index: 99999;
-      border: 1px solid #ff5252;
-      box-shadow: 0 4px 20px rgba(255,0,0,0.3);
-      max-height: 60vh;
-      overflow-y: auto;
-      display: none;
-      pointer-events: none;
-    }
-    #debug-panel.show {
-      display: block;
-      pointer-events: auto;
-    }
-    #debug-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #444;
-    }
-    #debug-panel-title {
-      color: #ff5252;
-      font-weight: bold;
-      font-size: 12px;
-    }
-    #debug-panel-close {
-      background: #ff5252;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 2px 8px;
-      cursor: pointer;
-      font-size: 11px;
-      font-family: monospace;
-    }
-    #debug-panel-close:hover {
-      background: #ff1744;
-    }
-    #debug-panel-content {
-      font-size: 11px;
-    }
-    #debug-panel-content div {
-      margin-bottom: 2px;
-    }
-    #debug-panel-content b {
-      color: #ffeb3b;
+<!-- BOOT PROBE v3 (debug only / UI_FREEZE) -->
+  <script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('debug')) return;
+
+    const panel = document.createElement('div');
+    panel.style.cssText = [
+      'position:fixed','top:140px','left:50%','transform:translateX(-50%)',
+      'width:92%','max-width:820px',
+      'background:rgba(0,0,0,.65)','color:#9ff',
+      'font:12px/1.6 monospace',
+      'padding:12px','border-radius:8px',
+      'z-index:99999','pointer-events:none'
+    ].join(';');
+    document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel), { once:true });
+
+    const log = (k,v)=> { panel.innerHTML += `<div><b>${k}</b>: ${String(v)}</div>`; };
+
+    log('TIME', new Date().toISOString());
+    log('URL', location.href);
+    log('PATH', location.pathname);
+    log('BUILD', params.get('b') || '(none)');
+
+    // VERSION出どころ確定（重要）
+    log('VERSION_INFO', (typeof window.VERSION_INFO !== 'undefined') ? window.VERSION_INFO : '(undefined)');
+    log('TITLE', document.title || '(empty)');
+
+    // Service Worker（debug only）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(rs=>{
+        log('SW', rs.length ? 'UNREGISTERING (debug)' : 'NONE');
+        rs.forEach(r=>r.unregister());
+      }).catch(e=>log('SW', 'ERROR '+e.message));
+    } else {
+      log('SW', 'NOT SUPPORTED');
     }
 
-    /* ✅ デバッグボタン - 右下固定 */
-    #debug-toggle-btn {
-      position: fixed;
-      bottom: 120px;
-      right: 15px;
-      width: 50px;
-      height: 50px;
-      background: rgba(213,0,0,0.9);
-      color: white;
-      border: 2px solid #ff5252;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 99998;
-      font-size: 18px;
-      font-weight: bold;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-      display: none;
+    // config.json resolver（rootは二段フォールバック）
+    const isBook = location.pathname.includes('/Smart-Price-Book/');
+    const isDev = location.pathname.includes('/dev/');
+    const isEmergency = location.pathname.includes('/emergency/');
+
+    const fetchOnce = (url, tag) =>
+      fetch(url, {cache:'no-store'}).then(r=>{
+        log(tag, r.ok ? ('OK '+url) : ('FAIL '+r.status+' '+url));
+        return r.ok;
+      }).catch(e=>{
+        log(tag, 'ERROR '+e.message+' '+url);
+        return false;
+      });
+
+    if (!isBook) {
+      log('CONFIG URL', './config.json');
+      fetchOnce('./config.json', 'CONFIG FETCH');
+    } else if (isDev || isEmergency) {
+      log('CONFIG URL', './config.json');
+      fetchOnce('./config.json', 'CONFIG FETCH');
+    } else {
+      log('CONFIG URL (try)', './config.json → ./dev/config.json');
+      fetchOnce('./config.json', 'CONFIG (1st)').then(ok=>{
+        if (ok) { log('CONFIG FINAL', './config.json'); return; }
+        fetchOnce('./dev/config.json', 'CONFIG FETCH').then(()=>{
+          log('CONFIG FINAL', './dev/config.json');
+        });
+      });
     }
-    #debug-toggle-btn.show {
-      display: flex;
-    }
-    #debug-toggle-btn:active {
-      transform: scale(0.95);
-    }
-  
-  /* summaryをボタンっぽく見せる（UIは増やさず押しやすく） */
-  .sp-summary-btn{
-    list-style:none;
-    cursor:pointer;
-    padding:10px 12px;
-    border-radius:10px;
-    background:rgba(255,255,255,0.06);
-    border:1px solid rgba(255,255,255,0.10);
-    margin:6px 0;
-    user-select:none;
-  }
-  details[open] > .sp-summary-btn{
-    background:rgba(255,255,255,0.10);
-  }
 
+    window.addEventListener('error', e=> log('ERROR', e.message));
+    window.addEventListener('unhandledrejection', e=> log('PROMISE', e.reason));
 
-/* === PATCH: settings modal visibility & stacking (settingsnav-r3) === */
-#settingsModal { z-index: 100500; }
-#settingsModal .modal-content { max-height: 80vh; overflow-y: auto; }
-#settingsModal .sp-settings-box { max-height: 70vh; overflow-y: auto; }
-#settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
-
-
-/* --- PATCH v19.9.61 settings menu layout (bootstrap依存を排除) --- */
-#settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
-#settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
-#settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
-
-</style>
-<style>
-
-/* === SP PATCH: settingsnav-r8 (2026-02-13) === */
-#settingsModal .sp-panel .sp-back-btn { display: none !important; } /* header back only */
-#spVerifyOverlay { position: fixed; inset: 0; z-index: 999999; background: rgba(0,0,0,0.75); display: none; }
-#spVerifyOverlay .spv-card { position: absolute; top: 10px; left: 10px; right: 10px; max-width: 560px; background:#1e1e1e; border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px; color:#e8e8e8; font-size:13px; }
-#spVerifyOverlay .spv-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
-#spVerifyOverlay button { padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.18); background:#2b2b2b; color:#fff; cursor:pointer; }
-#spVerifyOverlay pre { white-space: pre-wrap; background:#141414; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); }
-
-</style>
+    log('JS', 'RUNNING');
+  })();
+  </script>
+  <!-- /BOOT PROBE v3 -->
 </head>
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.61</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.31</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -470,144 +394,16 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
     <div class="mb-3">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：、つくば市">
-      <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：土浦市">
       <div id="city-history-chips" class="city-chips"></div>
     </div>
 
-    <div id="settingsMainMenu" class="mt-3">
-        <div class="d-grid gap-2">
-          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelReferral">① 友人紹介</button>
-          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelFamily">② 家族共有</button>
-          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelSupport">③ 運営者へ質問／不具合報告</button>
-          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelOperator">④ 管理メニュー</button>
-        </div>
-      </div>
+    <div class="mb-3">
+      <label class="small text-secondary">Firebase URL</label>
+      <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="https://xxx.firebaseio.com/">
+    </div>
 
-      <div id="panelReferral" class="sp-panel mt-3" style="display:none;">
-        <div class="small text-secondary mb-2">
-          この「紹介リンク」を友人に送ってください。友人が開くと、あなたの紹介IDが記録されます。
-        </div>
-        <div class="mt-2">
-        <div class="small text-secondary mb-1">あなたの紹介ID</div>
-        <div class="d-flex gap-2 mb-2">
-          <input id="ref-my-id" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-dark" onclick="spCopy('ref-my-id')">コピー</button>
-        </div>
-
-        <div class="small text-secondary mb-1">紹介リンク</div>
-        <textarea id="ref-link" class="form-control bg-dark text-white border-secondary url-box mb-2" rows="2" readonly></textarea>
-
-        <div class="d-flex gap-2 mb-3">
-          <button class="btn btn-dark flex-grow-1" onclick="spCopy('ref-link')">コピー</button>
-          <button class="btn btn-danger flex-grow-1" onclick="spShareReferral()">共有</button>
-        </div>
-
-        <div class="small text-secondary mb-1">家族共有コード（任意）</div>
-        <div class="d-flex gap-2 mb-2">
-          <input id="family-code-input" class="form-control bg-dark text-white border-secondary" placeholder="例：FAMILY-001">
-          <button class="btn btn-warning" onclick="spSaveFamilyCode()">保存</button>
-        </div>
-        <div id="family-code-status" class="small text-secondary"></div>
-
-        <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
-      </div>
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
-        </div>
-      </div>
-
-      <div id="panelFamily" class="sp-panel mt-3" style="display:none;">
-        <div class="small text-secondary mb-2">
-          同じ購入データを別の端末でも使いたいときは、ここで「共有ID」を使います（準備中のため、まずは画面だけ整えています）。
-        </div>
-        <label class="small text-secondary">共有ID（相手のIDを貼り付け）</label>
-        <input id="family-share-id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：AB12CD（半角）">
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="family-hide-purchases">
-          <label class="form-check-label small text-secondary" for="family-hide-purchases">購入商品を隠す（家族共有用／準備中）</label>
-        </div>
-        <div class="d-grid gap-2">
-          <button type="button" class="btn btn-secondary" id="familySaveBtn">保存</button>
-        </div>
-        <div id="familyMsg" class="small text-secondary mt-2"></div>
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
-        </div>
-      </div>
-
-      <div id="panelSupport" class="sp-panel mt-3" style="display:none;">
-        <div class="mt-2">
-        <label class="small text-secondary">症状（何が起きたか）</label>
-        <textarea id="support-symptom" class="form-control bg-dark text-white border-secondary mb-2" rows="3" placeholder="例：バーコード読み込み後、商品名が違う…"></textarea>
-
-        <div class="row g-2">
-          <div class="col-6">
-            <label class="small text-secondary">機種</label>
-            <input id="support-device" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Pixel 9">
-          </div>
-          <div class="col-6">
-            <label class="small text-secondary">OS</label>
-            <input id="support-os" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Android 15">
-          </div>
-        </div>
-
-        <label class="small text-secondary">ブラウザ</label>
-        <input id="support-browser" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：Chrome / Edge">
-
-        <label class="small text-secondary">スクリーンショット（任意）</label>
-        <input id="support-screens" type="file" accept="image/*" multiple class="form-control bg-dark text-white border-secondary mb-2">
-        <div id="support-preview" class="d-flex flex-wrap gap-2 mb-2"></div>
-
-        <div class="d-flex gap-2 mb-2">
-          <button class="btn btn-dark flex-grow-1" onclick="spCopySupport()">内容コピー</button>
-          <button class="btn btn-danger flex-grow-1" onclick="spShareSupport()">共有</button>
-        </div>
-        <div class="d-flex gap-2 mb-2">
-          <button class="btn btn-warning w-100" onclick="spSaveSupport()">保存</button>
-        </div>
-
-        <div class="hint" style="margin:0;">※コピーした文章に、必要ならスクショも添えて送ってください。</div>
-      </div>
-        <div class="d-grid gap-2 mt-2">
-          <button type="button" class="btn btn-outline-secondary" id="supportDiagnoseBtn">不具合の検出（情報を埋める）</button>
-        </div>
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
-        </div>
-      </div>
-
-      <div id="panelOperator" class="sp-panel mt-3" style="display:none;">
-        <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
-        <div class="d-flex gap-2 mb-2">
-          <input id="operatorPass" type="password" class="form-control bg-dark text-white border-secondary" placeholder="パスワード">
-          <button type="button" class="btn btn-secondary" id="operatorUnlockBtn">開く</button>
-        </div>
-        <div id="operatorPassMsg" class="small text-secondary mb-2"></div>
-        <div id="operatorPanelBody" style="display:none;">
-          <div class="mt-2">
-        <div id="operatorNote" class="hint mb-2">※運営者モード（URLに <b>&amp;mode=admin</b> ）で有効化されます。</div>
-
-        <div id="operatorEnabled" style="display:none;">
-          <div class="mb-2">
-            <div class="small text-secondary mb-1">Firebase URL（読み取り専用）</div>
-            <div class="d-flex gap-2">
-              <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary" readonly>
-              <button class="btn btn-dark" onclick="spCopy('fb-url-input')">コピー</button>
-            </div>
-          </div>
-
-          <details class="mb-2">
-            <summary class="small text-secondary" style="cursor:pointer;">未確定商品（昨日分）</summary>
-            <div class="mt-2">
-              <div id="admin-unconfirmed-list" class="small"></div>
-              <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
-            </div>
-        </div>
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
-        </div>
-      </div>id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
@@ -615,8 +411,6 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     </div>
     <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
   </div>
-</div>
-
 </div>
 
 <div id="webModal" class="modal">
@@ -659,9 +453,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   </div>
 </div>
 
-<div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast-container"></div>
 <!-- ✅ P0: debug=1のときだけ最終エラーを固定表示 -->
-<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:99997; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
+<div id="debug-error-display" style="display:none; position:fixed; top:10px; right:10px; background:rgba(255,0,0,0.9); color:#fff; padding:8px 12px; border-radius:5px; font-size:0.75rem; z-index:5001; max-width:300px; word-break:break-word; box-shadow:0 2px 10px rgba(0,0,0,0.5); border:2px solid #ff0000;"></div>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -670,9 +464,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.63"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.63 [2026-02-13_2110_settingsnav-r8]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-13_1615_buttonsfix"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.64"; // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.64 [020410]"; // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-04_1003_toaststack"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -746,24 +540,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   function isDebug() {
     try { return new URL(location.href).searchParams.get('debug') === '1'; } catch(e){ return false; }
   }
-  
-  // ✅ デバッグログ関数（トーストで表示）
-  function debugLog(message, type = 'info') {
-    if (!isDebug()) return;
-    
-    // コンソールにログ出力
-    console.log('[DEBUG]', message);
-    
-    // トーストで表示（10秒）
-    if (typeof showToast === 'function') {
-      showToast(String(message), 10000);
-    }
-  }
-  
-  // ========= Debug Error Handling =========
   // ✅ P0: debug=1のときだけ、エラーハンドリングを強化
   if (isDebug()) {
     const errorDisplay = document.getElementById('debug-error-display');
+    if (errorDisplay) errorDisplay.style.display = 'block';
 
     // 最終エラーを画面に固定表示する関数
     // ✅ P0修正: エラーログを保存する配列（診断ツール用）
@@ -911,6 +691,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
     homeCities: [],
     customStores: [],
     storeTaxModes: {} // ストアごとの税別/税込既定値 { "ストア名": "ex" or "in" }
+  };
+
+  const CITY_STORE_PRESET = {
+    "土浦市": ["カスミ土浦駅前店", "カスミ ピアシティ荒川本郷店", "ヨークベニマル", "タイヨー", "まるも", "ウエルシア"],
+    "つくば市": ["カスミ つくば竹園店", "ヨークベニマル つくば竹園店", "ロピア つくば店", "タイヨー", "ウエルシア"],
+    "東海村": ["カスミ東海店", "ヨークベニマル東海店", "イオン東海店"]
   };
 
   // ========= Image Store (IndexedDB) =========
@@ -1480,8 +1266,6 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   // ========= App State =========
   let db = { products: {}, config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)) };
   let curBarcode = null, curStore = "未設定";
-  // 起動直後は必ず「未設定」から開始（前回選択を引きずらない）
-  let SP_BOOT_RESET_STORE = true;
   let processBarcodeInFlight = new Set(); // ✅ P0: 同一JANの二重発火防止
   let janCoolDown = new Map(); // ✅ P0: 同じJANを0.8〜1.2秒以内に再検出したら無視（クールダウン）
   let tempImgData = null; // {type:'key', key} or {type:'url', url}
@@ -1714,115 +1498,147 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   let lastToastTimeout = null;
   let lastToastElement = null;
   
-  /* Toast (stack) - debug: 10s, normal: 3s (unless ms specified) */
-
-  // ===== Toast (single source of truth) =====
-  // - 通常: 3秒 / デバッグ: 10秒
-  // - 画面切替（設定など）では clearToasts() で確実に消す
-  // - UIは変えない（見た目は既存CSSを流用）
-
-  let __toastHost = null;
-  let __toastTimers = [];
-  const __TOAST_MAX = 6;
-
-  function __toastIsDebug() {
-    try {
-      const usp = new URLSearchParams(location.search || "");
-      return usp.get("debug") === "1";
-    } catch (e) {
-      return false;
-    }
+  function hideToastNow() {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.style.opacity = 0;
   }
 
-  function __toastEnsureContainer() {
-    if (__toastHost && document.body.contains(__toastHost)) return __toastHost;
+  function showToast(msg, ms) {
+  // 目的:
+  // - DEBUGは10秒表示
+  // - 連続トーストは「上から縦に積む」(バーコードボタンの下から)
+  // - 10秒経ったら上から消え、空いたら待ち行列から出す
+  try {
+    const container = document.getElementById('toast');
+    if (!container) return;
 
-    const host = document.createElement("div");
-    host.id = "toastHost";
-    host.style.position = "fixed";
-    host.style.left = "50%";
-    host.style.top = "72px";
-    host.style.transform = "translateX(-50%)";
-    host.style.zIndex = "9999";
-    host.style.width = "min(560px, calc(100vw - 24px))";
-    host.style.pointerEvents = "none";
-    document.body.appendChild(host);
+    const isDbg = (typeof isDebug === 'function') ? isDebug() : false;
+    let duration = (typeof ms === 'number') ? ms : (isDbg ? 10000 : 3000);
 
-    __toastHost = host;
-    return host;
+    // スキャン系エラーは少し長め（読み落とし防止）
+    const s = String(msg || '');
+    const isScanRelated = /scan|qr|バーコード|カメラ|permission|権限/i.test(s);
+    if (isScanRelated) duration = Math.max(duration, isDbg ? 12000 : 6000);
+
+    // 位置(バーコードボタンの下)を毎回更新
+    setToastTopFromAnchor();
+
+    // 仕組み: 表示中(active) + 待ち(queue)
+    window.__toastState = window.__toastState || { active: [], queue: [], flushing: false };
+    const st = window.__toastState;
+
+    // 1) まずはキューに積む
+    st.queue.push({ msg: s, duration });
+
+    // 2) flush（空きがあれば出す）
+    flushToastQueue();
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.error) console.error('[toast] error', e);
   }
+}
 
-  function clearToasts() {
+function getToastTopPx() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--toast-top').trim();
+  const n = parseInt(v.replace('px',''), 10);
+  return Number.isFinite(n) ? n : 280;
+}
+
+function setToastTopFromAnchor() {
+  const anchor = document.getElementById('scanBtnTop') || document.querySelector('.scan-btn') || null;
+  if (!anchor) return;
+
+  const r = anchor.getBoundingClientRect();
+  const top = Math.max(12, Math.round(r.bottom + 12));
+  document.documentElement.style.setProperty('--toast-top', top + 'px');
+}
+
+function flushToastQueue() {
+  const container = document.getElementById('toast');
+  if (!container) return;
+
+  window.__toastState = window.__toastState || { active: [], queue: [], flushing: false };
+  const st = window.__toastState;
+  if (st.flushing) return;
+  st.flushing = true;
+
+  requestAnimationFrame(() => {
     try {
-      __toastTimers.forEach((t) => clearTimeout(t));
-      __toastTimers = [];
-      if (__toastHost) __toastHost.innerHTML = "";
-    } catch (e) {}
-  }
+      const topPx = getToastTopPx();
+      const maxH = Math.max(140, window.innerHeight - topPx - 16); // 画面内に収める
 
-  function showToast(message, ms, opts) {
-    try {
-      const host = __toastEnsureContainer();
-      const isDebug = __toastIsDebug();
+      // 入るだけ入れる（あとでオーバー分を戻す）
+      while (st.queue.length) {
+        const item = st.queue.shift();
 
-      const ttl = (typeof ms === "number" && ms > 0)
-        ? ms
-        : (isDebug ? 10000 : 3000);
+        const el = document.createElement('div');
+        el.className = 'toast-item';
+        el.textContent = item.msg;
 
-      const options = opts || {};
-      const sticky = !!options.sticky;
+        container.appendChild(el);
+        st.active.push(el);
 
-      // 既存が多すぎるときは古いものから削除
-      while (host.children.length >= __TOAST_MAX) {
-        host.removeChild(host.firstChild);
+        requestAnimationFrame(() => el.classList.add('show'));
+
+        setTimeout(() => {
+          if (!el.isConnected) return;
+
+          el.classList.remove('show');
+          setTimeout(() => {
+            try {
+              if (el.isConnected) el.remove();
+            } finally {
+              st.active = st.active.filter(x => x !== el);
+              flushToastQueue();
+            }
+          }, 200);
+        }, item.duration);
+
+        // 少しだけ余裕を見て判定
+        if (container.scrollHeight > maxH + 40) break;
       }
 
-      const toast = document.createElement("div");
-      toast.className = "toast toast-compact";
-      toast.style.pointerEvents = "auto";
-      toast.style.margin = "6px 0";
-      toast.style.borderRadius = "10px";
-      toast.style.padding = "10px 12px";
-      toast.style.background = "rgba(30,30,30,0.94)";
-      toast.style.border = "1px solid rgba(255,255,255,0.10)";
-      toast.style.boxShadow = "0 10px 26px rgba(0,0,0,0.35)";
-      toast.style.backdropFilter = "blur(6px)";
-      toast.style.webkitBackdropFilter = "blur(6px)";
-      toast.style.color = "#fff";
-      toast.style.fontSize = "14px";
-      toast.style.lineHeight = "1.35";
-      toast.style.wordBreak = "break-word";
-      toast.style.overflowWrap = "anywhere";
-      toast.style.maxHeight = "160px";
-      toast.style.overflow = "hidden";
+      // 画面に入りきらない分は「下側」をキューへ戻す（上が見えるのが最優先）
+      let safety = 80;
+      while (container.scrollHeight > maxH && st.active.length && safety-- > 0) {
+        const last = st.active.pop();
+        if (!last) break;
 
-      // クリックで閉じる（デバッグ時は便利）
-      toast.addEventListener("click", () => {
-        try { toast.remove(); } catch (e) {}
-      });
+        const txt = last.textContent || '';
+        last.remove();
 
-      toast.textContent = (message == null) ? "" : String(message);
-      host.appendChild(toast);
-
-      if (!sticky) {
-        const timer = setTimeout(() => {
-          try { toast.remove(); } catch (e) {}
-        }, ttl);
-        __toastTimers.push(timer);
+        // 再表示はその時点のルールで（DEBUG=10秒 / Normal=3秒）
+        const d = (typeof isDebug === 'function' && isDebug()) ? 10000 : 3000;
+        st.queue.unshift({ msg: txt, duration: d });
       }
-
-      return toast;
-    } catch (e) {
-      // 最悪でも落とさない
-      return null;
+    } finally {
+      st.flushing = false;
     }
-  }
-
-  // 画面サイズ変更時にhostを再生成しても落ちないようにする
-  window.addEventListener("resize", () => {
-    __toastEnsureContainer();
   });
-function isQuotaError(e) {
+}
+
+window.addEventListener('resize', () => { try { setToastTopFromAnchor(); } catch(_){} }, { passive: true });
+window.addEventListener('orientationchange', () => { try { setToastTopFromAnchor(); } catch(_){} }, { passive: true });
+
+  // ✅ 画面が切り替わったら即消す（本命：残留対策）
+  (function setupToastAutoClear() {
+    const clear = () => hideToastNow();
+
+    window.addEventListener('hashchange', clear, true);
+    window.addEventListener('popstate', clear, true);
+    window.addEventListener('beforeunload', clear, true);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); }, true);
+
+    // 「画面切替」の実装差を吸収：主要操作が入ったら消す
+    document.addEventListener('click', (e) => {
+      const el = e.target;
+      if (!el) return;
+      if (el.closest('a,button,.btn,.tab,.nav,.store-tag,.menu,.card,[data-view]')) clear();
+    }, true);
+  })();
+
+
+  function isQuotaError(e) {
     if (!e) return false;
     return (
       e.name === 'QuotaExceededError' ||
@@ -2485,21 +2301,19 @@ function isQuotaError(e) {
       });
     }
     
+    const cityStores = CITY_STORE_PRESET[db.config.homeCity] || [];
     const customStores = db.config.customStores || [];
     
     // ✅ 近隣店舗候補を統合（nearbyStoreNames）
     const nearbyStores = (Array.isArray(window.nearbyStoreNames) && window.nearbyStoreNames.length > 0) ? window.nearbyStoreNames : [];
-    // ✅ 候補を統合（未設定は先頭固定）
-    const storeNames = [...new Set([...manualPriority, ...customStores, ...nearbyStores, ...sortedFreq])]
-      .filter(s => s && s !== '未設定');
-    // ✅ 店名で並べる（日本語も自然順）
-    storeNames.sort((a,b)=> (a||'').localeCompare((b||''), 'ja'));
-    const finalSet = ['未設定', ...storeNames];
-
-    // ✅ 起動直後は「未設定」固定（前回選択を引きずらない）
-    if (window.SP_BOOT_RESET_STORE) {
-      curStore = '未設定';
-      window.SP_BOOT_RESET_STORE = false;
+    
+    // ✅ 空なら プリセット + customStores を必ず表示
+    const finalSet = ["未設定", ...new Set([...manualPriority, ...customStores, ...nearbyStores, ...cityStores, ...sortedFreq])];
+    
+    // ✅ 候補が取れたら先頭を自動選択（curStore が "未設定" の場合のみ）
+    if (curStore === "未設定" && finalSet.length > 1) {
+      curStore = finalSet[1]; // 「未設定」以外の最初の候補
+      if (isDebug()) console.log('[renderStoreList] Auto-select:', curStore);
     }
 
     const gpsTxt = isGpsOn ? `GPS<span class="gps-status">●${lastGpsTime}</span>` : `GPS<span class="gps-status">OFF</span>`;
@@ -4499,8 +4313,6 @@ function isQuotaError(e) {
   }
 
   function showHome() {
-    try{ clearToasts(); }catch(e){}
-
     document.getElementById('mainView').style.display='block';
     document.getElementById('formView').style.display='none';
     renderHistory();
@@ -5354,15 +5166,6 @@ function isQuotaError(e) {
   }
 
   function openSettings() {
-  // ✅ Modal safety: 設定を開く前に他のパネルを閉じる
-  try {
-    var dp = document.getElementById('debug-panel');
-    if (dp) { dp.classList.remove('show'); dp.style.display='none'; }
-  } catch(e) {}
-
-  clearToasts();
-    try{ clearToasts(); }catch(e){}
-
     try {
       db = normalizeDb(db);
       resetSyncBtn();
@@ -5385,225 +5188,7 @@ function isQuotaError(e) {
     }
   }
 
-// === SETTINGS MODAL NAV (fix): ensure settings menu buttons & back/close work, and avoid overlapping with Debug Panel ===
-(function(){
-  function qs(sel, root){ return (root||document).querySelector(sel); }
-  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-
-  function hideDebugPanelIfOpen(){
-    try{
-      // debug panel is created dynamically; close if open
-      var panel = document.getElementById('debug-panel');
-      if(panel && panel.classList && panel.classList.contains('show')){
-        // click its close button if present
-        var closeBtn = document.getElementById('debug-panel-close');
-        if(closeBtn) closeBtn.click();
-        else panel.classList.remove('show');
-      }
-    }catch(e){}
-  }
-
-  function setPanelVisible(panelId){
-    var root = document.getElementById('settingsModal');
-    if(!root) return;
-
-    var panels = qsa('.sp-settings-panel', root);
-    panels.forEach(function(p){ p.style.display = 'none'; });
-
-    var menu = qs('#settingsMainMenu', root);
-    if(menu) menu.style.display = (panelId ? 'none' : 'block');
-
-    var back = qs('#sp-settings-back', root);
-    var close = qs('#sp-settings-close', root);
-
-    if(panelId){
-      var p = document.getElementById(panelId);
-      if(p) p.style.display = 'block';
-      if(back) back.style.display = 'inline-flex';
-    }else{
-      if(back) back.style.display = 'none';
-    }
-
-    // close button always visible
-    if(close) close.style.display = 'inline-flex';
-  }
-
-  function closeSettings(){
-    try{
-      var modal = document.getElementById('settingsModal');
-      if(modal) modal.style.display = 'none';
-      // restore focus safety
-      document.body.classList.remove('modal-open');
-    }catch(e){}
-  }
-
-  
-  // === PATCH: modal stack control (settingsnav-r3) ===
-  function spCloseAllModals(exceptId) {
-    try {
-      const modals = document.querySelectorAll('.modal');
-      modals.forEach(m => {
-        if (!m || !m.id) return;
-        if (exceptId && m.id === exceptId) return;
-        if (m.style) m.style.display = 'none';
-        m.classList && m.classList.remove('show');
-        m.setAttribute && m.setAttribute('aria-hidden', 'true');
-      });
-    } catch(e) {}
-  }
-
-  function spCloseDebugPanel() {
-    try {
-      const p = document.querySelector('#debug-panel, #debugPanel, [data-debug-panel], .debug-panel');
-      if (p) {
-        const btn = p.querySelector('button[aria-label="close"], .close, .btn-close, #debug-close, [data-close]');
-        if (btn) btn.click();
-        else p.style.display = 'none';
-      }
-    } catch(e) {}
-  }
-function openSettingsPatched() {
-    spCloseAllModals('settingsModal');
-    spCloseDebugPanel();
-    hideDebugPanelIfOpen();
-    // call original openSettings (defined above)
-    try{ if(typeof window.openSettings === 'function') window.openSettings(); }catch(e){}
-    // ensure menu view
-    setPanelVisible(null);
-  }
-
-  function initOnce(){
-    var root = document.getElementById('settingsModal');
-    if(!root || root.dataset._navInit === '1') return;
-    root.dataset._navInit = '1';
-
-    // UI FIX: keep settings menu buttons inside modal (column layout)
-    if(!document.getElementById('sp-settingsnav-style')){
-      var st=document.createElement('style');
-      st.id='sp-settingsnav-style';
-      st.textContent = `
-        #settingsModal .sp-menu{display:flex;flex-direction:column;gap:10px;margin-top:12px;max-width:100%;}
-        #settingsModal .sp-menu .menu-btn{width:100%;box-sizing:border-box;}
-        #settingsModal .sp-menu .menu-btn{white-space:normal;}
-        #settingsModal .settings-main{max-width:100%;}
-      `;
-      document.head.appendChild(st);
-    }
-
-
-    // Inject header row with close/back if missing (UI minimal, inside modal)
-    var header = qs('.sp-settings-header', root);
-    if(!header){
-      // create a small header bar at top of modal box
-      var box = qs('.sp-settings-box', root) || qs('.settings-box', root) || root.firstElementChild;
-      if(box){
-        header = document.createElement('div');
-        header.className = 'sp-settings-header';
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
-        box.insertBefore(header, box.firstChild);
-      }
-    }
-    if(header){
-      // left: back
-      if(!qs('#sp-settings-back', header)){
-        var back = document.createElement('button');
-        back.id = 'sp-settings-back';
-        back.type = 'button';
-        back.className = 'btn btn-sm btn-outline-light';
-        back.textContent = '戻る';
-        back.style.display = 'none';
-        back.addEventListener('click', function(){ setPanelVisible(null); });
-        header.appendChild(back);
-      }
-      // right: close
-      if(!qs('#sp-settings-close', header)){
-        var close = document.createElement('button');
-        close.id = 'sp-settings-close';
-        close.type = 'button';
-        close.className = 'btn btn-sm btn-outline-light';
-        close.textContent = '閉じる';
-        close.addEventListener('click', function(){ closeSettings(); });
-        header.appendChild(close);
-      }
-    }
-
-    // Menu container
-    var menu = qs('#settingsMainMenu', root);
-    if(!menu){
-      // if existing menu container is missing, wrap buttons
-      var btns = qsa('.sp-menu-btn', root);
-      if(btns.length){
-        menu = document.createElement('div');
-        menu.id = 'settingsMainMenu';
-        // insert before first panel
-        var firstPanel = qs('.sp-settings-panel', root);
-        if(firstPanel && firstPanel.parentNode){
-          firstPanel.parentNode.insertBefore(menu, firstPanel);
-        }else{
-          root.appendChild(menu);
-        }
-        btns.forEach(function(b){ menu.appendChild(b); });
-      }
-    }
-
-    // Wire menu buttons
-    qsa('.sp-menu-btn', root).forEach(function(btn){
-      if(btn.dataset._wired === '1') return;
-      btn.dataset._wired = '1';
-      btn.addEventListener('click', function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        var pid = btn.getAttribute('data-panel');
-        if(pid) setPanelVisible(pid);
-      });
-      // keyboard accessibility
-      btn.addEventListener('keydown', function(ev){
-        if(ev.key === 'Enter' || ev.key === ' '){
-          ev.preventDefault();
-          btn.click();
-        }
-      });
-    });
-
-    // ESC closes settings
-    document.addEventListener('keydown', function(ev){
-      if(ev.key === 'Escape'){
-        var modal = document.getElementById('settingsModal');
-        if(modal && modal.style.display !== 'none'){
-          closeSettings();
-        }
-      }
-    }, {capture:true});
-  }
-
-  // Hook gear button to patched open
-  function hookGear(){
-    var gear = document.getElementById('settingsBtn');
-    if(!gear) return;
-    if(gear.dataset._hooked === '1') return;
-    gear.dataset._hooked = '1';
-    gear.addEventListener('click', function(e){
-      // if something else has overlaid, ensure we still open
-      e.preventDefault();
-      e.stopPropagation();
-      initOnce();
-      openSettingsPatched();
-    }, true);
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ initOnce(); hookGear(); }, {once:true});
-  }else{
-    initOnce(); hookGear();
-  }
-})();
-
-
-
   function closeSettings() {
-  clearToasts();
-    try{ clearToasts(); }catch(e){}
-
     const modal = document.getElementById('settingsModal');
     if(modal) modal.style.display = 'none';
   }
@@ -5942,1528 +5527,113 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.61 / 2026-02-07_2000_sw-reset) === */
-(function () {
-  "use strict";
-
-  // --- Helpers ---
-  function spParams() { return new URLSearchParams(location.search); }
-  function spIsAdminMode(){
-  try { return sessionStorage.getItem('sp_admin_unlocked') === '1'; } catch(e){ return false; }
-}
-
-function spMaybeUnlockAdmin(ev){
-  try {
-    if (spIsAdminMode()) return true;
-    if (ev && ev.preventDefault) ev.preventDefault();
-    const pass = prompt('運営者パスワードを入力してください');
-    if (pass === '55533557') {
-      try { sessionStorage.setItem('sp_admin_unlocked','1'); } catch(e) {}
-      showToast('運営者メニューを開きました', 3000);
-      // detailsを開く
-      const det = (ev && ev.target) ? ev.target.closest('details') : null;
-      if (det) det.open = true;
-      return false;
-    }
-    showToast('パスワードが違います', 3500);
-    return false;
-  } catch(e){
-    return true;
-  }
-}
-  function spIsDebug() {
-    const p = spParams();
-    return p.has('debug');
-  }
-  function spNowISO() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2,'0');
-    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-  function spSafeText(s) {
-    return (s == null) ? '' : String(s);
-  }
-
-  // Copy by element id
-  window.spCopy = async function(id) {
-    try {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const text = ('value' in el) ? el.value : el.textContent;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        if (typeof showToast === 'function') showToast('コピーしました', 1200);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (typeof showToast === 'function') showToast('コピーしました', 1200);
-      }
-    } catch (e) {
-      console.warn('[spCopy] failed', e);
-      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
-    }
-  };
-
-  // --- Referral / Family share ---
-  const LS_MY_REF = 'sp_ref_my';
-  const LS_REF_FROM = 'sp_ref_from';
-  const LS_FAMILY = 'sp_family_code';
-
-  function spGenId() {
-    // 6 chars (base36)
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
-  }
-
-  function spGetOrCreateMyRef() {
-    let v = localStorage.getItem(LS_MY_REF);
-    if (!v) {
-      v = spGenId();
-      localStorage.setItem(LS_MY_REF, v);
-    }
-    return v;
-  }
-
-  function spSaveFamily(code) {
-    const v = (code || '').trim();
-    if (v) localStorage.setItem(LS_FAMILY, v);
-    else localStorage.removeItem(LS_FAMILY);
-    return v;
-  }
-
-  function spBuildReferralLink(myId) {
-    const url = new URL(location.href);
-    // keep build param for cache busting, but remove debug/mode to avoid leaking
-    url.searchParams.set('ref', myId);
-    url.searchParams.delete('debug');
-    url.searchParams.delete('mode');
-    // ensure b exists
-    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_2000_sw-reset');
-    return url.toString();
-  }
-
-  window.spSaveFamilyCode = function() {
-    const input = document.getElementById('family-code-input');
-    const status = document.getElementById('family-code-status');
-    if (!input) return;
-    const saved = spSaveFamily(input.value);
-    if (status) status.textContent = saved ? ('保存しました：' + saved) : '未設定';
-    if (typeof showToast === 'function') showToast('家族共有コードを保存しました', 1500);
-  };
-
-  window.spShareReferral = async function() {
-    try {
-      const myId = spGetOrCreateMyRef();
-      const link = spBuildReferralLink(myId);
-      if (navigator.share) {
-        await navigator.share({ title: 'Smart Price 紹介リンク', text: 'Smart Price の紹介リンクです。', url: link });
-      } else {
-        await window.spCopy('ref-link');
-      }
-    } catch (e) {
-      console.warn('[spShareReferral] failed', e);
-      try { await window.spCopy('ref-link'); } catch(_e) {}
-    }
-  };
-
-  function spHandleRefParam() {
-    const p = spParams();
-    const ref = p.get('ref');
-    const my = spGetOrCreateMyRef();
-    if (ref && ref !== my) {
-      localStorage.setItem(LS_REF_FROM, ref);
-    }
-  }
-
-  // --- Support / Inquiry ---
-  const LS_SUPPORT = 'sp_support_logs_v1'; // max 50
-  const MAX_SUPPORT = 50;
-
-  function spUAInfo() {
-    const ua = navigator.userAgent || '';
-    const plat = navigator.platform || '';
-    return { ua, plat };
-  }
-
-  function spDetectBrowser() {
-    const ua = (navigator.userAgent || '').toLowerCase();
-    if (ua.includes('edg/')) return 'Edge';
-    if (ua.includes('chrome/')) return 'Chrome';
-    if (ua.includes('safari/') && !ua.includes('chrome/')) return 'Safari';
-    if (ua.includes('firefox/')) return 'Firefox';
-    return 'Browser';
-  }
-
-  function spDefaultDevice() {
-    // coarse default; user can edit
-    const ua = navigator.userAgent || '';
-    if (/android/i.test(ua)) return 'Android端末';
-    if (/iphone|ipad|ipod/i.test(ua)) return 'iPhone/iPad';
-    if (/windows/i.test(ua)) return 'Windows PC';
-    if (/macintosh/i.test(ua)) return 'Mac';
-    return '端末';
-  }
-
-  function spDefaultOS() {
-    const ua = navigator.userAgent || '';
-    if (/android\s([0-9\.]+)/i.test(ua)) return 'Android ' + (ua.match(/android\s([0-9\.]+)/i)||[])[1];
-    if (/iphone os\s([0-9_]+)/i.test(ua)) return 'iOS ' + ((ua.match(/iphone os\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
-    if (/windows nt\s([0-9\.]+)/i.test(ua)) return 'Windows ' + (ua.match(/windows nt\s([0-9\.]+)/i)||[])[1];
-    if (/mac os x\s([0-9_]+)/i.test(ua)) return 'macOS ' + ((ua.match(/mac os x\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
-    return 'OS';
-  }
-
-  let _supportFiles = [];
-
-  function spRenderSupportPreview() {
-    const wrap = document.getElementById('support-preview');
-    if (!wrap) return;
-    wrap.innerHTML = '';
-    _supportFiles.forEach((f, idx) => {
-      const box = document.createElement('div');
-      box.style.position = 'relative';
-      const img = document.createElement('img');
-      img.src = f.dataUrl;
-      img.style.width = '88px';
-      img.style.height = '88px';
-      img.style.objectFit = 'cover';
-      img.style.borderRadius = '10px';
-      img.style.border = '1px solid rgba(255,255,255,.12)';
-      const btn = document.createElement('button');
-      btn.textContent = '×';
-      btn.className = 'btn btn-dark';
-      btn.style.position = 'absolute';
-      btn.style.top = '-10px';
-      btn.style.right = '-10px';
-      btn.style.width = '28px';
-      btn.style.height = '28px';
-      btn.style.borderRadius = '999px';
-      btn.style.padding = '0';
-      btn.style.lineHeight = '1';
-      btn.onclick = () => {
-        _supportFiles.splice(idx,1);
-        spRenderSupportPreview();
-      };
-      box.appendChild(img);
-      box.appendChild(btn);
-      wrap.appendChild(box);
-    });
-  }
-
-  async function spFileToDataUrl(file, maxW=900, maxH=900) {
-    const dataUrl = await new Promise((res, rej) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.onerror = rej;
-      fr.readAsDataURL(file);
-    });
-    // downscale using canvas
-    const img = await new Promise((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = rej;
-      i.src = dataUrl;
-    });
-    const w0 = img.width || 1, h0 = img.height || 1;
-    const scale = Math.min(1, maxW / w0, maxH / h0);
-    const w = Math.max(1, Math.round(w0 * scale));
-    const h = Math.max(1, Math.round(h0 * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, w, h);
-    // jpeg to reduce size
-    return canvas.toDataURL('image/jpeg', 0.82);
-  }
-
-  function spLoadSupportLogs() {
-    try {
-      const raw = localStorage.getItem(LS_SUPPORT);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch(e) {
-      return [];
-    }
-  }
-
-  function spSaveSupportLogs(arr) {
-    try {
-      localStorage.setItem(LS_SUPPORT, JSON.stringify(arr.slice(0, MAX_SUPPORT)));
-    } catch(e) {
-      console.warn('[spSaveSupportLogs] failed', e);
-    }
-  }
-
-  function spCollectSupportText() {
-    const symptom = spSafeText(document.getElementById('support-symptom')?.value).trim();
-    const device = spSafeText(document.getElementById('support-device')?.value).trim();
-    const os = spSafeText(document.getElementById('support-os')?.value).trim();
-    const browser = spSafeText(document.getElementById('support-browser')?.value).trim();
-    const myRef = spGetOrCreateMyRef();
-    const refFrom = localStorage.getItem(LS_REF_FROM) || '';
-    const family = localStorage.getItem(LS_FAMILY) || '';
-    const url = location.href;
-    const version = window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || '';
-    const build = window.BUILD_ID || '2026-02-07_2000_sw-reset';
-    const ua = spUAInfo();
-
-    const lines = [];
-    lines.push('【Smart Price お問い合わせ】');
-    lines.push('日時: ' + spNowISO());
-    lines.push('VERSION: ' + version);
-    lines.push('BUILD: ' + build);
-    if (myRef) lines.push('紹介ID: ' + myRef);
-    if (refFrom) lines.push('紹介元(ref): ' + refFrom);
-    if (family) lines.push('家族共有コード: ' + family);
-    lines.push('URL: ' + url);
-    lines.push('機種: ' + (device || '未入力'));
-    lines.push('OS: ' + (os || '未入力'));
-    lines.push('ブラウザ: ' + (browser || '未入力'));
-    lines.push('UA: ' + ua.ua);
-    lines.push('');
-    lines.push('症状:');
-    lines.push(symptom || '（未入力）');
-    lines.push('');
-    lines.push('スクショ: ' + (_supportFiles.length ? (_supportFiles.length + '枚（この画面で選択）') : 'なし'));
-    return lines.join('\n');
-  }
-
-  window.spCopySupport = async function() {
-    const text = spCollectSupportText();
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
-      }
-    } catch(e) {
-      console.warn('[spCopySupport] failed', e);
-      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
-    }
-  };
-
-  window.spSaveSupport = function() {
-    const entry = {
-      ts: Date.now(),
-      text: spCollectSupportText(),
-      symptom: spSafeText(document.getElementById('support-symptom')?.value).trim().slice(0, 120),
-      files: _supportFiles.map(f => ({ name: f.name, dataUrl: f.dataUrl })).slice(0, 3),
-    };
-    const logs = spLoadSupportLogs();
-    logs.unshift(entry);
-    spSaveSupportLogs(logs);
-    if (typeof showToast === 'function') showToast('保存しました（運営者モードで確認できます）', 1800);
-    // clear symptom only
-    const sym = document.getElementById('support-symptom');
-    if (sym) sym.value = '';
-    _supportFiles = [];
-    spRenderSupportPreview();
-    // refresh admin list if visible
-    spRenderAdminSupportList();
-  };
-
-  function spBindSupportFiles() {
-    const inp = document.getElementById('support-screens');
-    if (!inp || inp.dataset.bound === '1') return;
-    inp.dataset.bound = '1';
-    inp.addEventListener('change', async () => {
-      try {
-        const files = Array.from(inp.files || []);
-        // keep up to 3 images
-        const take = files.slice(0, 3);
-        _supportFiles = [];
-        for (const f of take) {
-          const dataUrl = await spFileToDataUrl(f);
-          _supportFiles.push({ name: f.name, dataUrl });
-        }
-        spRenderSupportPreview();
-      } catch(e) {
-        console.warn('[support files] failed', e);
-        if (typeof showToast === 'function') showToast('画像の読み込みに失敗しました', 2000);
-      }
-    });
-  }
-
-  // --- Admin: Support history ---
-  function spRenderAdminSupportList() {
-    const wrap = document.getElementById('admin-support-list');
-    if (!wrap) return;
-    const logs = spLoadSupportLogs();
-    if (!logs.length) {
-      wrap.innerHTML = '<div class="hint">保存されたお問い合わせはありません。</div>';
-      return;
-    }
-    wrap.innerHTML = '';
-    logs.slice(0, 50).forEach((e, i) => {
-      const row = document.createElement('div');
-      row.className = 'p-2 mb-2';
-      row.style.border = '1px solid rgba(255,255,255,.08)';
-      row.style.borderRadius = '12px';
-      row.style.background = 'rgba(255,255,255,.02)';
-      const dt = new Date(e.ts);
-      const title = spSafeText(e.symptom || '').trim() || '（内容未入力）';
-      row.innerHTML = `
-        <div class="small text-secondary mb-1">${dt.toLocaleString()}</div>
-        <div class="text-white small mb-2">${title}</div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-dark btn-sm flex-grow-1" data-i="${i}">コピー</button>
-          <button class="btn btn-outline-secondary btn-sm flex-grow-1" data-d="${i}">詳細</button>
-        </div>
-        <div class="small text-secondary mt-2" style="display:none;" id="support-detail-${i}"></div>
-      `;
-      wrap.appendChild(row);
-      row.querySelector('button[data-i]')?.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(e.text || '');
-          if (typeof showToast === 'function') showToast('コピーしました', 1200);
-        } catch(_e) {
-          window.spCopy('selfcheck-log'); // fallback noop
-        }
-      });
-      row.querySelector('button[data-d]')?.addEventListener('click', () => {
-        const d = row.querySelector('#support-detail-' + i);
-        if (!d) return;
-        if (d.style.display === 'none') {
-          const files = (e.files || []).map(f => f.name).join(', ');
-          d.textContent = (e.text || '') + (files ? ('\n\n添付: ' + files) : '');
-          d.style.whiteSpace = 'pre-wrap';
-          d.style.display = 'block';
-        } else {
-          d.style.display = 'none';
-        }
-      });
-    });
-  }
-
-  // --- Admin: Unconfirmed products (yesterday) ---
-  function spYesterdayRange() {
-    const now = new Date();
-    const y = new Date(now);
-    y.setDate(now.getDate() - 1);
-    const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0).getTime();
-    const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999).getTime();
-    return { start, end };
-  }
-
-  function spGetProductLastTs(p) {
-    try {
-      if (p && Array.isArray(p.history) && p.history.length) {
-        const last = p.history[p.history.length - 1];
-        const ts = last?.t || last?.ts || last?.time || last?.date;
-        if (typeof ts === 'number') return ts;
-        if (typeof ts === 'string') {
-          const n = Date.parse(ts);
-          return isNaN(n) ? 0 : n;
-        }
-      }
-      if (typeof p?.updatedAt === 'number') return p.updatedAt;
-      if (typeof p?.createdAt === 'number') return p.createdAt;
-    } catch(e) {}
-    return 0;
-  }
-
-  function spIsUnconfirmed(p) {
-    const name = spSafeText(p?.name).trim();
-    const maker = spSafeText(p?.maker).trim() || spSafeText(p?.manufacturer).trim();
-    const brand = spSafeText(p?.brand).trim();
-    const hasImg = !!(p?.imageKey || p?.imageUrl || p?.img || p?.image);
-    // 未確定: 名前 or メーカー欠落 or 画像欠落
-    return (!name || !maker || !hasImg);
-  }
-
-  function spRenderUnconfirmedList() {
-    const wrap = document.getElementById('admin-unconfirmed-list');
-    if (!wrap) return;
-    if (!window.db || !db.products) {
-      wrap.innerHTML = '<div class="hint">DBが未初期化です。</div>';
-      return;
-    }
-    const r = spYesterdayRange();
-    const codes = Object.keys(db.products || {});
-    const targets = [];
-    for (const code of codes) {
-      const p = db.products[code];
-      if (!p) continue;
-      const ts = spGetProductLastTs(p);
-      if (ts >= r.start && ts <= r.end && spIsUnconfirmed(p)) {
-        targets.push({ code, p });
-      }
-    }
-    if (!targets.length) {
-      wrap.innerHTML = '<div class="hint">昨日分の未確定商品はありません。</div>';
-      return;
-    }
-
-    wrap.innerHTML = '';
-    targets.slice(0, 50).forEach(({
-      code, p
-    }) => {
-      const box = document.createElement('div');
-      box.className = 'p-2 mb-2';
-      box.style.border = '1px solid rgba(255,255,255,.08)';
-      box.style.borderRadius = '12px';
-      box.style.background = 'rgba(255,255,255,.02)';
-      const name = spSafeText(p.name).trim();
-      const maker = spSafeText(p.maker || p.manufacturer).trim();
-      const brand = spSafeText(p.brand).trim();
-      box.innerHTML = `
-        <div class="small text-secondary mb-1">JAN: <b class="text-white">${code}</b></div>
-        <div class="mb-2">
-          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="name" data-code="${code}" placeholder="商品名" value="${name.replace(/"/g,'&quot;')}">
-          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="maker" data-code="${code}" placeholder="メーカー" value="${maker.replace(/"/g,'&quot;')}">
-          <input class="form-control bg-dark text-white border-secondary" data-f="brand" data-code="${code}" placeholder="ブランド（任意）" value="${brand.replace(/"/g,'&quot;')}">
-        </div>
-      `;
-      wrap.appendChild(box);
-    });
-  }
-
-  window.spConfirmUnconfirmedAll = function() {
-    try {
-      if (!window.db || !db.products) return;
-      const inputs = document.querySelectorAll('#admin-unconfirmed-list [data-code][data-f]');
-      const updates = {};
-      inputs.forEach(inp => {
-        const code = inp.getAttribute('data-code');
-        const f = inp.getAttribute('data-f');
-        if (!updates[code]) updates[code] = {};
-        updates[code][f] = (inp.value || '').trim();
-      });
-      let changed = 0;
-      Object.keys(updates).forEach(code => {
-        const p = db.products[code];
-        if (!p) return;
-        const u = updates[code];
-        if (u.name) p.name = u.name;
-        if (u.maker) {
-          p.maker = u.maker;
-          p.manufacturer = u.maker;
-        }
-        if (u.brand) p.brand = u.brand;
-        // 最終更新を押し込む
-        p.updatedAt = Date.now();
-        changed++;
-      });
-      if (typeof saveLocalOnly === 'function') saveLocalOnly();
-      else if (typeof saveLocal === 'function') saveLocal();
-      spRenderUnconfirmedList();
-      if (typeof showToast === 'function') showToast('確定しました（' + changed + '件）', 1800);
-    } catch (e) {
-      console.warn('[spConfirmUnconfirmedAll] failed', e);
-      if (typeof showToast === 'function') showToast('確定に失敗しました', 2000);
-    }
-  };
-
-  // --- Self check ---
-  window.spRunSelfCheck = function() {
-    const log = [];
-    try {
-      log.push('SELF CHECK (' + spNowISO() + ')');
-      log.push('VERSION: ' + (window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || ''));
-      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_2000_sw-reset'));
-      log.push('MODE: ' + (spIsAdminMode() ? 'admin' : 'normal') + (spIsDebug() ? ' / debug' : ''));
-      log.push('');
-      // Config
-      log.push('[config]');
-      log.push('SP_CONFIG.loaded: ' + (!!window.SP_CONFIG && Object.keys(window.SP_CONFIG||{}).length));
-      log.push('firebaseUrl(var): ' + (typeof fbUrl === 'string' ? 'OK' : 'NG'));
-      log.push('yahooProxyExecUrl: ' + (window.SP_CONFIG?.yahooProxyExecUrl ? 'OK' : 'NG'));
-      log.push('');
-      // Functions
-      const fn = (name) => (typeof window[name] === 'function');
-      const must = ['processBarcodeData','lookupYahooByJan','lookupRakutenByJan','startMigration','openSettings','showToast'];
-      log.push('[functions]');
-      must.forEach(n => log.push(n + ': ' + (fn(n) ? 'OK' : 'NG')));
-      log.push('');
-      log.push('localStorage keys:');
-      log.push('ref_my=' + (localStorage.getItem(LS_MY_REF)||''));
-      log.push('ref_from=' + (localStorage.getItem(LS_REF_FROM)||''));
-      log.push('family=' + (localStorage.getItem(LS_FAMILY)||''));
-    } catch(e) {
-      log.push('ERROR: ' + e.message);
-    }
-    const ta = document.getElementById('selfcheck-log');
-    if (ta) ta.value = log.join('\n');
-    if (typeof showToast === 'function') showToast('検証ログを作成しました', 1500);
-  };
-
-  // --- Settings UI wiring ---
-  function spSetupSettingsUnified() {
-    // Referral UI
-    const myId = spGetOrCreateMyRef();
-    const refMy = document.getElementById('ref-my-id');
-    const refLink = document.getElementById('ref-link');
-    if (refMy) refMy.value = myId;
-    if (refLink) refLink.value = spBuildReferralLink(myId);
-
-    const fam = localStorage.getItem(LS_FAMILY) || '';
-    const famIn = document.getElementById('family-code-input');
-    const famSt = document.getElementById('family-code-status');
-    if (famIn && famIn.value !== fam) famIn.value = fam;
-    if (famSt) famSt.textContent = fam ? ('保存済み：' + fam) : '未設定';
-
-    const from = localStorage.getItem(LS_REF_FROM) || '';
-    const fromSt = document.getElementById('ref-from-status');
-    if (fromSt) fromSt.textContent = from ? ('紹介元(ref): ' + from) : '';
-
-    // Support defaults
-    const dev = document.getElementById('support-device');
-    const os = document.getElementById('support-os');
-    const br = document.getElementById('support-browser');
-    if (dev && !dev.value) dev.value = spDefaultDevice();
-    if (os && !os.value) os.value = spDefaultOS();
-    if (br && !br.value) br.value = spDetectBrowser();
-
-    spBindSupportFiles();
-
-    // Operator menu gating
-    const enabled = document.getElementById('operatorEnabled');
-    if (enabled) enabled.style.display = spIsAdminMode() ? 'block' : 'none';
-
-    // Firebase URL protection: show only in operator section (readonly)
-    const fb = document.getElementById('fb-url-input');
-    if (fb) {
-      fb.readOnly = true;
-      fb.value = spIsAdminMode() ? (typeof fbUrl === 'string' ? fbUrl : '') : '';
-    }
-
-    if (spIsAdminMode()) {
-      spRenderUnconfirmedList();
-      spRenderAdminSupportList();
-    }
-  }
-
-  // Patch openSettings so every time it opens, we refresh our sections
-  const _origOpenSettings = window.openSettings;
-  window.openSettings = function() {
-    try {
-      if (typeof _origOpenSettings === 'function') _origOpenSettings();
-    } catch(e) {
-      console.warn('[openSettings] orig failed', e);
-    }
-    try {
-      spSetupSettingsUnified();
-    } catch(e) {
-      console.warn('[spSetupSettingsUnified] failed', e);
-    }
-  };
-
-  // Fix debugLog: avoid wrong showToast signature usage (keeps app alive)
-  if (typeof window.debugLog === 'function') {
-    window.debugLog = function(message, type) {
-      if (!spIsDebug()) return;
-      try {
-        showToast(String(message), 10000);
-        console.log('[DEBUG]', type || 'log', message);
-      } catch(e) {
-        console.log('[DEBUG]', type || 'log', message);
-      }
-    };
-  }
-
-  // Ensure default toast life: normal 5 sec, debug 10 sec (if showToast supports default ms)
-  // (This file's showToast already decides internally; we leave behavior unless ms omitted.)
-
-  // Apply once on load
-  spHandleRefParam();
-  // In case settings already open at load
-  document.addEventListener('DOMContentLoaded', () => {
-    try { spSetupSettingsUnified(); } catch(e) {}
-  });
-})();
-</script>
-
-<!-- ✅ DEBUG PANEL v4 (body終了直前に配置) -->
-<script>
-(function () {
-  const params = new URLSearchParams(location.search);
-  if (!params.has('debug')) return;
-
-  // DOMが完全に読み込まれた後に実行
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDebugPanel);
-  } else {
-    // すでにDOMが読み込まれている場合は即実行
-    initDebugPanel();
-  }
-
-  function initDebugPanel() {
-    // デバッグトグルボタン
-    const toggleBtn = document.createElement('div');
-    toggleBtn.id = 'debug-toggle-btn';
-    toggleBtn.className = 'show';
-    toggleBtn.title = 'デバッグパネルを開く';
-    toggleBtn.innerHTML = '<i class="bi bi-bug-fill"></i>';
-
-    // デバッグパネル
-    const panel = document.createElement('div');
-    panel.id = 'debug-panel';
-    panel.innerHTML = `
-      <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.61'}</div>
-        <button id="debug-panel-close">×</button>
-      </div>
-      <div id="debug-panel-content"></div>
-    `;
-
-    document.body.appendChild(toggleBtn);
-    document.body.appendChild(panel);
-
-    const content = panel.querySelector('#debug-panel-content');
-
-    const log = (k, v) => {
-      const div = document.createElement('div');
-      div.innerHTML = `<b>${k}</b>: ${String(v)}`;
-      content.appendChild(div);
-    };
-
-    // デバッグ情報を収集
-    log('TIME', new Date().toISOString());
-    log('URL', location.href);
-    log('PATH', location.pathname);
-    log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.61');
-    log('TITLE', document.title || '(empty)');
-    log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
-
-    // Service Worker状態
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(rs => {
-        log('SW', rs.length ? `${rs.length} REGISTERED (UNREGISTERING)` : 'NONE');
-        rs.forEach(r => r.unregister());
-      }).catch(e => log('SW', 'ERROR ' + e.message));
-    } else {
-      log('SW', 'NOT SUPPORTED');
-    }
-
-    // localStorage情報
-    try {
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const db = JSON.parse(dbStr);
-        log('DB_PRODUCTS', Object.keys(db.products || {}).length);
-        log('DB_STORES', Object.keys(db.stores || {}).length);
-      } else {
-        log('DB', 'EMPTY');
-      }
-    } catch (e) {
-      log('DB', 'ERROR: ' + e.message);
-    }
-
-    // config.json resolver
-    const isBook = location.pathname.includes('/Smart-Price-Book/');
-    const isDev = location.pathname.includes('/dev/');
-    const isEmergency = location.pathname.includes('/emergency/');
-
-    const fetchOnce = (url, tag) =>
-      fetch(url, { cache: 'no-store' }).then(r => {
-        log(tag, r.ok ? ('OK ' + url) : ('FAIL ' + r.status + ' ' + url));
-        return r.ok;
-      }).catch(e => {
-        log(tag, 'ERROR ' + e.message + ' ' + url);
-        return false;
-      });
-
-    if (!isBook) {
-      log('CONFIG_URL', './config.json');
-      fetchOnce('./config.json', 'CONFIG_FETCH');
-    } else if (isDev || isEmergency) {
-      log('CONFIG_URL', './config.json');
-      fetchOnce('./config.json', 'CONFIG_FETCH');
-    } else {
-      log('CONFIG_URL', './config.json → ./dev/config.json (fallback)');
-      fetchOnce('./config.json', 'CONFIG_1ST').then(ok => {
-        if (ok) {
-          log('CONFIG_FINAL', './config.json');
-          return;
-        }
-        fetchOnce('./dev/config.json', 'CONFIG_2ND').then(() => {
-          log('CONFIG_FINAL', './dev/config.json');
-        });
-      });
-    }
-
-    // エラーハンドリング
-    window.addEventListener('error', e => log('ERROR', e.message));
-    window.addEventListener('unhandledrejection', e => log('PROMISE_REJECT', e.reason));
-
-    log('STATUS', 'JS RUNNING ✓');
-
-    // トグルボタンのイベント
-    toggleBtn.addEventListener('click', () => {
-      // ✅ Modal safety: デバッグを開く前に設定ダイアログを閉じる
-      try {
-        const sm = document.getElementById('settingsModal');
-        if (sm && sm.style.display !== 'none') sm.style.display = 'none';
-      } catch(e) {}
-
-      if (panel.classList.contains('show')) {
-        panel.classList.remove('show');
-        console.log('[DEBUG] パネルを閉じました');
-      } else {
-        panel.classList.add('show');
-        console.log('[DEBUG] パネルを開きました');
-      }
-    });
-
-    // 閉じるボタンのイベント
-    const closeBtn = panel.querySelector('#debug-panel-close');
-    closeBtn.addEventListener('click', () => {
-      panel.classList.remove('show');
-      console.log('[DEBUG] パネルを閉じました');
-    });
-
-    // 初期メッセージ
-    console.log('[DEBUG] デバッグモードが有効です。右下のボタンでパネルを表示できます。');
-    console.log('[DEBUG] VERSION:', window.VERSION_INFO || window.APP_VERSION, '| BUILD:', window.BUILD_ID);
-  }
-})();
-</script>
-<!-- /DEBUG PANEL v4 -->
-
-
-  <!-- ✅ BUILD/VERSION MISMATCH DETECTOR (debug=1 only) -->
-  <script>
-  (function() {
-    try {
-      window.addEventListener('load', function() {
-        var params = new URLSearchParams(location.search);
-        var urlBuild = params.get('b');
-        var buildId = window.BUILD_ID || '';
-        if (urlBuild && buildId && urlBuild !== buildId) {
-          try {
-            console.warn('[BUILD MISMATCH] url b=', urlBuild, ' actual=', buildId);
-          } catch(e) {}
-          if (params.has('debug') && typeof window.showDebugToast === 'function') {
-            window.showDebugToast('⚠️ 旧版の可能性: ?reset=sw を実行してください');
-          }
-        }
-      }, { once: true });
-    } catch(e) {}
-  })();
-  </script>
-
-<!--
-  Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.61
-  AUTHOR: Yui
-  DATE(JST): 2026-02-08 20:45 JST
-  P26-02-08_2053_admin_overlay_tools_nofb
-  POLICY:
-  - Firebase/UID/接続先URLには触れない
-  - UI凍結：管理者モード（DEBUG PANEL）内にだけ機能追加
--->
-<script>
-(function(){
-  'use strict';
-
-  // ===== safe helpers =====
-  function _qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
-  function _getBuild(){ const p=_qs(); return p.get('b') || (window.BUILD_ID||'') || 'N/A'; }
-  function _getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
-  function _nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
-
-  function _toast(msg) {
-    try { if (typeof showToast === 'function') showToast(String(msg), 6000); } catch(e) {}
-    try { if (typeof debugLog === 'function') debugLog(String(msg)); } catch(e) {}
-  }
-
-  async function _copy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      _toast('コピーしました');
-      return true;
-    } catch(e) {
-      _toast('コピーできませんでした（下に表示した内容を長押しコピーしてください）');
-      return false;
-    }
-  }
-
-  function _buildUrl(edits) {
-    const u = new URL(location.href);
-    const p = u.searchParams;
-    if (edits && Object.prototype.hasOwnProperty.call(edits,'reset')) {
-      if (edits.reset === null) p.delete('reset'); else p.set('reset', String(edits.reset));
-    }
-    if (edits && Object.prototype.hasOwnProperty.call(edits,'b')) {
-      if (edits.b === null) p.delete('b'); else p.set('b', String(edits.b));
-    }
-    u.search = p.toString();
-    return u.toString();
-  }
-
-  function _dbEmpty(db) {
-    if (!db) return true;
-    if (typeof db !== 'object') return true;
-    const keys = Object.keys(db);
-    if (!keys.length) return true;
-    const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
-    const prod = db.products && typeof db.products === 'object' ? Object.keys(db.products).length : 0;
-    return (p===0 && prod===0 && keys.length<=3);
-  }
-
-  function _safeParse(jsonStr) {
-    try {
-      return { ok:true, value: JSON.parse(jsonStr) };
-    } catch(e) {
-      return { ok:false, error: String(e) };
-    }
-  }
-
-  // ===== v19.9.61+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
-  function _ensureDbFromLocalStorage() {
-    try {
-      if (!_dbEmpty(window.db)) return;
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const parsed = _safeParse(dbStr);
-        if (parsed.ok && parsed.value && typeof parsed.value === 'object') {
-          window.db = parsed.value;
-          return;
-        }
-      }
-      // fallback
-      window.db = window.db || { products: {}, stores: {}, purchases: [] };
-    } catch(e) {
-      window.db = window.db || { products: {}, stores: {}, purchases: [] };
-    }
-  }
-
-  // ===== export/import (admin only) =====
-  function spAdminExportDb() {
-    const dbStr = localStorage.getItem('smart_price_db') || '';
-    const dataStr = localStorage.getItem('smart_price_data') || '';
-    const payload = {
-      kind: 'SmartPriceExport',
-      version: _getVersion(),
-      build: _getBuild(),
-      exportedAtJST: _nowJP(),
-      smart_price_db: dbStr,
-      smart_price_data: dataStr
-    };
-    const text = JSON.stringify(payload);
-    _showOut(text);
-    _copy(text);
-  }
-
-  function spAdminImportDbFromText(text) {
-    const parsed = _safeParse(text || '');
-    if (!parsed.ok) {
-      _toast('インポート失敗：JSONとして読めません');
-      return false;
-    }
-    const obj = parsed.value;
-    // 期待形式 or 生のsmart_price_db文字列
-    let dbStr = '';
-    let dataStr = '';
-    if (obj && obj.kind === 'SmartPriceExport') {
-      dbStr = String(obj.smart_price_db || '');
-      dataStr = String(obj.smart_price_data || '');
-    } else if (typeof obj === 'object' && obj.products && obj.purchases) {
-      dbStr = JSON.stringify(obj);
-    } else {
-      _toast('インポート失敗：形式が違います（Export文字列を貼ってください）');
-      return false;
-    }
-
-    if (!dbStr) {
-      _toast('インポート失敗：smart_price_db が空です');
-      return false;
-    }
-
-    // dbStr の中身がJSONとして壊れてないか確認
-    const dbParsed = _safeParse(dbStr);
-    if (!dbParsed.ok) {
-      _toast('インポート失敗：smart_price_db が壊れています');
-      return false;
-    }
-
-    try {
-      localStorage.setItem('smart_price_db', dbStr);
-      if (dataStr) localStorage.setItem('smart_price_data', dataStr);
-      window.db = dbParsed.value;
-      _toast('インポートOK：再描画します');
-      try { if (typeof renderHistory === 'function') renderHistory(); } catch(e) {}
-      return true;
-    } catch(e) {
-      _toast('インポート失敗：保存できませんでした');
-      return false;
-    }
-  }
-
-  // ===== diag text (no firebase) =====
-  async function spAdminBuildDiagText() {
-    let swCount='N/A', cacheCount='N/A';
-    try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        swCount = regs.length;
-      }
-    } catch(e) { swCount='ERROR'; }
-    try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        cacheCount = keys.length;
-      }
-    } catch(e) { cacheCount='ERROR'; }
-
-    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
-    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
-
-    let out = '';
-    out += '【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
-    out += '日時: ' + _nowJP() + '\n\n';
-    out += '■ VERSION\n';
-    out += 'VERSION: ' + _getVersion() + '\n';
-    out += 'BUILD(b): ' + _getBuild() + '\n';
-    out += 'URL: ' + location.href + '\n';
-    out += 'PATH: ' + location.pathname + '\n\n';
-    out += '■ SW/CACHE\n';
-    out += 'SW登録数: ' + swCount + '\n';
-    out += 'Cache数: ' + cacheCount + '\n\n';
-    out += '■ LOCAL STORAGE\n';
-    out += 'キー数: ' + keys + '\n';
-    out += 'smart_price_db: ' + (hasDb ? 'あり' : 'なし') + '\n\n';
-    out += '■ DB（端末内 / window.db）\n';
-    try {
-      const db = window.db || {};
-      const pc = Array.isArray(db.purchases) ? db.purchases.length : 0;
-      const prc = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
-      out += '購入件数: ' + pc + '\n';
-      out += '商品件数: ' + prc + '\n';
-    } catch(e) {
-      out += '購入件数: ERROR\n商品件数: ERROR\n';
-    }
-    out += '\n■ URL QUICK LINKS\n';
-    out += 'RESET_URL: ' + _buildUrl({ reset:'sw', b:_getBuild() }) + '\n';
-    out += 'NORMAL_URL: ' + _buildUrl({ reset:null, b:_getBuild() }) + '\n';
-    return out;
-  }
-
-  // ===== DEBUG PANEL injector =====
-  let _outEl = null;
-  let _inEl = null;
-
-  function _findDebugPanel() {
-    const known = document.querySelector('#debug-panel, #debugPanel, [data-debug-panel], .debug-panel');
-    if (known) return known;
-    const cand = document.querySelectorAll('div,section,aside,dialog');
-    for (const el of cand) {
-      if (el && el.textContent && el.textContent.indexOf('DEBUG PANEL') >= 0) return el;
-    }
-    return null;
-  }
-
-  function _showOut(text) {
-    if (_outEl) {
-      _outEl.style.display = 'block';
-      _outEl.value = String(text || '');
-    }
-  }
-
-  function _inject(panel) {
-    if (!panel) return false;
-    if (panel.querySelector('#sp-admin-tools-v1951')) return true;
-
-    const wrap = document.createElement('div');
-    wrap.id = 'sp-admin-tools-v1951';
-    wrap.style.marginTop = '10px';
-    wrap.innerHTML =
-      '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-url">URLコピー</button>'
-      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-reset">SW解除URL</button>'
-      + '</div>'
-      + '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-warning w-100 fw-bold" id="sp-diag">診断ログをコピー</button>'
-      + '</div>'
-      + '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-export">DBエクスポート</button>'
-      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-import">DBインポート</button>'
-      + '</div>'
-      + '<textarea id="sp-in" class="form-control bg-dark text-white border-secondary mt-2" rows="4" '
-      + ' placeholder="ここに『DBエクスポート』の文字列を貼ってから、DBインポート" '
-      + ' style="white-space:pre-wrap;word-break:break-all;"></textarea>'
-      + '<textarea id="sp-out" class="form-control bg-dark text-white border-secondary mt-2" rows="6" readonly '
-      + ' style="display:none;white-space:pre-wrap;word-break:break-all;"></textarea>'
-      + '<div class="small text-secondary mt-1" style="opacity:.9;">'
-      + '※コピーできない端末は、下の欄を長押しコピーでOK。Firebaseは使いません。'
-      + '</div>';
-
-    panel.appendChild(wrap);
-    _outEl = wrap.querySelector('#sp-out');
-    _inEl = wrap.querySelector('#sp-in');
-
-    wrap.querySelector('#sp-url')?.addEventListener('click', async()=>{ const ok=await _copy(location.href); if(!ok)_showOut(location.href); });
-    wrap.querySelector('#sp-reset')?.addEventListener('click', async()=>{ const u=_buildUrl({reset:'sw', b:_getBuild()}); const ok=await _copy(u); if(!ok)_showOut(u); });
-    wrap.querySelector('#sp-diag')?.addEventListener('click', async()=>{ const t=await spAdminBuildDiagText(); _showOut(t); await _copy(t); });
-    wrap.querySelector('#sp-export')?.addEventListener('click', ()=> spAdminExportDb() );
-    wrap.querySelector('#sp-import')?.addEventListener('click', ()=> {
-      const text = (_inEl && _inEl.value) ? _inEl.value : '';
-      if (!text.trim()) { _toast('貼り付けが空です'); return; }
-      spAdminImportDbFromText(text.trim());
-    });
-
-    return true;
-  }
-
-  // expose minimal API for compatibility
-  window.spAdminExportDb = spAdminExportDb;
-  window.spAdminImportDbFromText = spAdminImportDbFromText;
-
-  // init fix should run early after load
-  document.addEventListener('DOMContentLoaded', function() {
-    _ensureDbFromLocalStorage();
-  });
-
-  const mo = new MutationObserver(()=>{ const p=_findDebugPanel(); if(p) _inject(p); });
-  mo.observe(document.body, {childList:true, subtree:true});
-  const p0=_findDebugPanel(); if(p0) _inject(p0);
-
-})();
-</script>
-
-
-<!--
-  Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.61
-  AUTHOR: Yui
-  DATE(JST): 2026-02-08 20:53 JST
-  BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
-  POLICY:
-  - debug=1 のときだけ表示（通常UIは一切変更しない）
-  - Firebase/UID/接続先URLには触れない
--->
-<script>
-(function(){
-  'use strict';
-  function qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
-  const P = qs();
-  const isDebug = (P.get('debug') === '1');
-  const isAdmin = (P.get('mode') === 'admin');
-  if (!isDebug || !isAdmin) return;
-
-  function nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
-  function getBuild(){ return P.get('b') || (window.BUILD_ID||'') || 'N/A'; }
-  function getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
-
-  function toast(msg){
-    try{ if (typeof showToast === 'function') showToast(String(msg), 6000); }catch(e){}
-    try{ if (typeof debugLog === 'function') debugLog(String(msg)); }catch(e){}
-  }
-
-  async function copyText(t){
-    try{ await navigator.clipboard.writeText(String(t)); toast('コピーしました'); return true; }
-    catch(e){ toast('コピーできません（下の欄を長押しコピー）'); return false; }
-  }
-
-  function safeParse(s){ try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, err:String(e)}; } }
-  function dbEmpty(db){
-    try{
-      if(!db||typeof db!=='object') return true;
-      const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
-      const pr = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
-      return (p===0 && pr===0);
-    }catch(e){ return true; }
-  }
-  function ensureDbFromLS(){
-    try{
-      if (!dbEmpty(window.db)) return;
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const r = safeParse(dbStr);
-        if (r.ok && r.v && typeof r.v === 'object') {
-          window.db = r.v;
-          return;
-        }
-      }
-      window.db = window.db || {products: {}, stores: {}, purchases: []};
-    }catch(e){
-      window.db = window.db || {products: {}, stores: {}, purchases: []};
-    }
-  }
-
-  function buildUrlReset(){
-    const u = new URL(location.href);
-    u.searchParams.set('reset','sw');
-    u.searchParams.set('b', getBuild());
-    return u.toString();
-  }
-
-  function buildDiag(){
-    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
-    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
-    let out='';
-    out+='【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
-    out+='日時: '+nowJP()+'\n\n';
-    out+='■ VERSION\n';
-    out+='VERSION: '+getVersion()+'\n';
-    out+='BUILD(b): '+getBuild()+'\n';
-    out+='URL: '+location.href+'\n';
-    out+='PATH: '+location.pathname+'\n\n';
-    out+='■ LOCAL STORAGE\n';
-    out+='キー数: '+keys+'\n';
-    out+='smart_price_db: '+(hasDb?'あり':'なし')+'\n\n';
-    out+='■ DB（端末内 / window.db）\n';
-    try{
-      const db = window.db||{};
-      const pc = Array.isArray(db.purchases)?db.purchases.length:0;
-      const prc = db.products&&typeof db.products==='object'?Object.keys(db.products).length:0;
-      out+='購入件数: '+pc+'\n';
-      out+='商品件数: '+prc+'\n';
-    }catch(e){ out+='購入件数: ERROR\n商品件数: ERROR\n'; }
-    out+='\n■ URL QUICK LINKS\n';
-    out+='RESET_URL: '+buildUrlReset()+'\n';
-    out+='NORMAL_URL: '+(new URL(location.href)).toString()+'\n';
-    return out;
-  }
-
-  function exportPayload(){
-    const dbStr = localStorage.getItem('smart_price_db') || '';
-    const dataStr = localStorage.getItem('smart_price_data') || '';
-    const payload = {
-      kind:'SmartPriceExport',
-      version:getVersion(),
-      build:getBuild(),
-      exportedAtJST: nowJP(),
-      smart_price_db: dbStr,
-      smart_price_data: dataStr
-    };
-    return JSON.stringify(payload);
-  }
-
-  function importPayload(text){
-    const r = safeParse(text||'');
-    if(!r.ok){ toast('インポート失敗：JSONとして読めません'); return false; }
-    const obj=r.v;
-    let dbStr='', dataStr='';
-    if(obj && obj.kind==='SmartPriceExport'){ dbStr=String(obj.smart_price_db||''); dataStr=String(obj.smart_price_data||''); }
-    else if(obj && typeof obj==='object' && obj.products && obj.purchases){ dbStr=JSON.stringify(obj); }
-    else { toast('インポート失敗：形式が違います（Export文字列を貼ってください）'); return false; }
-
-    if(!dbStr){ toast('インポート失敗：smart_price_db が空'); return false; }
-    const dbCheck = safeParse(dbStr);
-    if(!dbCheck.ok){ toast('インポート失敗：smart_price_db が壊れてます'); return false; }
-
-    try{
-      localStorage.setItem('smart_price_db', dbStr);
-      if(dataStr) localStorage.setItem('smart_price_data', dataStr);
-      window.db = dbCheck.v;
-      toast('インポートOK：再描画します');
-      try{ if(typeof renderHistory==='function') renderHistory(); }catch(e){}
-      return true;
-    }catch(e){ toast('インポート失敗：保存できません'); return false; }
-  }
-
-  // overlay UI
-  const box = document.createElement('div');
-  box.id='sp-admin-overlay-tools';
-  box.style.position='fixed';
-  box.style.right='10px';
-  box.style.bottom='10px';
-  box.style.zIndex='99999';
-  box.style.width='min(360px, calc(100vw - 20px))';
-  box.style.background='rgba(0,0,0,0.82)';
-  box.style.border='1px solid rgba(255,255,255,0.25)';
-  box.style.borderRadius='12px';
-  box.style.padding='10px';
-  box.style.color='#fff';
-  box.style.fontSize='13px';
-  box.style.backdropFilter='blur(6px)';
-
-  box.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<div style="font-weight:700;">ADMIN TOOLS</div>'
-    + '<div style="opacity:.8;">(debug=1)</div>'
-    + '<button id="spov-close" style="margin-left:auto;border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;">×</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-url" style="flex:1;padding:8px;border-radius:10px;border:0;">URL</button>'
-    + '  <button id="spov-reset" style="flex:1;padding:8px;border-radius:10px;border:0;">SW解除URL</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-diag" style="flex:1;padding:8px;border-radius:10px;border:0;font-weight:700;">診断ログ</button>'
-    + '  <button id="spov-exp" style="flex:1;padding:8px;border-radius:10px;border:0;">EXPORT</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-imp" style="flex:1;padding:8px;border-radius:10px;border:0;">IMPORT</button>'
-    + '</div>'
-    + '<textarea id="spov-in" rows="3" placeholder="IMPORT用：ここにExport文字列を貼る" '
-    + ' style="margin-top:8px;width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
-    + '<textarea id="spov-out" rows="6" readonly '
-    + ' style="margin-top:8px;width:100%;display:none;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
-    + '<div style="margin-top:6px;opacity:.8;font-size:12px;">コピー不可なら下の欄を長押しコピーでOK</div>';
-
-  document.documentElement.appendChild(box);
-
-  const out = box.querySelector('#spov-out');
-  function showOut(t){ out.style.display='block'; out.value=String(t||''); }
-
-  box.querySelector('#spov-close').onclick=()=>{ box.remove(); };
-  box.querySelector('#spov-url').onclick=async()=>{ const ok=await copyText(location.href); if(!ok) showOut(location.href); };
-  box.querySelector('#spov-reset').onclick=async()=>{ const u=buildUrlReset(); const ok=await copyText(u); if(!ok) showOut(u); };
-  box.querySelector('#spov-diag').onclick=async()=>{ ensureDbFromLS(); const t=buildDiag(); showOut(t); await copyText(t); };
-  box.querySelector('#spov-exp').onclick=async()=>{ const t=exportPayload(); showOut(t); await copyText(t); };
-  box.querySelector('#spov-imp').onclick=()=>{
-    const t=(box.querySelector('#spov-in').value||'').trim();
-    if(!t){ toast('貼り付けが空'); return; }
-    ensureDbFromLS();
-    importPayload(t);
-  };
-
-})();
-</script>
-
-
-<script>
-(function(){
-  document.addEventListener('keydown', function(e){
-    if (e && e.key === 'Escape') {
-      try { spCloseDebugPanel(); } catch(_) {}
-    }
-  }, {capture:true});
-})();
-</script>
-
-
-<script>
-/* === SP PATCH: settingsnav-r8 (build 2026-02-13_2110_settingsnav-r8) === */
+/* VERIFY OVERLAY (verify=1) - non invasive */
 (function() {
-  'use strict';
-  var SP = window.SP || (window.SP = {});
-  SP.settingsNav = SP.settingsNav || { inited:false, current:'panelMenu' };
-
-  function qs(sel, root) { return (root||document).querySelector(sel); }
-  function qsa(sel, root) { return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-
-  function showPanel(panelId) {
-    var modal = qs('#settingsModal');
-    if (!modal) return;
-    var panels = qsa('#settingsModal .sp-panel');
-    panels.forEach(function(p) { p.style.display = (p.id===panelId) ? 'block' : 'none'; });
-    SP.settingsNav.current = panelId;
-    updateHeaderButtons();
+  function getParams() {
+    try { return new URLSearchParams(location.search); } catch(e) { return null; }
   }
-
-  function closeSettings() {
-    try {
-      var modal = qs('#settingsModal');
-      if (modal) modal.style.display = 'none';
-      // also hide any stacked modals that may remain
-      qsa('.modal').forEach(function(m) {
-        if (m.id !== 'settingsModal' && m.style.display === 'block' && m.getAttribute('data-modal-stack')==='settings') {
-          m.style.display='none';
-        }
-      });
-    } catch(e) {}
+  function isVerify() {
+    var p = getParams(); if(!p) return false;
+    return p.get('verify') === '1';
   }
-
-  function updateHeaderButtons() {
-    var modal = qs('#settingsModal');
-    if (!modal) return;
-    var left = qs('#spSettingsLeftBtn', modal);
-    var right = qs('#spSettingsRightBtn', modal);
-    if (!left || !right) return;
-    if (SP.settingsNav.current === 'panelMenu') {
-      left.textContent = '閉じる';
-      left.onclick = function(ev) { ev.preventDefault(); ev.stopPropagation(); closeSettings(); };
-      right.style.display = 'none';
+  function q(sel, root) { return (root||document).querySelector(sel); }
+  function qs(sel, root) { return Array.from((root||document).querySelectorAll(sel)); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function computeVisibleModals() {
+    var ids = qs('[id$="Modal"],[id*="modal"]').map(function(el){return el.id;}).filter(Boolean);
+    ids = Array.from(new Set(ids));
+    var vis = [];
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      var cs = window.getComputedStyle(el);
+      var visible = cs && cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
+      if(visible) {
+        var rect = el.getBoundingClientRect();
+        vis.push({id:id, w:Math.round(rect.width), h:Math.round(rect.height)});
+      }
+    });
+    return vis;
+  }
+  function countTextButtons(rootEl, text) {
+    if(!rootEl) return 0;
+    var btns = qs('button, a, [role="button"]', rootEl);
+    var n=0;
+    btns.forEach(function(b){
+      var t = (b.innerText||'').trim();
+      if(t === text) n++;
+    });
+    return n;
+  }
+  function makePanel() {
+    var wrap = document.createElement('div');
+    wrap.id = 'sp-verify-overlay';
+    wrap.style.cssText = [
+      'position:fixed','right:12px','bottom:12px','z-index:2147483647',
+      'width:420px','max-width:calc(100vw - 24px)','max-height:60vh',
+      'background:rgba(0,0,0,0.86)','color:#fff',
+      'border:1px solid rgba(255,255,255,0.18)','border-radius:12px',
+      'box-shadow:0 10px 30px rgba(0,0,0,0.35)',
+      'font:12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif',
+      'padding:10px','overflow:auto'
+    ].join(';');
+    wrap.innerHTML = '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;">'
+      + '<div><b>VERIFY</b> <span style="opacity:.8">Smart Price v19.9.64 / 2026-02-13_2140_verify-r2</span></div>'
+      + '<button id="sp-verify-close" style="border:0;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;">閉じる</button>'
+      + '</div>'
+      + '<div id="sp-verify-body" style="margin-top:8px;white-space:pre-wrap;"></div>';
+    document.body.appendChild(wrap);
+    q('#sp-verify-close', wrap).addEventListener('click', function(){
+      wrap.remove();
+      try {
+        var p = getParams(); if(!p) return;
+        p.delete('verify');
+        var qstr = p.toString();
+        var newUrl = location.pathname + (qstr ? ('?' + qstr) : '') + location.hash;
+        history.replaceState(null, '', newUrl);
+      } catch(e) {}
+    });
+    return wrap;
+  }
+  function render(panel) {
+    var body = q('#sp-verify-body', panel);
+    if(!body) return;
+    var vis = computeVisibleModals();
+    var settings = document.getElementById('settingsModal') || document.getElementById('settings-modal');
+    var debugPanel = document.getElementById('debugPanel') || document.getElementById('debug-panel');
+    var lines = [];
+    lines.push('URL: ' + location.href);
+    lines.push('VISIBLE MODALS: ' + (vis.length ? '' : '(none)'));
+    vis.forEach(function(v){ lines.push('  - ' + v.id + ' ('+v.w+'x'+v.h+')'); });
+    if(settings) {
+      lines.push('');
+      lines.push('settingsModal:');
+      lines.push('  display=' + (getComputedStyle(settings).display));
+      lines.push('  buttons: 閉じる=' + countTextButtons(settings,'閉じる') + ' / 戻る=' + countTextButtons(settings,'戻る'));
     } else {
-      left.textContent = '戻る';
-      left.onclick = function(ev) { ev.preventDefault(); ev.stopPropagation(); showPanel('panelMenu'); };
-      right.style.display = 'inline-block';
-      right.textContent = '閉じる';
-      right.onclick = function(ev) { ev.preventDefault(); ev.stopPropagation(); closeSettings(); };
+      lines.push('');
+      lines.push('settingsModal: (not found)');
     }
-  }
-
-  function ensureHeaderButtons() {
-    var modal = qs('#settingsModal');
-    if (!modal) return;
-    var header = qs('#settingsModal .modal-header');
-    if (!header) return;
-
-    if (!qs('#spSettingsLeftBtn', modal)) {
-      header.style.position = 'relative';
-      var left = document.createElement('button');
-      left.id = 'spSettingsLeftBtn';
-      left.type = 'button';
-      left.className = 'btn btn-sm btn-secondary';
-      left.style.position = 'absolute';
-      left.style.left = '12px';
-      left.style.top = '10px';
-      left.style.zIndex = '2';
-      left.textContent = '閉じる';
-      header.appendChild(left);
+    if(debugPanel) {
+      lines.push('');
+      lines.push('debugPanel: display=' + getComputedStyle(debugPanel).display);
     }
-    if (!qs('#spSettingsRightBtn', modal)) {
-      var right = document.createElement('button');
-      right.id = 'spSettingsRightBtn';
-      right.type = 'button';
-      right.className = 'btn btn-sm btn-secondary';
-      right.style.position = 'absolute';
-      right.style.right = '12px';
-      right.style.top = '10px';
-      right.style.zIndex = '2';
-      right.textContent = '閉じる';
-      right.style.display = 'none';
-      header.appendChild(right);
-    }
-    updateHeaderButtons();
+    body.textContent = lines.join('\n');
   }
-
-  function hijackNavButtons() {
-    var modal = qs('#settingsModal');
-    if (!modal) return;
-    // root nav buttons
-    qsa('#settingsModal .sp-nav-btn').forEach(function(btn) {
-      if (btn.getAttribute('data-sp-bound')==='1') return;
-      btn.setAttribute('data-sp-bound','1');
-      btn.addEventListener('click', function(ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        var target = btn.getAttribute('data-panel');
-        if (target) showPanel(target);
-      }, true);
-    });
-    // any bottom "戻る" buttons inside panels (hide + keep safety click)
-    qsa('#settingsModal .sp-back-btn').forEach(function(btn) {
-      if (btn.getAttribute('data-sp-bound')==='1') return;
-      btn.setAttribute('data-sp-bound','1');
-      btn.addEventListener('click', function(ev) {
-        ev.preventDefault(); ev.stopPropagation();
-        showPanel('panelMenu');
-      }, true);
-    });
+  function boot() {
+    if(!isVerify()) return;
+    var panel = makePanel();
+    render(panel);
+    setInterval(function(){ if(document.getElementById('sp-verify-overlay')) render(panel); }, 600);
   }
-
-  function openSettingsSP() {
-    // call original openSettings if exists (for value fill)
-    try {
-      if (typeof window.openSettings === 'function') window.openSettings();
-    } catch(e) {}
-    var modal = qs('#settingsModal');
-    if (modal) modal.style.display = 'flex';
-    ensureHeaderButtons();
-    hijackNavButtons();
-    showPanel('panelMenu');
-  }
-
-  function installSettingsButtonHook() {
-    // ensure gear uses our open
-    var gear = qs('#settingsBtn');
-    if (gear) {
-      gear.addEventListener('click', function(ev) {
-        ev.preventDefault(); ev.stopPropagation();
-        openSettingsSP();
-      }, true);
-    }
-    // if there is any other entry-point
-    qsa('[data-open="settings"], .open-settings').forEach(function(el){
-      el.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); openSettingsSP(); }, true);
-    });
-    // expose
-    window.openSettingsSP = openSettingsSP;
-  }
-
-  function initVerifyOverlay() {
-    var params = new URLSearchParams(location.search);
-    if (!params.has('verify')) return;
-
-    var ov = document.createElement('div');
-    ov.id = 'spVerifyOverlay';
-    ov.innerHTML = '' +
-      '<div class="spv-card">' +
-      '  <div style="font-weight:700;margin-bottom:6px;">SP 確認ツール（verify=1）</div>' +
-      '  <div>目的：設定ダイアログの「戻る/閉じる」や表示状態を目視＋数値で確認。</div>' +
-      '  <div class="spv-row">' +
-      '    <button id="spvOpen">設定を開く</button>' +
-      '    <button id="spvMenu">メニューへ</button>' +
-      '    <button id="spvFriend">友人紹介へ</button>' +
-      '    <button id="spvFamily">家族共有へ</button>' +
-      '    <button id="spvSupport">運営者へ質問へ</button>' +
-      '    <button id="spvClose">閉じる</button>' +
-      '  </div>' +
-      '  <div style="margin-top:8px;">状態</div>' +
-      '  <pre id="spvOut">loading...</pre>' +
-      '</div>';
-    document.body.appendChild(ov);
-    ov.style.display = 'block';
-
-    function countVisible(sel, root) {
-      return qsa(sel, root).filter(function(el) {
-        var st = window.getComputedStyle(el);
-        return st.display !== 'none' && st.visibility !== 'hidden' && el.offsetParent !== null;
-      }).length;
-    }
-    function render() {
-      var modal = qs('#settingsModal');
-      var out = qs('#spvOut');
-      if (!out) return;
-      var lines = [];
-      lines.push('URL: ' + location.href);
-      lines.push('settingsModal.display: ' + (modal ? modal.style.display : '(none)'));
-      lines.push('currentPanel: ' + SP.settingsNav.current);
-      if (modal) {
-        lines.push('visible panels: ' + qsa('#settingsModal .sp-panel').filter(function(p){return p.style.display!=='none';}).map(function(p){return p.id;}).join(', '));
-        lines.push('header left btn: ' + ((qs('#spSettingsLeftBtn', modal) ? qs('#spSettingsLeftBtn', modal).textContent : '') || '(none)'));
-        lines.push('header right btn visible: ' + (countVisible('#spSettingsRightBtn', modal)));
-        lines.push('back buttons (any): ' + countVisible('button:contains("戻る")', modal));
-      }
-      // counts for safety
-      lines.push('spSettingsLeftBtn count: ' + qsa('#spSettingsLeftBtn').length);
-      lines.push('spSettingsRightBtn count: ' + qsa('#spSettingsRightBtn').length);
-      out.textContent = lines.join('
-');
-    }
-
-    // helper for :contains not supported: we'll approximate by scanning
-    var origCountVisible = countVisible;
-    countVisible = function(sel, root) {
-      if (sel.indexOf(':contains("戻る")')>-1) {
-        var els = qsa('button', root||document).filter(function(b){return (b.textContent||'').trim()==='戻る';});
-        return els.filter(function(el){ var st=getComputedStyle(el); return st.display!=='none' && el.offsetParent!==null; }).length;
-      }
-      return origCountVisible(sel, root);
-    }
-
-    qs('#spvOpen').onclick = function() { openSettingsSP(); setTimeout(render, 50); };
-    qs('#spvMenu').onclick = function() { openSettingsSP(); showPanel('panelMenu'); setTimeout(render, 50); };
-    qs('#spvFriend').onclick = function() { openSettingsSP(); showPanel('panelFriend'); setTimeout(render, 50); };
-    qs('#spvFamily').onclick = function() { openSettingsSP(); showPanel('panelFamily'); setTimeout(render, 50); };
-    qs('#spvSupport').onclick = function() { openSettingsSP(); showPanel('panelSupport'); setTimeout(render, 50); };
-    qs('#spvClose').onclick = function() { ov.style.display='none'; };
-    setInterval(render, 800);
-    setTimeout(render, 100);
-  }
-
-  function initOnce() {
-    if (SP.settingsNav.inited) return;
-    SP.settingsNav.inited = true;
-    ensureHeaderButtons();
-    hijackNavButtons();
-    installSettingsButtonHook();
-    initVerifyOverlay();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initOnce);
+  if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    initOnce();
+    boot();
   }
 })();
 </script>
