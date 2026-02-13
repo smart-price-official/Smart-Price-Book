@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 APP: Smart Price
-VERSION: v19.9.54
+VERSION: v19.9.55
 P26-02-13 16:15 JST
 TITLE: 設定画面統合版（運営者メニュー/紹介・家族共有/お問い合わせ/未確定品管理/検証ツール）
 CHANGES:
@@ -10,7 +10,7 @@ CHANGES:
 - お問い合わせをlocalStorageに保存（最大50件）し、adminで一覧・コピー
 - 未確定商品（昨日分：商品名/メーカー/画像の欠落）をadminで補完・確定
 - 自己検証（VERSION/BUILD/config/主要関数）を設定内に追加
-BUILD_PARAM(b): ?b=2026-02-13_1615_buttonsfix
+BUILD_PARAM(b): ?b=2026-02-13_1645_settingsnav-r1
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 -->
@@ -22,14 +22,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.54</title>
+  <title>Smart Price v19.9.55</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.54';
-　window.APP_VERSION = 'v19.9.54';
-　window.FULL_VERSION = 'v19.9.54 [2026-02-13_1633_modalfix]';
+  window.VERSION_INFO = 'v19.9.55';
+　window.APP_VERSION = 'v19.9.55';
+　window.FULL_VERSION = 'v19.9.55 [2026-02-13_1633_modalfix]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.54) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.55) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -346,7 +346,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.54</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.55</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -647,8 +647,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.54"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.54 [2026-02-13_1615_buttonsfix]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.55"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.55 [2026-02-13_1615_buttonsfix]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-13_1615_buttonsfix"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5362,6 +5362,180 @@ function isQuotaError(e) {
     }
   }
 
+// === SETTINGS MODAL NAV (fix): ensure settings menu buttons & back/close work, and avoid overlapping with Debug Panel ===
+(function(){
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+
+  function hideDebugPanelIfOpen(){
+    try{
+      // debug panel is created dynamically; close if open
+      var panel = document.getElementById('debug-panel');
+      if(panel && panel.classList && panel.classList.contains('show')){
+        // click its close button if present
+        var closeBtn = document.getElementById('debug-panel-close');
+        if(closeBtn) closeBtn.click();
+        else panel.classList.remove('show');
+      }
+    }catch(e){}
+  }
+
+  function setPanelVisible(panelId){
+    var root = document.getElementById('settingsModal');
+    if(!root) return;
+
+    var panels = qsa('.sp-settings-panel', root);
+    panels.forEach(function(p){ p.style.display = 'none'; });
+
+    var menu = qs('#settingsMenu', root);
+    if(menu) menu.style.display = (panelId ? 'none' : 'block');
+
+    var back = qs('#sp-settings-back', root);
+    var close = qs('#sp-settings-close', root);
+
+    if(panelId){
+      var p = document.getElementById(panelId);
+      if(p) p.style.display = 'block';
+      if(back) back.style.display = 'inline-flex';
+    }else{
+      if(back) back.style.display = 'none';
+    }
+
+    // close button always visible
+    if(close) close.style.display = 'inline-flex';
+  }
+
+  function closeSettings(){
+    try{
+      var modal = document.getElementById('settingsModal');
+      if(modal) modal.style.display = 'none';
+      // restore focus safety
+      document.body.classList.remove('modal-open');
+    }catch(e){}
+  }
+
+  function openSettingsPatched(){
+    hideDebugPanelIfOpen();
+    // call original openSettings (defined above)
+    try{ if(typeof window.openSettings === 'function') window.openSettings(); }catch(e){}
+    // ensure menu view
+    setPanelVisible(null);
+  }
+
+  function initOnce(){
+    var root = document.getElementById('settingsModal');
+    if(!root || root.dataset._navInit === '1') return;
+    root.dataset._navInit = '1';
+
+    // Inject header row with close/back if missing (UI minimal, inside modal)
+    var header = qs('.sp-settings-header', root);
+    if(!header){
+      // create a small header bar at top of modal box
+      var box = qs('.sp-settings-box', root) || qs('.settings-box', root) || root.firstElementChild;
+      if(box){
+        header = document.createElement('div');
+        header.className = 'sp-settings-header';
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
+        box.insertBefore(header, box.firstChild);
+      }
+    }
+    if(header){
+      // left: back
+      if(!qs('#sp-settings-back', header)){
+        var back = document.createElement('button');
+        back.id = 'sp-settings-back';
+        back.type = 'button';
+        back.className = 'btn btn-sm btn-outline-light';
+        back.textContent = '戻る';
+        back.style.display = 'none';
+        back.addEventListener('click', function(){ setPanelVisible(null); });
+        header.appendChild(back);
+      }
+      // right: close
+      if(!qs('#sp-settings-close', header)){
+        var close = document.createElement('button');
+        close.id = 'sp-settings-close';
+        close.type = 'button';
+        close.className = 'btn btn-sm btn-outline-light';
+        close.textContent = '閉じる';
+        close.addEventListener('click', function(){ closeSettings(); });
+        header.appendChild(close);
+      }
+    }
+
+    // Menu container
+    var menu = qs('#settingsMenu', root);
+    if(!menu){
+      // if existing menu container is missing, wrap buttons
+      var btns = qsa('.sp-menu-btn', root);
+      if(btns.length){
+        menu = document.createElement('div');
+        menu.id = 'settingsMenu';
+        // insert before first panel
+        var firstPanel = qs('.sp-settings-panel', root);
+        if(firstPanel && firstPanel.parentNode){
+          firstPanel.parentNode.insertBefore(menu, firstPanel);
+        }else{
+          root.appendChild(menu);
+        }
+        btns.forEach(function(b){ menu.appendChild(b); });
+      }
+    }
+
+    // Wire menu buttons
+    qsa('.sp-menu-btn', root).forEach(function(btn){
+      if(btn.dataset._wired === '1') return;
+      btn.dataset._wired = '1';
+      btn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        var pid = btn.getAttribute('data-panel');
+        if(pid) setPanelVisible(pid);
+      });
+      // keyboard accessibility
+      btn.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' || ev.key === ' '){
+          ev.preventDefault();
+          btn.click();
+        }
+      });
+    });
+
+    // ESC closes settings
+    document.addEventListener('keydown', function(ev){
+      if(ev.key === 'Escape'){
+        var modal = document.getElementById('settingsModal');
+        if(modal && modal.style.display !== 'none'){
+          closeSettings();
+        }
+      }
+    }, {capture:true});
+  }
+
+  // Hook gear button to patched open
+  function hookGear(){
+    var gear = document.getElementById('settingsBtn');
+    if(!gear) return;
+    if(gear.dataset._hooked === '1') return;
+    gear.dataset._hooked = '1';
+    gear.addEventListener('click', function(e){
+      // if something else has overlaid, ensure we still open
+      e.preventDefault();
+      e.stopPropagation();
+      initOnce();
+      openSettingsPatched();
+    }, true);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ initOnce(); hookGear(); }, {once:true});
+  }else{
+    initOnce(); hookGear();
+  }
+})();
+
+
+
   function closeSettings() {
   clearToasts();
     try{ clearToasts(); }catch(e){}
@@ -5704,7 +5878,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.54 / 2026-02-07_2000_sw-reset) === */
+/* === Smart Price Settings Unified Patch (v19.9.55 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -6377,7 +6551,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.54'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.55'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6399,7 +6573,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.54');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.55');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6522,7 +6696,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.54
+  VERSION: v19.9.55
   AUTHOR: Yui
   DATE(JST): 2026-02-08 20:45 JST
   P26-02-08_2053_admin_overlay_tools_nofb
@@ -6802,7 +6976,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.54
+  VERSION: v19.9.55
   AUTHOR: Yui
   DATE(JST): 2026-02-08 20:53 JST
   BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
