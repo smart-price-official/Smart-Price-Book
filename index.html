@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.0.2
+VERSION: v20.0.3
 DATE(JST): 2026-02-14 16:05 JST
 TITLE: GPS/スキャン復旧（構文エラー解消）+ VERSION SSOT統一
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.2 / 2026-02-14_1605_homegps-scan-r2 に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.3 / 2026-02-14_1605_homegps-scan-r2 に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-14_1605_homegps-scan-r2
 DEBUG_PARAM: &debug=1
@@ -16,8 +16,15 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.0.2";
-  const BUILD_ID = "2026-02-14_1605_homegps-scan-r2";
+  const APP_VERSION = "v20.0.3";
+  P26-02-14_1740_ui-fix-r2";
+
+  function setHeaderVersionBadge(){
+    const badge = document.getElementById('versionBadge');
+    if(!badge) return;
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+    badge.textContent = isMobile ? APP_VERSION : FULL_VERSION;
+  }
   try {
     const url = new URL(location.href);
     const q = url.searchParams;
@@ -62,10 +69,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.0.2';
-  window.APP_VERSION = 'v20.0.2';
-  window.BUILD_ID = '2026-02-14_1605_homegps-scan-r2';
-  window.FULL_VERSION = 'v20.0.2 [2026-02-14_1605_homegps-scan-r2]';
+  window.VERSION_INFO = 'v20.0.3';
+    window.APP_VERSION = 'v20.0.3';
+    window.BUILD_ID = '2026-02-14_1740_ui-fix-r2';
+  window.FULL_VERSION = 'v20.0.3 [2026-02-14_1605_homegps-scan-r2]';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -73,14 +80,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.0.2</title>
+  <title>Smart Price v20.0.3</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v20.0.2';
-　window.APP_VERSION = 'v20.0.2';
-　window.FULL_VERSION = 'v20.0.2 [2026-02-14_1040_modalfix-r3]';
+  window.VERSION_INFO = 'v20.0.3';
+　window.APP_VERSION = 'v20.0.3';
+　window.FULL_VERSION = 'v20.0.3 [2026-02-14_1040_modalfix-r3]';
   </script>
-  <!-- ✅ SW RESET TOOL (v20.0.2) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v20.0.3) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -399,10 +406,59 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v20.0.2 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v20.0.3 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
+
+
+  /* === PATCH: homegps-scan-r3 (2026-02-14) === */
+  /* Mobile header: show short version only (full version is shown inside settings). */
+  @media (max-width: 640px){
+    #versionBadge{ max-width: 72vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+
+  /* Move scan window to upper 1/4 of the screen (requested). */
+  .scan-frame{ top: 25% !important; }
+
+  /* Hide grey corner guides drawn by scanner libs (keep canvas for decoding). */
+  #interactive canvas{ opacity: 0 !important; }
+
+  /* Dialog (manual code input) should appear around the scan window height. */
+  #dialogModal{ align-items: flex-start !important; }
+  #dialogModal .dialog-content{ margin-top: 18vh !important; }
+
+  /* Numeric keypad for code input */
+  #dialogKeypad{ display:none; margin-top: 14px; }
+  #dialogKeypad .kp-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  #dialogKeypad button{
+    padding: 14px 0;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  #dialogKeypad button.kp-fn{ background: rgba(255,255,255,0.14); }
+
+
+  /* Settings modal: make buttons filled & evenly spaced */
+  #settingsModal .btn{
+    border-radius: 12px;
+  }
+  #settingsModal .btn.btn-outline-light{
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.18);
+  }
+  #settingsModal .btn.btn-secondary{
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.18);
+  }
+  #settingsSyncBtn{
+    width: 100%;
+    font-weight: 800;
+  }
 
 </style>
 
@@ -433,7 +489,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.2</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.3</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -531,12 +587,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 <div id="settingsModal" class="modal">
   <div class="modal-content">
     <h5 class="text-white mb-4 text-center">設定</h5>
-
-    <div class="mb-3">
-      <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：、つくば市">
-      <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
-      <div id="city-history-chips" class="city-chips"></div>
+<div id="city-history-chips" class="city-chips"></div>
     </div>
 
     <div id="settingsMainMenu" class="mt-3">
@@ -742,9 +793,9 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.0.2"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v20.0.2 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-14_1605_homegps-scan-r2"; // ヘッダーと一致させる
+  const APP_VERSION = "v20.0.3"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v20.0.3 [2026-02-14_1740_ui-fix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  P26-02-14_1740_ui-fix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -1648,6 +1699,8 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
   // ✅ P0: VERSION表示を最優先で実行（loadConfigより先）
   document.addEventListener('DOMContentLoaded', () => {
+    setHeaderVersionBadge();
+    window.addEventListener('resize', setHeaderVersionBadge);
     try {
       const versionBadge = document.getElementById('version-badge');
       if (versionBadge) {
@@ -5327,7 +5380,7 @@ function isQuotaError(e) {
     }
   }
 
-  function customPrompt(msg, def = "") {
+  function customPrompt(msg, def = "", options) {
     return new Promise(res => {
       document.getElementById('dialogMsg').innerText = msg;
       document.getElementById('dialogInputArea').style.display="block";
