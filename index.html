@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.0.0
+VERSION: v20.0.1
 DATE(JST): 2026-02-14 09:45 JST
 TITLE: 設定モーダル修正（modalfix-r1a）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.0 / 2026-02-14_1600_v20 に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.1 / 2026-02-14_1600_v20 に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
@@ -16,7 +16,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.0.0";
+  const APP_VERSION = "v20.0.1";
   const BUILD_ID = "2026-02-14_1600_v20";
   try {
     const url = new URL(location.href);
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.0.0</title>
+  <title>Smart Price v20.0.1</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v20.0.0';
-　window.APP_VERSION = 'v20.0.0';
-　window.FULL_VERSION = 'v20.0.0 [2026-02-14_1040_modalfix-r3]';
+  window.VERSION_INFO = 'v20.0.1';
+　window.APP_VERSION = 'v20.0.1';
+　window.FULL_VERSION = 'v20.0.1 [2026-02-14_1040_modalfix-r3]';
   </script>
-  <!-- ✅ SW RESET TOOL (v20.0.0) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v20.0.1) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v20.0.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v20.0.1 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.0</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.1</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -691,8 +691,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.0.0"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v20.0.0 [2026-02-14_1600_v20]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v20.0.1"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v20.0.1 [2026-02-14_1600_v20]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-14_1600_v20"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -5384,12 +5384,20 @@ function isQuotaError(e) {
   window.showVeggieMenu = showVeggieMenu;
   window.showHome = showHome;
   window.startMigration = startMigration;
+  
+  console.log('[v20 Global Export] Functions exported:', {
+    startScanner: typeof window.startScanner,
+    toggleGps: typeof window.toggleGps,
+    showVeggieMenu: typeof window.showVeggieMenu,
+    showHome: typeof window.showHome,
+    startMigration: typeof window.startMigration
+  });
 })();
 </script>
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Smart Price 設定モーダル v20.0.0
+// Smart Price 設定モーダル v20.0.1
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
