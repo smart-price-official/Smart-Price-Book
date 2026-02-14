@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v19.9.67
-DATE(JST): 2026-02-14 09:05 JST
+VERSION: v19.9.68
+DATE(JST): 2026-02-14 09:45 JST
 TITLE: 設定モーダル修正（modalfix-r1a）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.67 / 2026-02-14_0905_modalfix-r1a に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.68 / 2026-02-14_0945_modalfix-r2 に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
-BUILD_PARAM(b): ?b=2026-02-14_0905_modalfix-r1a
+BUILD_PARAM(b): ?b=2026-02-14_0945_modalfix-r2
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
@@ -16,8 +16,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v19.9.67";
-  const BUILD_ID = "2026-02-14_0905_modalfix-r1a";
+  const APP_VERSION = "v19.9.68";
+  const BUILD_ID = "2026-02-14_0945_modalfix-r2";
   try {
     const url = new URL(location.href);
     const q = url.searchParams;
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.67</title>
+  <title>Smart Price v19.9.68</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.67';
-　window.APP_VERSION = 'v19.9.67';
-　window.FULL_VERSION = 'v19.9.67 [2026-02-14_0905_modalfix-r1a]';
+  window.VERSION_INFO = 'v19.9.68';
+　window.APP_VERSION = 'v19.9.68';
+　window.FULL_VERSION = 'v19.9.68 [2026-02-14_0945_modalfix-r2]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.67) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.68) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.67 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.68 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.67</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.68</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -702,9 +702,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.67"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.67 [2026-02-14_0905_modalfix-r1a]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-14_0905_modalfix-r1a"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.68"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.68 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5960,7 +5960,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.67 / 2026-02-07_2000_sw-reset) === */
+/* === Smart Price Settings Unified Patch (v19.9.68 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -6633,7 +6633,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.67'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.68'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6655,7 +6655,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.67');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.68');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6778,7 +6778,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.67
+  VERSION: v19.9.68
   AUTHOR: Yui
   DATE(JST): 2026-02-13 22:40 JST
   P26-02-08_2053_admin_overlay_tools_nofb
@@ -6843,7 +6843,7 @@ function spMaybeUnlockAdmin(ev){
     }
   }
 
-  // ===== v19.9.67+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
+  // ===== v19.9.68+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
   function _ensureDbFromLocalStorage() {
     try {
       if (!_dbEmpty(window.db)) return;
@@ -7058,7 +7058,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.67
+  VERSION: v19.9.68
   AUTHOR: Yui
   DATE(JST): 2026-02-13 22:40 JST
   BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
@@ -7261,12 +7261,12 @@ function spMaybeUnlockAdmin(ev){
 <script>
 /* ============================================================
    Smart Price Settings Fix (NO UI CHANGE OUTSIDE MODAL)
-   VERSION: v19.9.67
-   BUILD: 2026-02-14_0905_modalfix-r1a
+   VERSION: v19.9.68
+   BUILD: 2026-02-14_0945_modalfix-r2
    DATE(JST): 2026-02-13 22:40 JST
    ============================================================ */
 (function(){
-  const BUILD_TAG = "2026-02-14_0905_modalfix-r1a";
+  const BUILD_TAG = "2026-02-14_0945_modalfix-r2";
   const VERIFY_ON = new URLSearchParams(location.search).get('verify') === '1';
 
   function qs(sel, root=document){ return root.querySelector(sel); }
@@ -7387,7 +7387,7 @@ function spMaybeUnlockAdmin(ev){
   function buildDiagLog() {
     const lines = [];
     lines.push('Smart Price Diagnostics');
-    lines.push('VERSION: v19.9.67');
+    lines.push('VERSION: v19.9.68');
     lines.push('BUILD: ' + BUILD_TAG);
     lines.push('URL: ' + location.href);
     lines.push('UA: ' + navigator.userAgent);
@@ -7688,7 +7688,7 @@ function spMaybeUnlockAdmin(ev){
     }
     const checks = [];
     checks.push('VERIFY=1');
-    checks.push('VERSION: v19.9.67');
+    checks.push('VERSION: v19.9.68');
     checks.push('BUILD: ' + BUILD_TAG);
     checks.push('settingsModal: ' + (!!document.getElementById('settingsModal')));
     checks.push('openSettings: ' + (typeof window.openSettings));
@@ -7708,7 +7708,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!-- === SP MODAL FIX PATCH ===
 APP: Smart Price
-VERSION: v19.9.67
+VERSION: v19.9.68
 DATE(JST): 2026-02-14 08:30 JST
 TITLE: Settings modal single-instance + panel routing fix
 CHANGES:
@@ -7716,13 +7716,13 @@ CHANGES:
 - Ensure only one panel is visible at a time; fix Back button routing and title switching.
 - On opening Settings, hide sub panels so referral link won't appear under the main menu.
 POLICY: UI_FREEZE / single-HTML / VERSION SSOT
-BUILD_PARAM(b): ?b=2026-02-14_0905_modalfix-r1a
+BUILD_PARAM(b): ?b=2026-02-14_0945_modalfix-r2
 DEBUG_PARAM: &debug=1
 -->
 <script>
 (function(){
   'use strict';
-  var FIX_VER = 'v19.9.67 [2026-02-14_0905_modalfix-r1a]';
+  var FIX_VER = 'v19.9.68 [2026-02-14_0945_modalfix-r2]';
   if (window.__SP_SETTINGS_MODAL_FIX === FIX_VER) return;
   window.__SP_SETTINGS_MODAL_FIX = FIX_VER;
 
