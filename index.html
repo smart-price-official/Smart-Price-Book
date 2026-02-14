@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.0.7
+VERSION: v20.1.0
 DATE(JST): 2026-02-14 16:05 JST
 TITLE: GPS/スキャン復旧（構文エラー解消）+ VERSION SSOT統一
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.7 / 2026-02-14_2130_fixed に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.1.0 / 2026-02-14_2200_cache-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-14_2130_fixed
+BUILD_PARAM(b): ?b=2026-02-14_2200_cache-fix
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
@@ -16,9 +16,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.0.7";
+  const APP_VERSION = "v20.1.0";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-14_2130_fixed";
+  const BUILD_ID = "2026-02-14_2200_cache-fix";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
 
@@ -76,7 +76,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.0.7';
+  window.VERSION_INFO = 'v20.1.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -84,8 +84,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.0.7</title>
-  <!-- ✅ SW RESET TOOL (v20.0.7) : ?reset=sw -->
+  <title>Smart Price v20.1.0</title>
+  <!-- ✅ SW RESET TOOL (v20.1.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -424,7 +424,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v20.0.7 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v20.1.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -507,7 +507,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.7</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.1.0</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -750,6 +750,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     
     <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+    <button id="clearCacheBtn" class="btn btn-danger w-100 py-2 fw-bold mb-2" onclick="clearAllCache()">🔄 キャッシュクリア（表示崩れ修正）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
@@ -811,8 +812,8 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.0.7"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const BUILD_ID = "2026-02-14_2130_fixed";
+  const APP_VERSION = "v20.1.0"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const BUILD_ID = "2026-02-14_2200_cache-fix";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
   window.FULL_VERSION = FULL_VERSION;
@@ -5649,6 +5650,54 @@ function isQuotaError(e) {
     setTimeout(init, 100);
   }
 })();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// キャッシュクリア機能
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function clearAllCache() {
+  const confirmed = confirm(
+    '【キャッシュを完全にクリアします】\n\n' +
+    '・Service Worker の削除\n' +
+    '・キャッシュストレージの削除\n' +
+    '・ページの再読み込み\n\n' +
+    'レイアウト崩れが修正されます。\n続行しますか？'
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    // Service Worker の削除
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        await registration.unregister();
+      }
+      console.log('[Cache Clear] Service Workers unregistered:', registrations.length);
+    }
+    
+    // Cache Storage の削除
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      for (const cacheName of cacheNames) {
+        await caches.delete(cacheName);
+      }
+      console.log('[Cache Clear] Caches deleted:', cacheNames.length);
+    }
+    
+    // LocalStorage は保持（ユーザーデータを守る）
+    
+    alert('✅ キャッシュクリア完了！\n\nページを再読み込みします。');
+    
+    // 強制リロード
+    location.reload(true);
+    
+  } catch (error) {
+    console.error('[Cache Clear] Error:', error);
+    alert('❌ エラーが発生しました:\n' + error.message);
+  }
+}
+
+window.clearAllCache = clearAllCache;
 </script>
 
 
