@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.1.2
+VERSION: v20.1.3
 P26-02-14 23:56 JST
-TITLE: UI修正（スクショ1-8対応）+ キャッシュクリア配置整理 + スキャン手動入力テンキー
+TITLE: UIFIX20（指摘修正：履歴表示/スマホ版表示/角線/手入力テンキー/設定ボタン高さ/設定戻り）+ ID表示/共有強化
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
 - VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-14_2356_ui-fix19
+BUILD_PARAM(b): ?b=2026-02-15_0000_ui-fix20
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
@@ -16,19 +16,35 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.1.2";
+  const APP_VERSION = "v20.1.3";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-14_2356_ui-fix19";
+  const BUILD_ID = "2026-02-15_0000_ui-fix20";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
 
   function setHeaderVersionBadge(){
     const badge = document.getElementById('versionBadge');
     if(!badge) return;
+
     const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+
+    // ✅ 設定モーダル表示中は、スマホでも「フル表示」へ戻す（class/show だけに頼らず computedStyle で判定）
     const modal = document.getElementById('settingsModal');
-    const isSettingsOpen = !!(modal && modal.classList && modal.classList.contains('show') && modal.style.display !== 'none');
-    // スマホは通常「バージョン番号だけ」。ただし設定画面表示中はフル表示。
+    let isSettingsOpen = false;
+    try{
+      if(modal){
+        const cs = window.getComputedStyle ? getComputedStyle(modal) : null;
+        const disp = cs ? cs.display : (modal.style ? modal.style.display : '');
+        const vis  = cs ? cs.visibility : '';
+        const op   = cs ? parseFloat(cs.opacity || '1') : 1;
+        isSettingsOpen = (disp !== 'none') && (vis !== 'hidden') && (op > 0.01);
+        if(modal.classList && modal.classList.contains('show')) isSettingsOpen = true;
+        const ah = modal.getAttribute ? modal.getAttribute('aria-hidden') : null;
+        if(ah === 'false') isSettingsOpen = true;
+      }
+    }catch(e){}
+
+    // ✅ スマホは通常「バージョン番号だけ」。ただし設定画面表示中はフル表示。
     badge.textContent = (isMobile && !isSettingsOpen) ? APP_VERSION : FULL_VERSION;
   }
   
@@ -469,6 +485,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   /* Mobile header: show short version only (full version is shown inside settings). */
   @media (max-width: 640px){
     #versionBadge{ max-width: 72vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#settingsModal #syncBtn,
+#settingsModal #clearCacheBtn,
+#settingsModal #webBtn{
+  min-height: 52px !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
   }
 
   /* Move scan window to upper 1/4 of the screen (requested). */
@@ -479,9 +503,35 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 
     /* === PATCH v20.1.2: scanner UI placement & corner artifact cleanup === */
-    #interactive video, #interactive canvas, #interactive *{
+    #interactive video, #interactive canvas{
       outline: none !important;
       box-shadow: none !important;
+      border: none !important;
+    }
+    /* html5-qrcode が描く角ガイド（灰色線）を消す */
+    #interactive .qr-shaded-region,
+    #interactive .qr-shaded-region *{
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    #interactive .qr-code-scanner__box,
+    #interactive .qr-code-scanner__box *{
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    
+    #interactive [class*="qr-"]{
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+/* 自前の枠（scan-frame）は影で周囲を暗くするので復活 */
+    #camera-area .scan-frame{
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.65) !important;
     }
     #interactive video, #interactive canvas{
       border: none !important;
@@ -603,7 +653,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   <div id="mainView">
     <div class="row g-2 mb-4">
       <div class="col-7"><button id="scanBtnTop" class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
-      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="showVeggieMenu()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
+      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="openManualEntryOnly()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
     </div>
     <div id="historyList"></div>
   </div>
@@ -728,6 +778,8 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       </div>
 
       <div id="panelReferral" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2" style="opacity:.9;">個人ID：<span class="text-white fw-bold" id="sp-personal-id-panelReferral"></span></div>
+
         <div class="small text-secondary mb-2">
           この「紹介リンク」を友人に送ってください。友人が開くと、あなたの紹介IDが記録されます。
         </div>
@@ -749,16 +801,25 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
       </div>
         <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
       </div>
 
       <div id="panelFamily" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2" style="opacity:.9;">個人ID：<span class="text-white fw-bold" id="sp-personal-id-panelFamily"></span></div>
+
         <div class="small text-secondary mb-2">
           同じ購入データを別の端末でも使いたいときは、ここで「共有ID」を使います（準備中のため、まずは画面だけ整えています）。
         </div>
         <label class="small text-secondary">共有ID（相手のIDを貼り付け）</label>
         <input id="family-share-id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="例：AB12CD（半角）">
+        <div class="small text-secondary mb-1">あなたの個人ID（このIDを送って共有できます）</div>
+        <div class="d-flex gap-2 mb-2">
+          <input id="family-my-id" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-dark" onclick="spCopy('family-my-id')">コピー</button>
+          <button class="btn btn-danger" onclick="spShareFamilyId()">共有</button>
+        </div>
+
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" id="family-hide-purchases">
           <label class="form-check-label small text-secondary" for="family-hide-purchases">購入商品を隠す（家族共有用／準備中）</label>
@@ -777,11 +838,13 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         </div>
         <div id="familyMsg" class="small text-secondary mt-2"></div>
         <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
       </div>
 
       <div id="panelSupport" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2" style="opacity:.9;">個人ID：<span class="text-white fw-bold" id="sp-personal-id-panelSupport"></span></div>
+
         <div class="mt-2">
         <label class="small text-secondary">症状（何が起きたか）</label>
         <textarea id="support-symptom" class="form-control bg-dark text-white border-secondary mb-2" rows="3" placeholder="例：バーコード読み込み後、商品名が違う…"></textarea>
@@ -818,11 +881,13 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
           <button type="button" class="btn btn-outline-secondary" id="supportDiagnoseBtn">不具合の検出（情報を埋める）</button>
         </div>
         <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
       </div>
 
       <div id="panelOperator" class="sp-panel mt-3" style="display:none;">
+        <div class="small text-secondary mb-2" style="opacity:.9;">個人ID：<span class="text-white fw-bold" id="sp-personal-id-panelOperator"></span></div>
+
         <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
         <div class="d-flex gap-2 mb-2">
           <input id="operatorPass" type="password" class="form-control bg-dark text-white border-secondary" placeholder="パスワード">
@@ -850,7 +915,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
             </div>
         </div>
         <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
       </details>
         </div>
@@ -2833,6 +2898,13 @@ function isQuotaError(e) {
 
     const items = Object.keys(db.products).map(k => ({ code: k, ...db.products[k] }));
     items.sort((a,b) => (histTs(b.history?.[b.history.length-1]) || 0) - (histTs(a.history?.[a.history.length-1]) || 0));
+    // ✅ PCなどで「何も表示されない」を避ける：履歴0件でもメッセージは出す
+    const hasAnyHistory = items.some(x => x.history && x.history.length);
+    if(!hasAnyHistory){
+      list.innerHTML = `<div class="text-secondary small text-center py-3" style="opacity:.85;">購入履歴がありません（必要なら「設定保存と同期」を実行してください）</div>`;
+      return;
+    }
+
 
     // ✅ 重複防止ガード（codeキー + 正規化キー）
     const renderedKeys = new Set();
@@ -4332,7 +4404,44 @@ function isQuotaError(e) {
     }
   }
 
-  function startScanner() {
+  
+  // ✅ 手入力（カメラ無し）：スキャン画面の位置に「コード入力＋テンキー」だけを出す
+  // - ユーザー要望: 「スキャン画面に手動コード入力＋テンキー」
+  function openManualEntryOnly(){
+    try{
+      const ca = document.getElementById('camera-area');
+      if(ca) ca.style.display = 'block';
+      isScanning = false;
+
+      ensureScanbarDom();
+      const ok = ensureManualEntryDom();
+
+      try{
+        const me = document.getElementById('manual-entry');
+        if(me) me.style.display = 'block';
+      }catch(e){}
+
+      try{
+        const input = document.getElementById('manualCodeInput');
+        if(input){
+          input.value = '';
+          setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 50);
+        }
+      }catch(e){}
+
+      if(!ok){
+        const manual = document.getElementById('manual-entry');
+        if(manual){
+          manual.style.top = 'calc(25% + 180px + 18px)';
+          manual.style.display = 'block';
+        }
+      }
+    }catch(e){
+      if(isDebug()) console.warn('[openManualEntryOnly] failed:', e);
+    }
+  }
+
+function startScanner() {
     if(isScanning) {
       if (isDebug()) {
         console.log("[Scanner] Already scanning, skip");
@@ -5752,6 +5861,37 @@ return true;
     state.isOpen = true; state.currentPanel = 'Main'; state.history = ['Main'];
     modal.style.display = 'flex';
     try{ if(typeof window.setHeaderVersionBadge==='function') window.setHeaderVersionBadge(); }catch(e){}
+    // ✅ 個人ID表示（設定内の各画面にも表示）
+    try{
+      const pid = (typeof getDeviceId === 'function') ? getDeviceId() : '';
+      const ids = [
+        'sp-personal-id-panelReferral',
+        'sp-personal-id-panelFamily',
+        'sp-personal-id-panelSupport',
+        'sp-personal-id-panelOperator'
+      ];
+      ids.forEach(function(idEl){
+        const el = document.getElementById(idEl);
+        if(el) el.textContent = pid || '-';
+      });
+    }catch(e){}
+    // ✅ 友人紹介/家族共有の表示値を更新
+    try{
+      const pid = (typeof getDeviceId === 'function') ? getDeviceId() : '';
+      const el1 = document.getElementById('ref-my-id');
+      if(el1) el1.value = pid || '';
+      const el2 = document.getElementById('family-my-id');
+      if(el2) el2.value = pid || '';
+      const linkEl = document.getElementById('ref-link');
+      if(linkEl){
+        const u = new URL(location.href);
+        u.searchParams.set('ref', pid || '');
+        // build param (b) は維持
+        linkEl.value = u.toString();
+      }
+    }catch(e){}
+
+
     setTimeout(function() { modal.classList.add('show'); }, 10);
     navigate('Main');
     syncSettings();
@@ -5984,6 +6124,70 @@ window.clearAllCache = clearAllCache;
     });
   }catch(e){}
 })();
+
+/* === PATCH v20.1.3: share/copy helpers for referral & family === */
+function spCopy(elId){
+  try{
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const text = (typeof el.value === 'string') ? el.value : (el.textContent || '');
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{ try{ showToast('コピーしました', 1200); }catch(e){} });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      ta.remove();
+      try{ showToast('コピーしました', 1200); }catch(e){}
+    }
+  }catch(e){}
+}
+
+async function spShareText(title, text){
+  try{
+    if(navigator.share){
+      await navigator.share({ title: title || 'Smart Price', text: text });
+      return true;
+    }
+  }catch(e){}
+  // fallback: copy
+  try{ spCopyTextFallback(text); }catch(e){}
+  return false;
+}
+function spCopyTextFallback(text){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      ta.remove();
+    }
+    try{ showToast('共有できないためコピーしました', 1500); }catch(e){}
+  }catch(e){}
+}
+
+async function spShareReferral(){
+  try{
+    const pid = (typeof getDeviceId === 'function') ? getDeviceId() : '';
+    const linkEl = document.getElementById('ref-link');
+    const link = linkEl ? (linkEl.value || '').trim() : '';
+    const text = `【Smart Price 友人紹介】\n紹介ID: ${pid}\nリンク: ${link}`;
+    const ok = await spShareText('Smart Price 友人紹介', text);
+    if(!ok) spCopyTextFallback(text);
+  }catch(e){}
+}
+
+async function spShareFamilyId(){
+  try{
+    const pid = (typeof getDeviceId === 'function') ? getDeviceId() : '';
+    const text = `【Smart Price 家族共有】\n共有したい個人ID: ${pid}\n※相手側の「家族共有」→「共有ID」に貼り付けてください`;
+    const ok = await spShareText('Smart Price 家族共有', text);
+    if(!ok) spCopyTextFallback(text);
+  }catch(e){}
+}
+
 </script>
 
 </body>
