@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v19.9.69
-DATE(JST): 2026-02-14 09:45 JST
-TITLE: 設定モーダル修正（modalfix-r1a）
+VERSION: v19.9.70
+DATE(JST): 2026-02-14 10:42 JST
+TITLE: 設定モーダル構造整理（modalfix-r4）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.69 / 2026-02-14_0945_modalfix-r2 に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.70 / 2026-02-14_1042_modalfix-r4 に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
-BUILD_PARAM(b): ?b=2026-02-14_0945_modalfix-r2
+BUILD_PARAM(b): ?b=2026-02-14_1042_modalfix-r4
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
@@ -16,8 +16,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v19.9.69";
-  const BUILD_ID = "2026-02-14_0945_modalfix-r2";
+  const APP_VERSION = "v19.9.70";
+  const BUILD_ID = "2026-02-14_1042_modalfix-r4";
   try {
     const url = new URL(location.href);
     const q = url.searchParams;
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.69</title>
+  <title>Smart Price v19.9.70</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.69';
-　window.APP_VERSION = 'v19.9.69';
-　window.FULL_VERSION = 'v19.9.69 [2026-02-14_1040_modalfix-r3]';
+  window.VERSION_INFO = 'v19.9.70';
+　window.APP_VERSION = 'v19.9.70';
+　window.FULL_VERSION = 'v19.9.70 [2026-02-14_1042_modalfix-r4]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.69) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.70) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.69 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.70 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.69</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.70</span></h5>
   <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -702,9 +702,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.69"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.69 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.70"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.70 [2026-02-14_1042_modalfix-r4]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-14_1042_modalfix-r4"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5417,203 +5417,6 @@ function isQuotaError(e) {
     }
   }
 
-// === SETTINGS MODAL NAV (fix): ensure settings menu buttons & back/close work, and avoid overlapping with Debug Panel ===
-(function(){
-  function qs(sel, root){ return (root||document).querySelector(sel); }
-  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-
-  function hideDebugPanelIfOpen(){
-    try{
-      // debug panel is created dynamically; close if open
-      var panel = document.getElementById('debug-panel');
-      if(panel && panel.classList && panel.classList.contains('show')){
-        // click its close button if present
-        var closeBtn = document.getElementById('debug-panel-close');
-        if(closeBtn) closeBtn.click();
-        else panel.classList.remove('show');
-      }
-    }catch(e){}
-  }
-
-  function setPanelVisible(panelId){
-    var root = document.getElementById('settingsModal');
-    if(!root) return;
-
-    var panels = qsa('.sp-settings-panel', root);
-    panels.forEach(function(p){ p.style.display = 'none'; });
-
-    var menu = qs('#settingsMainMenu', root);
-    if(menu) menu.style.display = (panelId ? 'none' : 'block');
-
-    var back = qs('#sp-settings-back', root);
-    var close = qs('#sp-settings-close', root);
-
-    if(panelId){
-      var p = document.getElementById(panelId);
-      if(p) p.style.display = 'block';
-      if(back) back.style.display = 'inline-flex';
-    }else{
-      if(back) back.style.display = 'none';
-    }
-
-    // close button always visible
-    if(close) close.style.display = 'inline-flex';
-  }
-
-  function closeSettings(){
-    try{
-      var modal = document.getElementById('settingsModal');
-      if(modal) modal.style.display = 'none';
-      // restore focus safety
-      document.body.classList.remove('modal-open');
-    }catch(e){}
-  }
-
-  
-  // === PATCH: modal stack control (settingsnav-r3) ===
-  function spCloseAllModals(exceptId) {
-    try {
-      const modals = document.querySelectorAll('.modal');
-      modals.forEach(m => {
-        if (!m || !m.id) return;
-        if (exceptId && m.id === exceptId) return;
-        if (m.style) m.style.display = 'none';
-        m.classList && m.classList.remove('show');
-        m.setAttribute && m.setAttribute('aria-hidden', 'true');
-      });
-    } catch(e) {}
-  }
-
-  function spCloseDebugPanel() {
-    try {
-      const p = document.querySelector('#debug-panel, #debugPanel, [data-debug-panel], .debug-panel');
-      if (p) {
-        const btn = p.querySelector('button[aria-label="close"], .close, .btn-close, #debug-close, [data-close]');
-        if (btn) btn.click();
-        else p.style.display = 'none';
-      }
-    } catch(e) {}
-  }
-function openSettingsPatched() {
-    spCloseAllModals('settingsModal');
-    spCloseDebugPanel();
-    hideDebugPanelIfOpen();
-    // call original openSettings (defined above)
-    try{ if(typeof window.openSettings === 'function') window.openSettings(); }catch(e){}
-    // ensure menu view
-    setPanelVisible(null);
-  }
-
-  function initOnce(){
-    var root = document.getElementById('settingsModal');
-    if(!root || root.dataset._navInit === '1') return;
-    root.dataset._navInit = '1';
-
-    // Inject header row with close/back if missing (UI minimal, inside modal)
-    var header = qs('.sp-settings-header', root);
-    if(!header){
-      // create a small header bar at top of modal box
-      var box = qs('.sp-settings-box', root) || qs('.settings-box', root) || root.firstElementChild;
-      if(box){
-        header = document.createElement('div');
-        header.className = 'sp-settings-header';
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
-        box.insertBefore(header, box.firstChild);
-      }
-    }
-    if(header){
-      // left: back
-      if(!qs('#sp-settings-back', header)){
-        var back = document.createElement('button');
-        back.id = 'sp-settings-back';
-        back.type = 'button';
-        back.className = 'btn btn-sm btn-outline-light';
-        back.textContent = '戻る';
-        back.style.display = 'none';
-        back.addEventListener('click', function(){ setPanelVisible(null); });
-        header.appendChild(back);
-      }
-      // right: close
-      if(!qs('#sp-settings-close', header)){
-        var close = document.createElement('button');
-        close.id = 'sp-settings-close';
-        close.type = 'button';
-        close.className = 'btn btn-sm btn-outline-light';
-        close.textContent = '閉じる';
-        close.addEventListener('click', function(){ closeSettings(); });
-        header.appendChild(close);
-      }
-    }
-
-    // Menu container
-    var menu = qs('#settingsMainMenu', root);
-    if(!menu){
-      // if existing menu container is missing, wrap buttons
-      var btns = qsa('.sp-menu-btn', root);
-      if(btns.length){
-        menu = document.createElement('div');
-        menu.id = 'settingsMainMenu';
-        // insert before first panel
-        var firstPanel = qs('.sp-settings-panel', root);
-        if(firstPanel && firstPanel.parentNode){
-          firstPanel.parentNode.insertBefore(menu, firstPanel);
-        }else{
-          root.appendChild(menu);
-        }
-        btns.forEach(function(b){ menu.appendChild(b); });
-      }
-    }
-
-    // Wire menu buttons
-    qsa('.sp-menu-btn', root).forEach(function(btn){
-      if(btn.dataset._wired === '1') return;
-      btn.dataset._wired = '1';
-      btn.addEventListener('click', function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        var pid = btn.getAttribute('data-panel');
-        if(pid) setPanelVisible(pid);
-      });
-      // keyboard accessibility
-      btn.addEventListener('keydown', function(ev){
-        if(ev.key === 'Enter' || ev.key === ' '){
-          ev.preventDefault();
-          btn.click();
-        }
-      });
-    });
-
-    // ESC closes settings
-    document.addEventListener('keydown', function(ev){
-      if(ev.key === 'Escape'){
-        var modal = document.getElementById('settingsModal');
-        if(modal && modal.style.display !== 'none'){
-          closeSettings();
-        }
-      }
-    }, {capture:true});
-  }
-
-  // Hook gear button to patched open
-  function hookGear(){
-    var gear = document.getElementById('settingsBtn');
-    if(!gear) return;
-    if(gear.dataset._hooked === '1') return;
-    gear.dataset._hooked = '1';
-    gear.addEventListener('click', function(e){
-      // if something else has overlaid, ensure we still open
-      e.preventDefault();
-      e.stopPropagation();
-      initOnce();
-      openSettingsPatched();
-    }, true);
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ initOnce(); hookGear(); }, {once:true});
-  }else{
-    initOnce(); hookGear();
-  }
 })();
 
 
@@ -5960,7 +5763,7 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <script>
-/* === Smart Price Settings Unified Patch (v19.9.69 / 2026-02-07_2000_sw-reset) === */
+/* === Smart Price Settings Unified Patch (v19.9.70 / 2026-02-07_2000_sw-reset) === */
 (function () {
   "use strict";
 
@@ -6633,7 +6436,7 @@ function spMaybeUnlockAdmin(ev){
     panel.id = 'debug-panel';
     panel.innerHTML = `
       <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.69'}</div>
+        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.70'}</div>
         <button id="debug-panel-close">×</button>
       </div>
       <div id="debug-panel-content"></div>
@@ -6655,7 +6458,7 @@ function spMaybeUnlockAdmin(ev){
     log('URL', location.href);
     log('PATH', location.pathname);
     log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.69');
+    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.70');
     log('TITLE', document.title || '(empty)');
     log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
 
@@ -6778,7 +6581,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.69
+  VERSION: v19.9.70
   AUTHOR: Yui
   DATE(JST): 2026-02-13 22:40 JST
   P26-02-08_2053_admin_overlay_tools_nofb
@@ -6843,7 +6646,7 @@ function spMaybeUnlockAdmin(ev){
     }
   }
 
-  // ===== v19.9.69+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
+  // ===== v19.9.70+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
   function _ensureDbFromLocalStorage() {
     try {
       if (!_dbEmpty(window.db)) return;
@@ -7058,7 +6861,7 @@ function spMaybeUnlockAdmin(ev){
 
 <!--
   Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.69
+  VERSION: v19.9.70
   AUTHOR: Yui
   DATE(JST): 2026-02-13 22:40 JST
   BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
@@ -7258,476 +7061,11 @@ function spMaybeUnlockAdmin(ev){
 </script>
 
 
-<script>
-/* ============================================================
-   Smart Price Settings Fix (NO UI CHANGE OUTSIDE MODAL)
-   VERSION: v19.9.69
-   BUILD: 2026-02-14_0945_modalfix-r2
-   DATE(JST): 2026-02-13 22:40 JST
-   ============================================================ */
-(function(){
-  const BUILD_TAG = "2026-02-14_0945_modalfix-r2";
-  const VERIFY_ON = new URLSearchParams(location.search).get('verify') === '1';
-
-  function qs(sel, root=document){ return root.querySelector(sel); }
-  function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
-  function safeText(s){ return (s==null)?'':String(s); }
-
-  async function copyText(txt){
-    try {
-      await navigator.clipboard.writeText(txt);
-      toast('コピーしました');
-      return true;
-    } catch(e) {
-      try {
-        const ta=document.createElement('textarea');
-        ta.value=txt;
-        ta.style.position='fixed';
-        ta.style.opacity='0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        toast('コピーしました');
-        return true;
-      } catch(_) {
-        toast('コピーできませんでした');
-        return false;
-      }
-    }
-  }
-
-  function toast(msg){
-    try { if (typeof showToast === 'function') return showToast(msg); } catch(_){}
-    let el=document.getElementById('spToast');
-    if(!el){
-      el=document.createElement('div');
-      el.id='spToast';
-      el.style.position='fixed';
-      el.style.left='50%';
-      el.style.bottom='18px';
-      el.style.transform='translateX(-50%)';
-      el.style.zIndex='99999';
-      el.style.background='rgba(0,0,0,.75)';
-      el.style.color='#fff';
-      el.style.padding='10px 14px';
-      el.style.borderRadius='10px';
-      el.style.fontSize='14px';
-      el.style.maxWidth='90vw';
-      el.style.whiteSpace='pre-wrap';
-      el.style.display='none';
-      document.body.appendChild(el);
-    }
-    el.textContent=msg;
-    el.style.display='block';
-    clearTimeout(el._t);
-    el._t=setTimeout(()=>{ el.style.display='none'; }, 1400);
-  }
-
-  function ensureModal() {
-    const modal = document.getElementById('settingsModal');
-    if(!modal) return null;
-    const content = qs('.modal-content', modal) || modal;
-    return { modal, content };
-  }
-
-  function closeAllOverlays() {
-    try { qsa('.modal').forEach(m=>{ if(m && m.id!=='settingsModal') m.style.display='none'; }); } catch(_){}
-    try { const d=document.getElementById('dialogOverlay'); if(d) d.style.display='none'; } catch(_){}
-    try { const diag=document.getElementById('diagnosticsModal'); if(diag) diag.style.display='none'; } catch(_){}
-  }
-
-  function getCity() {
-    try { return localStorage.getItem('lifeCity') || localStorage.getItem('life_city') || ''; }
-    catch(_) { return ''; }
-  }
-  function setCity(v) {
-    try { localStorage.setItem('lifeCity', v); localStorage.setItem('life_city', v); } catch(_){}
-  }
-
-  function getAdminPass() {
-    try { return localStorage.getItem('adminPass') || localStorage.getItem('admin_pass') || ''; }
-    catch(_) { return ''; }
-  }
-  function setAdminAuthed(ok) { try { window.__SP_ADMIN_OK = !!ok; } catch(_){} }
-  function isAdminAuthed() { try { return !!window.__SP_ADMIN_OK; } catch(_){ return false; } }
-
-  const state = { page: 'menu' }; // menu|friend|family|support|admin
-
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  function getRefId() {
-    try {
-      let id = localStorage.getItem('ref_id') || localStorage.getItem('refId') || '';
-      if(!id) {
-        id = (Math.random().toString(36).slice(2,7)).toUpperCase();
-        localStorage.setItem('ref_id', id);
-      }
-      return id;
-    } catch(_) {
-      return 'UNKNOWN';
-    }
-  }
-  function getRefUrl() {
-    const ref = getRefId();
-    const base = location.origin + location.pathname;
-    const sp = new URLSearchParams(location.search);
-    if (!sp.get('b')) sp.set('b', BUILD_TAG);
-    sp.set('ref', ref);
-    return base + '?' + sp.toString();
-  }
-
-  function getFamilyCode(){ try { return localStorage.getItem('family_code') || ''; } catch(_){ return ''; } }
-  function setFamilyCode(v){ try { localStorage.setItem('family_code', v||''); } catch(_){} }
-  function getHideGift(){ try { return localStorage.getItem('hide_gift')==='1'; } catch(_){ return false; } }
-  function setHideGift(on){ try { localStorage.setItem('hide_gift', on?'1':'0'); } catch(_){} }
-
-  function buildDiagLog() {
-    const lines = [];
-    lines.push('Smart Price Diagnostics');
-    lines.push('VERSION: v19.9.69');
-    lines.push('BUILD: ' + BUILD_TAG);
-    lines.push('URL: ' + location.href);
-    lines.push('UA: ' + navigator.userAgent);
-    try { lines.push('lifeCity: ' + (getCity()||'')); } catch(_){}
-    try { lines.push('localStorage keys: ' + Object.keys(localStorage).slice(0,60).join(', ')); } catch(_){}
-    return lines.join('
-');
-  }
-
-  function buildSwResetUrl() {
-    const base = location.origin + location.pathname;
-    const sp = new URLSearchParams(location.search);
-    if (!sp.get('b')) sp.set('b', BUILD_TAG);
-    sp.set('swreset','1');
-    return base + '?' + sp.toString();
-  }
-
-  function exportDb() {
-    try {
-      const obj={};
-      for (let i=0;i<localStorage.length;i++) {
-        const k=localStorage.key(i);
-        obj[k]=localStorage.getItem(k);
-      }
-      return JSON.stringify({ exportedAt: Date.now(), data: obj });
-    } catch(e) { return ''; }
-  }
-
-  function importDb(text) {
-    try {
-      const j=JSON.parse(text);
-      const data = j.data || j;
-      if (!data || typeof data!=='object') return false;
-      Object.keys(data).forEach(k=>{ localStorage.setItem(k, data[k]); });
-      return true;
-    } catch(e) { return false; }
-  }
-
-  
-  // ===== Modal manager (UI_FREEZE: 見た目はそのまま / 内部だけ修正) =====
-  function hideAllModals() {
-    document.querySelectorAll('.modal').forEach(m => { m.style.display = 'none'; });
-    document.querySelectorAll('.modal-overlay').forEach(m => { m.style.display = 'none'; });
-    document.querySelectorAll('.dialog-overlay').forEach(m => { m.style.display = 'none'; });
-  }
-  function openSettingsPage(page) {
-    try {
-      // 既存の重なりを根絶
-      hideAllModals();
-      // ページ状態を確実に単独化
-      state.page = page || 'menu';
-      renderSettings();
-      const modal = document.getElementById('settingsModal');
-      if (modal) modal.style.display = 'flex';
-    } catch (e) {
-      console.error('openSettingsPage failed', e);
-    }
-  }
-function renderSettings() {
-    const pack = ensureModal();
-    if(!pack) return;
-    const { modal, content } = pack;
-
-    const cityVal = safeText(getCity());
-    const adminOk = isAdminAuthed();
-
-    content.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <button id="spSetBack" class="btn btn-sm btn-secondary" style="visibility:${state.page==='menu'?'hidden':'visible'};">戻る</button>
-        <div class="text-white fw-bold" style="font-size:18px;">設定</div>
-        <button id="spSetClose" class="btn btn-sm btn-secondary">閉じる</button>
-      </div>
-
-      <div class="mb-3">
-        <label class="small text-secondary">生活圏（市）</label>
-        <input id="spCity" class="form-control form-control-sm" value="${escapeHtml(cityVal)}" placeholder="例：土浦市">
-        <div class="small text-secondary mt-1">複数の場合は「,」で区切ってください</div>
-      </div>
-
-      <div id="spSetPage-menu" style="display:${state.page==='menu'?'block':'none'};">
-        <div class="d-grid gap-2">
-          <button id="spGoFriend" class="btn btn-outline-light">① 友人紹介</button>
-          <button id="spGoFamily" class="btn btn-outline-light">② 家族共有</button>
-          <button id="spGoSupport" class="btn btn-outline-light">③ 運営者へ質問／不具合報告</button>
-          <button id="spGoAdmin"  class="btn btn-outline-light">④ 管理メニュー</button>
-        </div>
-      </div>
-
-      <div id="spSetPage-friend" style="display:${state.page==='friend'?'block':'none'};">
-        <div class="small text-secondary mb-2">
-          この「紹介リンク」を友人に送ってください。友人が開くと、あなたの紹介IDが記録されます。
-        </div>
-        <label class="small text-secondary">あなたの紹介ID</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="spRefId" class="form-control form-control-sm" readonly value="${escapeHtml(getRefId())}">
-          <button id="spCopyRefId" class="btn btn-sm btn-secondary">コピー</button>
-        </div>
-
-        <label class="small text-secondary mt-3">紹介リンク</label>
-        <textarea id="spRefUrl" class="form-control form-control-sm" rows="2" readonly>${escapeHtml(getRefUrl())}</textarea>
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
-          <button id="spCopyRefUrl" class="btn btn-secondary flex-grow-1">コピー</button>
-          <button id="spShareRefUrl" class="btn btn-danger flex-grow-1">共有</button>
-        </div>
-      </div>
-
-      <div id="spSetPage-family" style="display:${state.page==='family'?'block':'none'};">
-        <label class="small text-secondary">家族共有コード（任意）</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="spFamilyCode" class="form-control form-control-sm" value="${escapeHtml(getFamilyCode())}" placeholder="共有ID（相手のIDを貼り付け）">
-          <button id="spSaveFamily" class="btn btn-warning btn-sm">保存</button>
-        </div>
-
-        <div class="small text-secondary mt-3">
-          同じ購入データを別の端末でも使いたいときは、ここで「共有ID」を使います（準備中のため、まずは画面だけ整えています）。
-        </div>
-
-        <div style="margin-top:10px;">
-          <label class="small text-secondary">購入入商品を隠す（家族共有用・準備中）</label>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="spHideGift" ${getHideGift()?'checked':''}>
-            <label class="form-check-label small text-secondary" for="spHideGift">購入入商品を隠す</label>
-          </div>
-        </div>
-
-        <div class="d-grid mt-3">
-          <button id="spFamilySaveAll" class="btn btn-secondary">保存</button>
-        </div>
-      </div>
-
-      <div id="spSetPage-support" style="display:${state.page==='support'?'block':'none'};">
-        <div class="small text-secondary mb-2">不具合の状況をテキストで残せます（コピーして送ってください）。</div>
-        <textarea id="spSupportText" class="form-control form-control-sm" rows="6" placeholder="例：設定→管理メニューで…"></textarea>
-        <div class="d-grid gap-2 mt-2">
-          <button id="spCopyDiag" class="btn btn-warning">診断ログをコピー</button>
-          <button id="spCopySupport" class="btn btn-secondary">この文章をコピー</button>
-        </div>
-      </div>
-
-      <div id="spSetPage-admin" style="display:${state.page==='admin'?'block':'none'};">
-        <div id="spAdminGate" style="display:${adminOk?'none':'block'};">
-          <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <input id="spAdminPass" type="password" class="form-control form-control-sm" placeholder="パスワード">
-            <button id="spAdminOpen" class="btn btn-secondary btn-sm">開く</button>
-          </div>
-        </div>
-
-        <div id="spAdminPanel" style="display:${adminOk?'block':'none'};">
-          <div class="d-grid gap-2">
-            <button id="spCopyUrl" class="btn btn-secondary">URLコピー</button>
-            <button id="spSwResetUrl" class="btn btn-secondary">SW解除URL</button>
-            <button id="spExportDb" class="btn btn-secondary">DBエクスポート</button>
-            <button id="spImportDb" class="btn btn-secondary">DBインポート</button>
-          </div>
-
-          <div class="mt-2">
-            <textarea id="spAdminBox" class="form-control form-control-sm" rows="6" placeholder="※コピーできない端末は、下の欄を長押しコピーでOK。Firebaseは使いません。"></textarea>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // events
-    qs('#spSetClose', content).addEventListener('click', closeSettings);
-    qs('#spSetBack', content).addEventListener('click', ()=>{ openSettingsPage('menu'); });
-
-    const cityEl = qs('#spCity', content);
-    cityEl.addEventListener('change', ()=>{ setCity(cityEl.value.trim()); });
-
-    const go=(p)=>{ state.page=p; renderSettings(); };
-    qs('#spGoFriend', content).addEventListener('click', ()=>go('friend'));
-    qs('#spGoFamily', content).addEventListener('click', ()=>go('family'));
-    qs('#spGoSupport', content).addEventListener('click', ()=>go('support'));
-    qs('#spGoAdmin', content).addEventListener('click', ()=>go('admin'));
-
-    // friend
-    const btnCopyId = qs('#spCopyRefId', content); if(btnCopyId) btnCopyId.addEventListener('click', ()=>copyText(getRefId()));
-    const btnCopyUrl = qs('#spCopyRefUrl', content); if(btnCopyUrl) btnCopyUrl.addEventListener('click', ()=>copyText(getRefUrl()));
-    const btnShare = qs('#spShareRefUrl', content);
-    if(btnShare) btnShare.addEventListener('click', async ()=>{
-      const url = getRefUrl();
-      if (navigator.share) {
-        try { await navigator.share({ title:'Smart Price 紹介リンク', text:'Smart Price 紹介リンク', url }); }
-        catch(_){}
-      } else {
-        copyText(url);
-      }
-    });
-
-    // family
-    const saveFamily = qs('#spSaveFamily', content);
-    if(saveFamily) saveFamily.addEventListener('click', ()=>{
-      setFamilyCode(qs('#spFamilyCode', content).value.trim());
-      toast('保存しました');
-    });
-    const saveAll = qs('#spFamilySaveAll', content);
-    if(saveAll) saveAll.addEventListener('click', ()=>{
-      setFamilyCode(qs('#spFamilyCode', content).value.trim());
-      setHideGift(!!qs('#spHideGift', content).checked);
-      toast('保存しました');
-    });
-
-    // support
-    const btnCopyDiag = qs('#spCopyDiag', content);
-    if(btnCopyDiag) btnCopyDiag.addEventListener('click', ()=>copyText(buildDiagLog()));
-    const btnCopySupport = qs('#spCopySupport', content);
-    if(btnCopySupport) btnCopySupport.addEventListener('click', ()=>copyText(qs('#spSupportText', content).value));
-
-    // admin
-    const btnAdminOpen = qs('#spAdminOpen', content);
-    if(btnAdminOpen) btnAdminOpen.addEventListener('click', ()=>{
-      const pass = qs('#spAdminPass', content).value;
-      if (pass && pass === getAdminPass()) {
-        setAdminAuthed(true);
-        toast('管理メニューを開きました');
-        renderSettings();
-      } else {
-        toast('パスワードが違います');
-      }
-    });
-
-    const btnCopyUrl2 = qs('#spCopyUrl', content);
-    if(btnCopyUrl2) btnCopyUrl2.addEventListener('click', ()=>{
-      const url = location.origin + location.pathname + location.search;
-      qs('#spAdminBox', content).value = url;
-      copyText(url);
-    });
-    const btnSw = qs('#spSwResetUrl', content);
-    if(btnSw) btnSw.addEventListener('click', ()=>{
-      const u = buildSwResetUrl();
-      qs('#spAdminBox', content).value = u;
-      copyText(u);
-    });
-    const btnExp = qs('#spExportDb', content);
-    if(btnExp) btnExp.addEventListener('click', ()=>{
-      const data = exportDb();
-      qs('#spAdminBox', content).value = data;
-      copyText(data);
-    });
-    const btnImp = qs('#spImportDb', content);
-    if(btnImp) btnImp.addEventListener('click', ()=>{
-      const text = qs('#spAdminBox', content).value.trim();
-      if(!text) return toast('貼り付けてください');
-      const ok = importDb(text);
-      toast(ok ? 'インポートしました' : 'インポート失敗');
-    });
-  }
-
-  function openSettingsNew() {
-    closeAllOverlays();
-    const pack = ensureModal();
-    if(!pack) return;
-    const { modal } = pack;
-
-    modal.style.display='block';
-    openSettingsPage('menu');
-
-    // ESC closes (no duplicates)
-    if(!window.__SP_SETTINGS_ESC_BOUND){
-      window.__SP_SETTINGS_ESC_BOUND = true;
-      window.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape'){ closeSettings(); }});
-    }
-
-    // click outside closes
-    modal.addEventListener('click', (ev)=>{
-      if(ev.target===modal) closeSettings();
-    }, { once:true });
-  }
-
-  function closeSettings() {
-    const pack = ensureModal();
-    if(!pack) return;
-    pack.modal.style.display='none';
-    state.page='menu';
-  }
-
-  // expose override
-  window.openSettings = openSettingsNew;
-
-  function bindSettingsButton() {
-    const candidates = ['#settingsBtn', '#btnSettings', '#openSettingsBtn', '[data-action="settings"]', '.btn-settings', '#settingsIcon', '#gearBtn'];
-    for (const sel of candidates) {
-      const el = document.querySelector(sel);
-      if(el) {
-        el.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openSettingsNew(); });
-        return;
-      }
-    }
-    // fallback: top-right gear button (icon-only)
-    const gear = qsa('button').find(b=>{
-      const t=(b.getAttribute('aria-label')||'') + ' ' + (b.title||'') + ' ' + (b.textContent||'');
-      return t.includes('設定') || t.toLowerCase().includes('gear') || t.toLowerCase().includes('cog');
-    });
-    if(gear) gear.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openSettingsNew(); });
-  }
-
-  function renderVerifyPanel() {
-    if(!VERIFY_ON) return;
-    let box=document.getElementById('spVerifyPanel');
-    if(!box) {
-      box=document.createElement('div');
-      box.id='spVerifyPanel';
-      box.style.position='fixed';
-      box.style.right='12px';
-      box.style.bottom='12px';
-      box.style.zIndex='99999';
-      box.style.background='rgba(0,0,0,.85)';
-      box.style.color='#fff';
-      box.style.borderRadius='12px';
-      box.style.padding='10px 12px';
-      box.style.fontSize='12px';
-      box.style.maxWidth='340px';
-      box.style.whiteSpace='pre-wrap';
-      document.body.appendChild(box);
-    }
-    const checks = [];
-    checks.push('VERIFY=1');
-    checks.push('VERSION: v19.9.69');
-    checks.push('BUILD: ' + BUILD_TAG);
-    checks.push('settingsModal: ' + (!!document.getElementById('settingsModal')));
-    checks.push('openSettings: ' + (typeof window.openSettings));
-    box.textContent = checks.join('
-');
-  }
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    try{
-      bindSettingsButton();
-      renderVerifyPanel();
-    }catch(e){}
-  });
-})();
-</script>
 
 
 <!-- === SP MODAL FIX PATCH ===
 APP: Smart Price
-VERSION: v19.9.69
+VERSION: v19.9.70
 DATE(JST): 2026-02-14 08:30 JST
 TITLE: Settings modal single-instance + panel routing fix
 CHANGES:
@@ -7735,130 +7073,450 @@ CHANGES:
 - Ensure only one panel is visible at a time; fix Back button routing and title switching.
 - On opening Settings, hide sub panels so referral link won't appear under the main menu.
 POLICY: UI_FREEZE / single-HTML / VERSION SSOT
-BUILD_PARAM(b): ?b=2026-02-14_0945_modalfix-r2
+BUILD_PARAM(b): ?b=2026-02-14_1042_modalfix-r4
 DEBUG_PARAM: &debug=1
 -->
+
+
+<!-- === SmartPrice Modal Fix (installed) === -->
 <script>
-(function(){
+/**
+ * Smart Price Modal Fix
+ * バージョン: 1.0.0
+ * 作成日: 2026-02-14
+ * 
+ * 問題:
+ * - モーダルが重複表示される
+ * - パネル切替が動作しない
+ * - 戻るボタンが機能しない
+ * - 関数の多重定義によるカオス
+ * 
+ * 解決策:
+ * - 状態管理の導入
+ * - Event Delegation による一元管理
+ * - Single Source of Truth
+ */
+
+(function() {
   'use strict';
-  var FIX_VER = 'v19.9.69 [2026-02-14_0945_modalfix-r2]';
-  if (window.__SP_SETTINGS_MODAL_FIX === FIX_VER) return;
-  window.__SP_SETTINGS_MODAL_FIX = FIX_VER;
-
-  function q(sel, root){ return (root||document).querySelector(sel); }
-  function qa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-
-  function findModal(){
-    var list = qa('#settingsModal');
-    if (list.length <= 1) return list[0] || null;
-    // 2個以上あれば「最初の1個」だけ残す
-    for (var i=1;i<list.length;i++){
-      try{ list[i].parentNode.removeChild(list[i]); }catch(_){}
+  
+  console.log('[SmartPrice Modal Fix] Initializing...');
+  
+  // ========================================
+  // 1. State Management
+  // ========================================
+  const state = {
+    isOpen: false,
+    currentPanel: 'Main',
+    history: [],
+    initialized: false
+  };
+  
+  // ========================================
+  // 2. DOM Cache
+  // ========================================
+  let modal = null;
+  let panels = {};
+  let titleElement = null;
+  
+  // ========================================
+  // 3. Configuration
+  // ========================================
+  const PANEL_NAMES = {
+    Main: 'settingsMainMenu',
+    Referral: 'panelReferral',
+    Family: 'panelFamily',
+    Support: 'panelSupport',
+    Operator: 'panelOperator'
+  };
+  
+  const PANEL_TITLES = {
+    Main: '設定',
+    Referral: '友人紹介',
+    Family: '家族共有',
+    Support: '運営者へ質問',
+    Operator: '管理メニュー'
+  };
+  
+  // ========================================
+  // 4. Utility Functions
+  // ========================================
+  function log(msg, data) {
+    console.log(`[Modal] ${msg}`, data || '');
+  }
+  
+  function warn(msg, data) {
+    console.warn(`[Modal] ${msg}`, data || '');
+  }
+  
+  function error(msg, data) {
+    console.error(`[Modal] ${msg}`, data || '');
+  }
+  
+  // ========================================
+  // 5. Initialization
+  // ========================================
+  function init() {
+    if (state.initialized) {
+      log('Already initialized');
+      return;
     }
-    return list[0];
-  }
-
-  function modalSetVisible(modal, on){
-    if (!modal) return;
-    modal.style.display = on ? 'flex' : 'none';
-    if (on) modal.classList.add('show'); else modal.classList.remove('show');
-  }
-
-  function setTitle(modal, text){
-    var t = q('.modal-title', modal) || q('#settingsTitle', modal);
-    if (t) t.textContent = text || '設定';
-  }
-
-  function showPanel(modal, panelName){
-    if (!modal) return;
-    var panels = qa('.sp-panel', modal);
-    panels.forEach(function(p){ p.style.display = 'none'; });
-
-    var target = q('#panel' + panelName, modal);
-    if (target) target.style.display = 'block';
-
-    // タイトル
-    var map = {
-      Main: '設定',
-      Referral: '友人紹介',
-      Family: '家族共有',
-      Contact: '運営者へ質問',
-      Admin: '管理メニュー'
-    };
-    setTitle(modal, map[panelName] || '設定');
-  }
-
-  function bindOnce(modal){
-    if (!modal || modal.__spBound) return;
-    modal.__spBound = true;
-
-    // Close
-    qa('.sp-close-btn, [data-action="close-settings"]', modal).forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        try{ e.preventDefault(); }catch(_){}
-        modalSetVisible(modal, false);
-        showPanel(modal, 'Main');
-      }, true);
-    });
-
-    // Menu buttons
-    qa('.sp-menu-btn', modal).forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        try{ e.preventDefault(); }catch(_){}
-        var tgt = btn.getAttribute('data-target');
-        if (!tgt) return;
-        showPanel(modal, tgt);
-      }, true);
-    });
-
-    // Back buttons
-    qa('.sp-back-btn', modal).forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        try{ e.preventDefault(); }catch(_){}
-        var back = btn.getAttribute('data-back') || 'Main';
-        showPanel(modal, back);
-      }, true);
-    });
-  }
-
-  function openSettingsFixed(){
-    var modal = findModal();
-    if (!modal) return;
-    bindOnce(modal);
-    // 開く時は必ず「Main」に戻す（友人紹介リンクが下に出る事故を防ぐ）
-    showPanel(modal, 'Main');
-    modalSetVisible(modal, true);
-  }
-
-  function hookGear(){
-    // 設定アイコン（歯車）をクローン置換して、既存のリスナーを全消し
-    var gear = q('#settingsGear') || q('.settings-gear') || q('[data-role="settings-gear"]') || q('button[aria-label="settings"]');
-    if (!gear || !gear.parentNode) return;
-
-    var clone = gear.cloneNode(true);
-    gear.parentNode.replaceChild(clone, gear);
-
-    clone.addEventListener('click', function(e){
-      try{ e.preventDefault(); }catch(_){}
-      try{ e.stopPropagation(); }catch(_){}
-      try{ e.stopImmediatePropagation(); }catch(_){}
-      openSettingsFixed();
-    }, true);
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    hookGear();
-    setTimeout(function(){ hookGear(); }, 400);
-    setTimeout(function(){ hookGear(); }, 1200);
-
-    var modal = findModal();
-    if (modal) {
-      bindOnce(modal);
-      showPanel(modal, 'Main');
+    
+    // モーダル要素を取得
+    modal = document.getElementById('settingsModal');
+    if (!modal) {
+      error('settingsModal element not found in DOM');
+      return;
     }
-  });
+    
+    // 重複チェック
+    const duplicates = document.querySelectorAll('#settingsModal');
+    if (duplicates.length > 1) {
+      warn(`Found ${duplicates.length} modals, removing duplicates...`);
+      for (let i = 1; i < duplicates.length; i++) {
+        duplicates[i].remove();
+      }
+    }
+    
+    // パネル要素をキャッシュ
+    Object.keys(PANEL_NAMES).forEach(key => {
+      const el = document.getElementById(PANEL_NAMES[key]);
+      if (el) {
+        panels[key] = el;
+      } else {
+        warn(`Panel not found: ${PANEL_NAMES[key]}`);
+      }
+    });
+    
+    // タイトル要素を取得
+    titleElement = modal.querySelector('.modal-title') || 
+                   modal.querySelector('#settingsTitle') ||
+                   modal.querySelector('h5');
+    
+    // イベントリスナーを設定（Event Delegation）
+    setupEventListeners();
+    
+    // 初期状態にリセット
+    showPanel('Main');
+    
+    state.initialized = true;
+    log('Initialized successfully', {
+      modal: !!modal,
+      panels: Object.keys(panels).length,
+      title: !!titleElement
+    });
+  }
+  
+  // ========================================
+  // 6. Event Listeners
+  // ========================================
+  function setupEventListeners() {
+    // すでにリスナーが登録されている場合は削除
+    if (modal._spModalListener) {
+      modal.removeEventListener('click', modal._spModalListener);
+    }
+    
+    // 新しいリスナーを登録
+    modal._spModalListener = handleModalClick;
+    modal.addEventListener('click', modal._spModalListener);
+    
+    // ESCキーでモーダルを閉じる
+    if (!window._spModalEscListener) {
+      window._spModalEscListener = (e) => {
+        if (e.key === 'Escape' && state.isOpen) {
+          close();
+        }
+      };
+      document.addEventListener('keydown', window._spModalEscListener);
+    }
+    
+    // モーダル外クリックで閉じる
+    if (!modal._spModalOutsideListener) {
+      modal._spModalOutsideListener = (e) => {
+        if (e.target === modal && state.isOpen) {
+          close();
+        }
+      };
+      modal.addEventListener('click', modal._spModalOutsideListener);
+    }
+    
+    log('Event listeners attached');
+  }
+  
+  function handleModalClick(e) {
+    // クリックされた要素を取得
+    const target = e.target.closest('button, [data-action], [data-target], [data-panel]');
+    if (!target) return;
+    
+    // data属性を取得（data-target と data-panel 両方に対応）
+    const action = target.getAttribute('data-action');
+    const targetPanel = target.getAttribute('data-target') || target.getAttribute('data-panel');
+    const backTo = target.getAttribute('data-back');
+    
+    // アクション判定
+    if (action === 'close-settings' || target.classList.contains('sp-close-btn')) {
+      e.preventDefault();
+      close();
+    } else if (target.classList.contains('sp-menu-btn') && targetPanel) {
+      e.preventDefault();
+      // "panel" プレフィックスを除去
+      const panelName = targetPanel.replace(/^panel/, '');
+      showPanel(panelName);
+    } else if (target.classList.contains('sp-back-btn')) {
+      e.preventDefault();
+      goBack(backTo);
+    }
+  }
+  
+  // ========================================
+  // 7. Core Functions
+  // ========================================
+  function open() {
+    if (!modal) {
+      error('Cannot open: modal not initialized');
+      return;
+    }
+    
+    log('Opening modal');
+    
+    // 他のオーバーレイを閉じる
+    closeOtherOverlays();
+    
+    // 状態をリセット
+    state.isOpen = true;
+    state.currentPanel = 'Main';
+    state.history = ['Main'];
+    
+    // モーダルを表示
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      modal.classList.add('show');
+    }, 10);
+    
+    // メインパネルを表示
+    showPanel('Main');
+    
+    // 既存の openSettings() で設定される値を再現
+    try {
+      syncExistingSettings();
+    } catch (e) {
+      warn('syncExistingSettings failed', e);
+    }
+  }
+  
+  function close() {
+    if (!modal) return;
+    
+    log('Closing modal');
+    
+    state.isOpen = false;
+    
+    // アニメーション
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+    
+    // 状態をクリーンアップ
+    state.currentPanel = 'Main';
+    state.history = [];
+    
+    // メインパネルに戻しておく（次回開いた時の保険）
+    setTimeout(() => {
+      showPanel('Main');
+    }, 400);
+  }
+  
+  function showPanel(name) {
+    // パネル名の正規化（"Referral" / "panelReferral" 両方に対応）
+    const normalizedName = name.replace(/^panel/, '');
+    
+    if (!panels[normalizedName]) {
+      warn(`Panel not found: ${normalizedName}`);
+      return;
+    }
+    
+    log(`Showing panel: ${normalizedName}`);
+    
+    // 全パネルを非表示
+    Object.values(panels).forEach(panel => {
+      if (panel) panel.style.display = 'none';
+    });
+    
+    // 指定パネルを表示
+    panels[normalizedName].style.display = 'block';
+    
+    // タイトルを更新
+    updateTitle(normalizedName);
+    
+    // 状態を更新
+    const prevPanel = state.currentPanel;
+    state.currentPanel = normalizedName;
+    
+    // 履歴管理（戻るボタン用）
+    if (prevPanel !== normalizedName) {
+      // 同じパネルに戻った場合は履歴から削除
+      const lastIndex = state.history.lastIndexOf(normalizedName);
+      if (lastIndex !== -1 && lastIndex !== state.history.length - 1) {
+        state.history = state.history.slice(0, lastIndex + 1);
+      } else {
+        state.history.push(normalizedName);
+      }
+    }
+    
+    log('Current state:', {
+      panel: state.currentPanel,
+      history: state.history
+    });
+  }
+  
+  function goBack(targetPanel) {
+    log('Going back', { from: state.currentPanel, to: targetPanel });
+    
+    if (targetPanel) {
+      // data-back で指定されたパネルへ
+      const normalizedTarget = targetPanel.replace(/^panel/, '');
+      showPanel(normalizedTarget);
+    } else {
+      // 履歴から戻る
+      if (state.history.length <= 1) {
+        // 履歴がない場合はメインに戻る
+        showPanel('Main');
+      } else {
+        // 履歴から1つ前に戻る
+        state.history.pop(); // 現在のパネルを削除
+        const prev = state.history[state.history.length - 1] || 'Main';
+        state.history.pop(); // showPanel内で追加されるので事前に削除
+        showPanel(prev);
+      }
+    }
+  }
+  
+  function updateTitle(panelName) {
+    if (!titleElement) return;
+    
+    const title = PANEL_TITLES[panelName] || '設定';
+    titleElement.textContent = title;
+    
+    log(`Title updated: ${title}`);
+  }
+  
+  // ========================================
+  // 8. Helper Functions
+  // ========================================
+  function closeOtherOverlays() {
+    // デバッグパネルを閉じる
+    try {
+      const debugPanel = document.getElementById('debug-panel');
+      if (debugPanel && debugPanel.classList.contains('show')) {
+        debugPanel.classList.remove('show');
+        debugPanel.style.display = 'none';
+      }
+    } catch (e) {
+      // ignore
+    }
+    
+    // トーストを消す
+    try {
+      if (typeof window.clearToasts === 'function') {
+        window.clearToasts();
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  
+  function syncExistingSettings() {
+    // 既存の openSettings() で設定される値を再現
+    
+    // Firebase URL
+    if (typeof window.fbUrl !== 'undefined') {
+      const urlInput = document.getElementById('fb-url-input');
+      if (urlInput) urlInput.value = window.fbUrl;
+    }
+    
+    // Home City
+    if (typeof window.db !== 'undefined' && window.db.config) {
+      const cityInput = document.getElementById('home-city-input');
+      if (cityInput) {
+        cityInput.value = window.db.config.homeCity || '';
+      }
+      
+      // City Chips
+      if (typeof window.renderCityChips === 'function') {
+        window.renderCityChips();
+      }
+    }
+    
+    // デバッグボタンの表示
+    const backupButtons = document.getElementById('debugBackupButtons');
+    if (backupButtons && typeof window.isDebug === 'function') {
+      backupButtons.style.display = window.isDebug() ? 'block' : 'none';
+    }
+    
+    log('Existing settings synced');
+  }
+  
+  // ========================================
+  // 9. Public API
+  // ========================================
+  const SmartPriceModal = {
+    open,
+    close,
+    showPanel,
+    goBack,
+    getState: () => ({ ...state }),
+    isOpen: () => state.isOpen
+  };
+  
+  // グローバルに公開
+  window.SmartPriceModal = SmartPriceModal;
+  
+  // ========================================
+  // 10. 既存コードとの互換性
+  // ========================================
+  
+  // 既存の openSettings() を上書き
+  const _originalOpenSettings = window.openSettings;
+  window.openSettings = function() {
+    log('openSettings() called (redirected to SmartPriceModal.open)');
+    open();
+  };
+  
+  // 既存の closeSettings() を上書き
+  const _originalCloseSettings = window.closeSettings;
+  window.closeSettings = function() {
+    log('closeSettings() called (redirected to SmartPriceModal.close)');
+    close();
+  };
+  
+  // デバッグ用: 元の関数を保持
+  window._originalOpenSettings = _originalOpenSettings;
+  window._originalCloseSettings = _originalCloseSettings;
+  
+  // ========================================
+  // 11. Auto Initialize
+  // ========================================
+  function autoInit() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(init, 100);
+      });
+    } else {
+      setTimeout(init, 100);
+    }
+  }
+  
+  autoInit();
+  
+  // ========================================
+  // 12. Debug Info
+  // ========================================
+  console.log('[SmartPrice Modal Fix] Script loaded');
+  console.log('[SmartPrice Modal Fix] API:', Object.keys(SmartPriceModal));
+  
 })();
-</script>
 
+</script>
 </body>
 </html>
