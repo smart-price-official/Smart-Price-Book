@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.0.1
+VERSION: v19.9.75
 DATE(JST): 2026-02-14 09:45 JST
 TITLE: 設定モーダル修正（modalfix-r1a）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.1 / 2026-02-14_1600_v20 に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.75 / 2026-02-14_1330_final に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
-BUILD_PARAM(b): ?b=2026-02-14_1600_v20
+BUILD_PARAM(b): ?b=2026-02-14_1330_final
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
@@ -16,8 +16,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.0.1";
-  const BUILD_ID = "2026-02-14_1600_v20";
+  const APP_VERSION = "v19.9.77";
+  const BUILD_ID = "2026-02-14_1330_final";
   try {
     const url = new URL(location.href);
     const q = url.searchParams;
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.0.1</title>
+  <title>Smart Price v19.9.69</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v20.0.1';
-　window.APP_VERSION = 'v20.0.1';
-　window.FULL_VERSION = 'v20.0.1 [2026-02-14_1040_modalfix-r3]';
+  window.VERSION_INFO = 'v19.9.69';
+　window.APP_VERSION = 'v19.9.69';
+　window.FULL_VERSION = 'v19.9.69 [2026-02-14_1040_modalfix-r3]';
   </script>
-  <!-- ✅ SW RESET TOOL (v20.0.1) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.69) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v20.0.1 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.69 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.1</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.69</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -629,12 +629,31 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
             </div>
           </div>
 
+          <details class="mb-2">
+            <summary class="small text-secondary" style="cursor:pointer;">未確定商品（昨日分）</summary>
+            <div class="mt-2">
+              <div id="admin-unconfirmed-list" class="small"></div>
+              <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
+            </div>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
+        </div>
+      </details>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="Main">戻る</button>
+        </div>
+      </div>
+    </div>
+    
+    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
     </div>
-    <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+    <button class="btn btn-link text-secondary w-100" data-action="close-settings">閉じる</button>
   </div>
 </div>
 
@@ -691,9 +710,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.0.1"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v20.0.1 [2026-02-14_1600_v20]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-14_1600_v20"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.69"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "SmartPrice v19.9.77｜home-gps-scan-fix-r1"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5358,65 +5377,68 @@ function isQuotaError(e) {
       }, 12000);
 
       // ✅ 成功後：GETで読み直し（Edgeの空表示対策、マージ方式で画像が消えない）
-      fbUrl = u; // let なのでOK
+      fbUrl = u;
       localStorage.setItem('smartPriceFirebaseUrl', u);
-      await syncFirebase(); // ✅ マージ方式
+      await syncFirebase();
 
       showToast("同期成功！", 3000);
-      closeSettings(); showHome();
+      if (typeof window.SmartPriceModal !== 'undefined' && window.SmartPriceModal.close) {
+        window.SmartPriceModal.close();
+      }
+      showHome();
 
     } catch(e) {
       const msg = (e.name === 'AbortError') ? "タイムアウト/中断" : e.message;
       showToast(`同期失敗（${msg}）`, 10000);
     } finally {
       activeSyncController = null;
-      resetSyncBtn();
     }
-  }
-
-  });
-  
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // グローバル公開（onclick属性から呼び出せるようにする）
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  window.startScanner = startScanner;
-  window.toggleGps = toggleGps;
-  window.showVeggieMenu = showVeggieMenu;
-  window.showHome = showHome;
-  window.startMigration = startMigration;
-  
-  console.log('[v20 Global Export] Functions exported:', {
-    startScanner: typeof window.startScanner,
-    toggleGps: typeof window.toggleGps,
-    showVeggieMenu: typeof window.showVeggieMenu,
-    showHome: typeof window.showHome,
-    startMigration: typeof window.startMigration
   });
 })();
 </script>
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Smart Price 設定モーダル v20.0.1
+// Smart Price 設定モーダル - FINAL FIX
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
   
-  const state = { isOpen: false, currentPanel: 'Main', history: [] };
-  let modal, panels = {}, titleEl;
+  const state = { isOpen: false, currentPanel: 'Main', history: [], initialized: false };
+  let modal = null, panels = {}, titleEl = null;
   
   const PANELS = { Main: 'settingsMainMenu', Referral: 'panelReferral', Family: 'panelFamily', Support: 'panelSupport', Operator: 'panelOperator' };
   const TITLES = { Main: '設定', Referral: '友人紹介', Family: '家族共有', Support: '運営者へ質問', Operator: '管理メニュー' };
   
   function init() {
+    if (state.initialized) return;
     modal = document.getElementById('settingsModal');
-    if (!modal) return console.error('[Modal] settingsModal not found');
+    if (!modal) { console.error('[Modal] settingsModal not found'); return; }
     
-    Object.keys(PANELS).forEach(k => { const el = document.getElementById(PANELS[k]); if (el) panels[k] = el; });
-    titleEl = modal.querySelector('h5');
+    const duplicates = document.querySelectorAll('#settingsModal');
+    if (duplicates.length > 1) {
+      for (let i = 1; i < duplicates.length; i++) {
+        try { duplicates[i].remove(); } catch(e) {}
+      }
+    }
     
-    modal.addEventListener('click', function(e) {
-      const btn = e.target.closest('button, [data-action], [data-panel]');
+    Object.keys(PANELS).forEach(function(key) {
+      const el = document.getElementById(PANELS[key]);
+      if (el) panels[key] = el;
+    });
+    
+    titleEl = modal.querySelector('.modal-title') || modal.querySelector('#settingsTitle') || modal.querySelector('h5');
+    setupEventListeners();
+    navigate('Main');
+    state.initialized = true;
+    console.log('[Modal] FINAL FIX Loaded');
+  }
+  
+  function setupEventListeners() {
+    if (modal._spListener) modal.removeEventListener('click', modal._spListener);
+    
+    modal._spListener = function(e) {
+      const btn = e.target.closest('button, [data-action], [data-target], [data-panel]');
       if (!btn) return;
       
       const action = btn.getAttribute('data-action');
@@ -5424,70 +5446,183 @@ function isQuotaError(e) {
       const backTo = btn.getAttribute('data-back');
       
       if (action === 'close-settings' || btn.classList.contains('sp-close-btn')) {
-        e.preventDefault(); close();
+        e.preventDefault(); e.stopPropagation(); close();
       } else if (btn.classList.contains('sp-menu-btn') && target) {
-        e.preventDefault(); navigate(target.replace(/^panel/, ''));
+        e.preventDefault(); e.stopPropagation(); navigate(target.replace(/^panel/, ''));
       } else if (btn.classList.contains('sp-back-btn')) {
-        e.preventDefault(); back(backTo);
+        e.preventDefault(); e.stopPropagation(); back(backTo);
       }
-    });
+    };
+    modal.addEventListener('click', modal._spListener);
     
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.isOpen) close(); });
+    if (!window._spEscListener) {
+      window._spEscListener = function(e) { if (e.key === 'Escape' && state.isOpen) close(); };
+      document.addEventListener('keydown', window._spEscListener);
+    }
     
     const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn) settingsBtn.addEventListener('click', e => { e.preventDefault(); open(); });
-    
-    navigate('Main');
-    console.log('[Modal v20] Loaded');
+    if (settingsBtn && !settingsBtn._spBound) {
+      settingsBtn._spBound = true;
+      settingsBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); open(); });
+    }
   }
   
   function open() {
     if (!modal) return;
-    state.isOpen = true;
-    modal.style.display = 'flex';
-    setTimeout(() => modal.classList.add('show'), 10);
-    navigate('Main');
+    try { const dp = document.getElementById('debug-panel'); if (dp && dp.classList.contains('show')) { dp.classList.remove('show'); dp.style.display = 'none'; } } catch(e) {}
+    try { if (typeof window.clearToasts === 'function') window.clearToasts(); } catch(e) {}
     
-    try {
-      if (typeof window.db !== 'undefined' && typeof window.normalizeDb === 'function') window.db = window.normalizeDb(window.db);
-      if (typeof window.resetSyncBtn === 'function') window.resetSyncBtn();
-      const urlInput = document.getElementById('fb-url-input');
-      if (urlInput && typeof window.fbUrl !== 'undefined') urlInput.value = window.fbUrl;
-      const cityInput = document.getElementById('home-city-input');
-      if (cityInput && window.db && window.db.config) cityInput.value = window.db.config.homeCity || '';
-      if (typeof window.renderCityChips === 'function') window.renderCityChips();
-    } catch(e) {}
+    state.isOpen = true; state.currentPanel = 'Main'; state.history = ['Main'];
+    modal.style.display = 'flex';
+    setTimeout(function() { modal.classList.add('show'); }, 10);
+    navigate('Main');
+    syncSettings();
   }
   
   function close() {
     if (!modal) return;
     state.isOpen = false;
     modal.classList.remove('show');
-    setTimeout(() => modal.style.display = 'none', 300);
-    setTimeout(() => navigate('Main'), 400);
+    setTimeout(function() { modal.style.display = 'none'; }, 300);
+    state.currentPanel = 'Main'; state.history = [];
+    setTimeout(function() { navigate('Main'); }, 400);
   }
   
   function navigate(panelName) {
-    const name = panelName.replace(/^panel/, '').replace(/^main$/i, 'Main');
-    if (!panels[name]) return;
-    Object.values(panels).forEach(p => { if (p) p.style.display = 'none'; });
-    panels[name].style.display = 'block';
-    if (titleEl) titleEl.textContent = TITLES[name] || '設定';
-    state.currentPanel = name;
+    const normalizedName = panelName.replace(/^panel/, '').replace(/^main$/i, 'Main');
+    if (!panels[normalizedName]) { console.warn('[Modal] Panel not found: ' + normalizedName); return; }
+    
+    Object.keys(panels).forEach(function(key) { if (panels[key]) panels[key].style.display = 'none'; });
+    panels[normalizedName].style.display = 'block';
+    if (titleEl) titleEl.textContent = TITLES[normalizedName] || '設定';
+    
+    const prevPanel = state.currentPanel;
+    state.currentPanel = normalizedName;
+    if (prevPanel !== normalizedName) {
+      const lastIndex = state.history.lastIndexOf(normalizedName);
+      if (lastIndex !== -1 && lastIndex !== state.history.length - 1) {
+        state.history = state.history.slice(0, lastIndex + 1);
+      } else {
+        state.history.push(normalizedName);
+      }
+    }
   }
   
   function back(targetPanel) {
-    navigate(targetPanel ? targetPanel.replace(/^panel/, '') : 'Main');
+    if (targetPanel) {
+      navigate(targetPanel.replace(/^panel/, ''));
+    } else {
+      if (state.history.length <= 1) { navigate('Main'); }
+      else { state.history.pop(); const prev = state.history[state.history.length - 1] || 'Main'; state.history.pop(); navigate(prev); }
+    }
   }
   
-  window.SmartPriceModal = { open, close, navigate, back };
+  function syncSettings() {
+    try {
+      if (typeof window.db !== 'undefined' && typeof window.normalizeDb === 'function') window.db = window.normalizeDb(window.db);
+      if (typeof window.resetSyncBtn === 'function') window.resetSyncBtn();
+      
+      const urlInput = document.getElementById('fb-url-input');
+      if (urlInput && typeof window.fbUrl !== 'undefined') urlInput.value = window.fbUrl;
+      
+      const cityInput = document.getElementById('home-city-input');
+      if (cityInput && window.db && window.db.config) cityInput.value = window.db.config.homeCity || '';
+      
+      if (typeof window.renderCityChips === 'function') window.renderCityChips();
+      
+      const backupButtons = document.getElementById('debugBackupButtons');
+      if (backupButtons && typeof window.isDebug === 'function') backupButtons.style.display = window.isDebug() ? 'block' : 'none';
+    } catch(e) {}
+  }
+  
+  window.SmartPriceModal = { open: open, close: close, navigate: navigate, back: back };
   window.openSettings = open;
   window.closeSettings = close;
   
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(init, 100));
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 100); });
   } else {
     setTimeout(init, 100);
+  }
+})();
+</script>
+
+
+<script>
+/* ===== SmartPrice PATCH: v19.9.77 home-gps-scan-fix-r1 (JST: 2026-02-14 14:30) =====
+   Changes:
+   - Ensure Scan/GPS buttons always have working event handlers (guarded binding)
+   - Show clear toasts when Camera/Location permission is needed (non-debug too)
+   - Add keyboard fallback (Enter/Space) for GPS tag
+   Policy: UI is NOT changed (no layout/label changes)
+*/
+(function(){
+  const PATCH_ID = "SP_PATCH_v19.9.77_homegpsscan_r1";
+  if (window[PATCH_ID]) return;
+  window[PATCH_ID] = true;
+
+  function bindOnce(el, type, fn){
+    if(!el) return;
+    const key = "data-sp-bound-" + type;
+    if (el.getAttribute(key) === "1") return;
+    el.addEventListener(type, fn, {passive:false});
+    el.setAttribute(key, "1");
+  }
+
+  // Critical button binding (in case onclick gets lost in patched builds)
+  function bindCriticalButtonsOnce(){
+    const scanBtn = document.getElementById("scanBtnTop");
+    bindOnce(scanBtn, "click", (e)=>{ e.preventDefault(); window.startScanner && window.startScanner(); });
+
+    // GPS tag is rendered dynamically; use delegation
+    bindOnce(document, "click", (e)=>{
+      const t = e.target && (e.target.closest ? e.target.closest(".gps-btn") : null);
+      if(!t) return;
+      e.preventDefault();
+      window.toggleGps && window.toggleGps();
+    });
+    bindOnce(document, "keydown", (e)=>{
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const t = e.target && (e.target.closest ? e.target.closest(".gps-btn") : null);
+      if(!t) return;
+      e.preventDefault();
+      window.toggleGps && window.toggleGps();
+    });
+  }
+
+  // Improve user-visible guidance for permission prompts (no UI change)
+  const _origStartScanner = window.startScanner;
+  if (typeof _origStartScanner === "function") {
+    window.startScanner = function(){
+      try{
+        // Always show a short guidance toast before asking for camera
+        if (window.showToast) window.showToast("カメラの許可が必要です（許可を選んでください）", 3000);
+      }catch(_){}
+      return _origStartScanner.apply(this, arguments);
+    };
+  }
+
+  const _origToggleGps = window.toggleGps;
+  if (typeof _origToggleGps === "function") {
+    window.toggleGps = function(){
+      try{
+        if (!window.isGpsOn && window.showToast) {
+          window.showToast("位置情報の許可が必要です（許可を選んでください）", 3000);
+        }
+      }catch(_){}
+      return _origToggleGps.apply(this, arguments);
+    };
+  }
+
+  // Run binding after DOM ready + after initial render
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ()=>{
+      bindCriticalButtonsOnce();
+      try{ setTimeout(bindCriticalButtonsOnce, 500); }catch(_){}
+    }, {once:true});
+  } else {
+    bindCriticalButtonsOnce();
+    try{ setTimeout(bindCriticalButtonsOnce, 500); }catch(_){}
   }
 })();
 </script>
