@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.69 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.75 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.69</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.75</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -710,8 +710,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.69"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.69 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.75"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.75 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
