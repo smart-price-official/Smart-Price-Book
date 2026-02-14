@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.0.4
+VERSION: v20.0.5
 DATE(JST): 2026-02-14 16:05 JST
 TITLE: GPS/スキャン復旧（構文エラー解消）+ VERSION SSOT統一
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.4 / 2026-02-14_1910_forcefix-r1 に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.0.5 / 2026-02-14_2015_diag-r1 に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-14_1910_forcefix-r1
+BUILD_PARAM(b): ?b=2026-02-14_2015_diag-r1
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
@@ -16,8 +16,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.0.4";
-  P26-02-14_1740_ui-fix-r2";
+  const APP_VERSION = "v20.0.5";
+  window.APP_VERSION = APP_VERSION;
+  const BUILD_ID = "2026-02-14_2015_diag-r1";
+  window.BUILD_ID = BUILD_ID;
+  const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
+  window.FULL_VERSION = FULL_VERSION;
 
   function setHeaderVersionBadge(){
     const badge = document.getElementById('versionBadge');
@@ -33,7 +37,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
     const b = q.get("b") || "";
     if (b) localStorage.setItem("sp_last_b", b);
 
-    const wantsReset = (q.get("swreset") === "1") || (q.get("fresh") === "1");
+    const wantsReset = (q.get("swreset") === "1") || (q.get("fresh") === "1") || (q.get("force")==="1");
     const isControlled = !!navigator.serviceWorker?.controller;
 
     if ("serviceWorker" in navigator) {
@@ -69,10 +73,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.0.4';
-    window.APP_VERSION = 'v20.0.4';
-    window.BUILD_ID = '2026-02-14_1910_forcefix-r1';
-  window.FULL_VERSION = 'v20.0.4 [2026-02-14_1910_forcefix-r1]';
+  window.VERSION_INFO = 'v20.0.5';
+    window.APP_VERSION = 'v20.0.5';
+    window.BUILD_ID = '2026-02-14_2015_diag-r1';
+  window.FULL_VERSION = 'v20.0.5 [2026-02-14_2015_diag-r1]';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -80,14 +84,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v20.0.4</title>
+  <title>Smart Price v20.0.5</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v20.0.4';
-　window.APP_VERSION = 'v20.0.4';
-　window.FULL_VERSION = 'v20.0.4 [2026-02-14_1910_forcefix-r1]';
+  window.VERSION_INFO = 'v20.0.5';
+　window.APP_VERSION = 'v20.0.5';
+　window.FULL_VERSION = 'v20.0.5 [2026-02-14_2015_diag-r1]';
   </script>
-  <!-- ✅ SW RESET TOOL (v20.0.4) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v20.0.5) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -426,7 +430,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v20.0.4 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v20.0.5 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -509,7 +513,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.4</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.0.5</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -813,9 +817,12 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.0.4"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v20.0.4 [2026-02-14_1910_forcefix-r1]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  P26-02-14_1740_ui-fix-r2"; // ヘッダーと一致させる
+  const APP_VERSION = "v20.0.5"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v20.0.5 [2026-02-14_2015_diag-r1]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-14_2015_diag-r1";
+  window.BUILD_ID = BUILD_ID;
+  const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
+  window.FULL_VERSION = FULL_VERSION; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5648,6 +5655,105 @@ function isQuotaError(e) {
   } else {
     setTimeout(init, 100);
   }
+})();
+</script>
+
+
+<!-- DEBUG OVERLAY (only when &debug=1) -->
+<div id="debugOverlay" style="display:none; position:fixed; right:12px; bottom:12px; z-index:99999; max-width:420px; background:rgba(0,0,0,0.82); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:12px; padding:12px; font-size:12px; line-height:1.4;">
+  <div style="font-weight:700; margin-bottom:6px;">Smart Price Debug</div>
+  <div id="debugInfo" style="white-space:pre-wrap; word-break:break-word; opacity:0.95;"></div>
+  <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+    <button id="btnDbgReload" style="padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background:#222; color:#fff;">再読込</button>
+    <button id="btnDbgReset" style="padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background:#5a2; color:#fff;">SW解除+キャッシュ削除</button>
+    <button id="btnDbgCopy" style="padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background:#248; color:#fff;">ログコピー</button>
+    <button id="btnDbgHide" style="padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background:#822; color:#fff;">閉じる</button>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  try{
+    const url = new URL(location.href);
+    const debug = url.searchParams.get("debug")==="1";
+    if(!debug) return;
+    const ov = document.getElementById("debugOverlay");
+    const info = document.getElementById("debugInfo");
+    if(!ov || !info) return;
+    ov.style.display = "block";
+
+    function fmt(obj){ try{return JSON.stringify(obj,null,2);}catch(e){return String(obj);} }
+
+    async function collect(){
+      const lines = [];
+      lines.push("APP_VERSION: " + (window.APP_VERSION || "n/a"));
+      lines.push("BUILD_ID: " + (window.BUILD_ID || "n/a"));
+      lines.push("FULL_VERSION: " + (window.FULL_VERSION || "n/a"));
+      lines.push("URL: " + location.href);
+      lines.push("UA: " + navigator.userAgent);
+      lines.push("SW.controller: " + (!!(navigator.serviceWorker && navigator.serviceWorker.controller)));
+      if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        lines.push("SW.registrations: " + regs.length);
+        regs.forEach((r,i)=>{
+          const s = r.active || r.waiting || r.installing;
+          lines.push(`  [${i}] scope=${r.scope} state=${s?s.state:"-"} scriptURL=${s?s.scriptURL:"-"}`);
+        });
+      }else{
+        lines.push("SW.registrations: (unsupported)");
+      }
+      if(window.caches && caches.keys){
+        const keys = await caches.keys();
+        lines.push("caches: " + keys.length);
+        keys.forEach(k=>lines.push("  - " + k));
+      }else{
+        lines.push("caches: (unsupported)");
+      }
+      lines.push("localStorage.sp_last_b: " + (localStorage.getItem("sp_last_b")||""));
+      return lines.join("\n");
+    }
+
+    async function refresh(){
+      info.textContent = "collecting...";
+      info.textContent = await collect();
+    }
+    refresh();
+
+    document.getElementById("btnDbgReload")?.addEventListener("click", ()=>location.reload());
+    document.getElementById("btnDbgHide")?.addEventListener("click", ()=>{ ov.style.display="none"; });
+
+    document.getElementById("btnDbgCopy")?.addEventListener("click", async ()=>{
+      try{
+        await navigator.clipboard.writeText(info.textContent||"");
+      }catch(e){}
+      const old = info.textContent||"";
+      info.textContent = old + "\n\n[copied]";
+      setTimeout(()=>{ info.textContent = old; }, 800);
+    });
+
+    document.getElementById("btnDbgReset")?.addEventListener("click", async ()=>{
+      try{
+        if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for(const r of regs){ try{ await r.unregister(); }catch(e){} }
+        }
+        if(window.caches && caches.keys){
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k=>caches.delete(k)));
+        }
+      }catch(e){}
+      // add a one-time query to force full reload with fresh=1
+      try{
+        const u = new URL(location.href);
+        u.searchParams.set("fresh","1");
+        u.searchParams.delete("swresetdone");
+        location.replace(u.toString());
+      }catch(e){
+        location.reload();
+      }
+    });
+  }catch(e){}
 })();
 </script>
 
