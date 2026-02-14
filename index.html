@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v19.9.70
-DATE(JST): 2026-02-14 10:42 JST
-TITLE: 設定モーダル構造整理（modalfix-r4）
+VERSION: v19.9.75
+DATE(JST): 2026-02-14 09:45 JST
+TITLE: 設定モーダル修正（modalfix-r1a）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.70 / 2026-02-14_1042_modalfix-r4 に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.75 / 2026-02-14_1330_final に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
-BUILD_PARAM(b): ?b=2026-02-14_1042_modalfix-r4
+BUILD_PARAM(b): ?b=2026-02-14_1330_final
 DEBUG_PARAM: &debug=1
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
@@ -16,8 +16,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v19.9.70";
-  const BUILD_ID = "2026-02-14_1042_modalfix-r4";
+  const APP_VERSION = "v19.9.75";
+  const BUILD_ID = "2026-02-14_1330_final";
   try {
     const url = new URL(location.href);
     const q = url.searchParams;
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.70</title>
+  <title>Smart Price v19.9.69</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.70';
-　window.APP_VERSION = 'v19.9.70';
-　window.FULL_VERSION = 'v19.9.70 [2026-02-14_1042_modalfix-r4]';
+  window.VERSION_INFO = 'v19.9.69';
+　window.APP_VERSION = 'v19.9.69';
+　window.FULL_VERSION = 'v19.9.69 [2026-02-14_1040_modalfix-r3]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.70) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.69) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.70 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.69 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,8 +401,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.70</span></h5>
-  <button class="btn btn-sm btn-outline-light" onclick="openSettings()"><i class="bi bi-gear-fill"></i></button>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.69</span></h5>
+  <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
 <div class="store-area"><div id="store-list" class="store-list"></div></div>
@@ -639,13 +639,21 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
         <div class="mt-3 d-grid">
           <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="main">戻る</button>
         </div>
-      </div>id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
+      </details>
+        </div>
+        <div class="mt-3 d-grid">
+          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="Main">戻る</button>
+        </div>
+      </div>
+    </div>
+    
+    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
     <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
     </div>
-    <button class="btn btn-link text-secondary w-100" onclick="closeSettings()">閉じる</button>
+    <button class="btn btn-link text-secondary w-100" data-action="close-settings">閉じる</button>
   </div>
 </div>
 
@@ -702,9 +710,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.70"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.70 [2026-02-14_1042_modalfix-r4]"; // デバッグ用（詳細） // デバッグ用（詳細）
-  const BUILD_ID = "2026-02-14_1042_modalfix-r4"; // ヘッダーと一致させる
+  const APP_VERSION = "v19.9.69"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.69 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
@@ -5369,1993 +5377,128 @@ function isQuotaError(e) {
       }, 12000);
 
       // ✅ 成功後：GETで読み直し（Edgeの空表示対策、マージ方式で画像が消えない）
-      fbUrl = u; // let なのでOK
+      fbUrl = u;
       localStorage.setItem('smartPriceFirebaseUrl', u);
-      await syncFirebase(); // ✅ マージ方式
+      await syncFirebase();
 
       showToast("同期成功！", 3000);
-      closeSettings(); showHome();
+      if (typeof window.SmartPriceModal !== 'undefined' && window.SmartPriceModal.close) {
+        window.SmartPriceModal.close();
+      }
+      showHome();
 
     } catch(e) {
       const msg = (e.name === 'AbortError') ? "タイムアウト/中断" : e.message;
       showToast(`同期失敗（${msg}）`, 10000);
     } finally {
       activeSyncController = null;
-      resetSyncBtn();
-    }
-  }
-
-  function openSettings() {
-  // ✅ Modal safety: 設定を開く前に他のパネルを閉じる
-  try {
-    var dp = document.getElementById('debug-panel');
-    if (dp) { dp.classList.remove('show'); dp.style.display='none'; }
-  } catch(e) {}
-
-  clearToasts();
-    try{ clearToasts(); }catch(e){}
-
-    try {
-      db = normalizeDb(db);
-      resetSyncBtn();
-      const modal = document.getElementById('settingsModal');
-      if(!modal) { showToast('設定画面を開けません', 8000); return; }
-      modal.style.display = 'flex';
-      const urlInput = document.getElementById('fb-url-input');
-      if(urlInput) urlInput.value = fbUrl;
-      const cityInput = document.getElementById('home-city-input');
-      if(cityInput) cityInput.value = db.config.homeCity || '';
-      renderCityChips();
-      
-      // ✅ デバッグモード時のみバックアップボタンを表示
-      const backupButtons = document.getElementById('debugBackupButtons');
-      if (backupButtons) {
-        backupButtons.style.display = isDebug() ? 'block' : 'none';
-      }
-    } catch(e) {
-      showToast('設定画面エラー', 8000);
-    }
-  }
-
-})();
-
-
-
-  function closeSettings() {
-  clearToasts();
-    try{ clearToasts(); }catch(e){}
-
-    const modal = document.getElementById('settingsModal');
-    if(modal) modal.style.display = 'none';
-  }
-
-  function renderCityChips() {
-    const chipArea = document.getElementById('city-history-chips');
-    if(!chipArea) return;
-    chipArea.innerHTML = "";
-    db = normalizeDb(db);
-    const cities = Array.isArray(db.config.homeCities) ? db.config.homeCities : [];
-    cities.forEach(city => {
-      if(typeof city !== 'string' || !city.trim()) return;
-      const chip = document.createElement('span');
-      chip.className = 'city-chip';
-      chip.innerText = city;
-      chip.onclick = () => {
-        const inp = document.getElementById('home-city-input');
-        if(inp) inp.value = city;
-        showToast(`${city}を選択`, 1500);
-      };
-      chipArea.appendChild(chip);
-    });
-  }
-
-  // ✅ P0: 現在のlocationに自動追従するURL生成
-  function buildBaseUrl() {
-    let pathname = location.pathname;
-    // index.htmlで終わる場合はファイル名を外す
-    if (pathname.endsWith('/index.html') || pathname.endsWith('index.html')) {
-      pathname = pathname.replace(/\/?index\.html$/, '');
-    }
-    // 最後のスラッシュを削除（ただしルートの場合は残す）
-    pathname = pathname.replace(/\/+$/, '') || '/';
-    return location.origin + pathname;
-  }
-  
-  function buildUrl(withDebug=false) {
-    const base = buildBaseUrl();
-    // 現在のURLの ?b= パラメータがあればそれを使い、なければ BUILD_ID を使う
-    const currentParams = new URLSearchParams(location.search);
-    const buildParam = currentParams.get('b') || BUILD_ID;
-    
-    // URLを組み立て
-    let url = base;
-    if (buildParam) {
-      url += `?b=${encodeURIComponent(buildParam)}`;
-    }
-    
-    // デバッグURLだけに &debug=1 を付ける
-    if (withDebug) {
-      url += (buildParam ? '&' : '?') + 'debug=1';
-    }
-    
-    return url;
-  }
-
-  function openWebModal() {
-    const m = document.getElementById('webModal');
-    if(!m) return;
-    const n = document.getElementById('webUrlNormal');
-    const d = document.getElementById('webUrlDebug');
-    if(n) n.value = buildUrl(false);
-    if(d) d.value = buildUrl(true);
-    
-    // ✅ PWAインストールボタンの表示制御
-    const installBtn = document.getElementById('pwaInstallBtn');
-    if (installBtn) {
-      if (deferredPrompt) {
-        installBtn.style.display = 'block';
-      } else {
-        installBtn.style.display = 'none';
-      }
-    }
-    
-    m.style.display = "flex";
-  }
-  function closeWebModal() {
-    const m = document.getElementById('webModal');
-    if(m) m.style.display = "none";
-  }
-  
-  // ✅ PWAインストール実行
-  async function installPWA() {
-    if (!deferredPrompt) {
-      showToast('インストール準備ができていません', 3000);
-      return;
-    }
-    
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        showToast('インストールが開始されました！', 3000);
-      } else {
-        showToast('インストールがキャンセルされました', 3000);
-      }
-      
-      deferredPrompt = null;
-      const installBtn = document.getElementById('pwaInstallBtn');
-      if (installBtn) {
-        installBtn.style.display = 'none';
-      }
-    } catch(e) {
-      if (isDebug()) console.error('[PWA] Install failed:', e);
-      showToast('インストールに失敗しました', 3000);
-    }
-  }
-  async function copyUrl(id) {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const text = el.value || "";
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("コピーしました", 2000);
-    } catch(e) {
-      el.focus(); el.select();
-      try { document.execCommand('copy'); showToast("コピーしました", 2000); }
-      catch(e2) { showToast("コピーできませんでした", 8000); }
-    }
-  }
-  function openUrlFromBox(id) {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const text = el.value || "";
-    window.open(text, "_blank", "noopener");
-  }
-
-  // ========= バックアップ機能（&debug=1時のみ） =========
-  
-  // ✅ バックアップ出力（データ＋画像をファイルとして保存）
-  async function exportBackup() {
-    if (!isDebug()) return;
-    
-    try {
-      showToast("バックアップ出力中…", 3000);
-      
-      // 1. データ（localStorage）を取得
-      const dataStr = localStorage.getItem('smart_price_db');
-      if (!dataStr) {
-        showToast("データがありません", 5000);
-        return;
-      }
-      const data = JSON.parse(dataStr);
-      
-      // 2. 画像（IndexedDB）を取得
-      const dbi = await openImgDb();
-      const images = {};
-      if (dbi && dbi.objectStoreNames.contains(IMG_STORE)) {
-        const tx = dbi.transaction(IMG_STORE, "readonly");
-        const store = tx.objectStore(IMG_STORE);
-        const keys = await new Promise((resolve) => {
-          const req = store.getAllKeys();
-          req.onsuccess = () => resolve(req.result || []);
-          req.onerror = () => resolve([]);
-        });
-        
-        for (const key of keys) {
-          const blob = await idbGet(key);
-          if (blob) {
-            // Blobをbase64に変換
-            const dataUrl = await new Promise((resolve, reject) => {
-              const fr = new FileReader();
-              fr.onload = () => resolve(fr.result);
-              fr.onerror = () => reject(new Error('画像読み込み失敗'));
-              fr.readAsDataURL(blob);
-            });
-            images[key] = dataUrl;
-          }
-        }
-      }
-      
-      // 3. バックアップデータを作成
-      const backup = {
-        version: APP_VERSION,
-        buildId: BUILD_ID,
-        exportDate: new Date().toISOString(),
-        data: data,
-        images: images
-      };
-      
-      // 4. ファイルとしてダウンロード
-      const jsonStr = JSON.stringify(backup, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `smart_price_backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      showToast("バックアップ出力完了", 3000);
-      if (isDebug()) {
-        console.log('[Backup] Exported:', Object.keys(backup.data.products || {}).length, 'products,', Object.keys(backup.images).length, 'images');
-      }
-    } catch(e) {
-      showToast(`バックアップ出力失敗: ${e.message}`, 8000);
-      if (isDebug()) console.error('[Backup] Export failed:', e);
-    }
-  }
-  
-  // ✅ バックアップ読み込み（ファイルから復元）
-  async function importBackup() {
-    if (!isDebug()) return;
-    
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      
-      try {
-        showToast("バックアップ読み込み中…", 3000);
-        
-        // 1. ファイルを読み込み
-        const text = await file.text();
-        const backup = JSON.parse(text);
-        
-        if (!backup.data || typeof backup.data !== 'object') {
-          throw new Error('バックアップデータが無効です');
-        }
-        
-        // 2. データを復元（localStorage）
-        localStorage.setItem('smart_price_db', JSON.stringify(backup.data));
-        db = normalizeDb(backup.data);
-        
-        // 3. 画像を復元（IndexedDB）
-        if (backup.images && typeof backup.images === 'object') {
-          const dbi = await openImgDb();
-          if (dbi && dbi.objectStoreNames.contains(IMG_STORE)) {
-            let restored = 0;
-            for (const [key, dataUrl] of Object.entries(backup.images)) {
-              if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-                const blob = dataURLtoBlob(dataUrl);
-                if (blob) {
-                  const ok = await idbPut(key, blob);
-                  if (ok) restored++;
-                }
-              }
-            }
-            if (isDebug()) {
-              console.log('[Backup] Restored:', restored, 'images');
-            }
-          }
-        }
-        
-        // 4. UI更新
-        initCategorySelect();
-        renderStoreList();
-        await renderHistory();
-        
-        showToast("バックアップ読み込み完了", 3000);
-        if (isDebug()) {
-          console.log('[Backup] Imported:', Object.keys(backup.data.products || {}).length, 'products');
-        }
-      } catch(e) {
-        showToast(`バックアップ読み込み失敗: ${e.message}`, 8000);
-        if (isDebug()) console.error('[Backup] Import failed:', e);
-      }
-    };
-    input.click();
-  }
-
-  // ========= P1: 初期化処理（招待コード読み取り＆ユーザープロファイル） =========
-  (function initializeUserProfile() {
-    try {
-      // 1. 既存のユーザープロファイルを取得
-      let profile = getUserProfile();
-
-      // 2. プロファイルが存在しない場合は新規作成
-      if (!profile) {
-        profile = {
-          uid: generateUid(),
-          areaId: null,
-          invitedBy: null,
-          createdAt: new Date().toISOString()
-        };
-        setUserProfile(profile);
-        if (isDebug()) {
-          console.log('[UserProfile] Created new profile:', profile);
-        }
-      }
-
-      // 3. URLから招待コードを読み取り
-      const inviteCode = parseInviteCode();
-      if (inviteCode) {
-        // 招待コードが存在する場合、areaIdとinvitedByを更新
-        // 簡易実装: 招待コードをそのままareaIdとして使用
-        // 本格実装では、サーバーAPIで招待コードを検証してareaIdを取得する
-        if (!profile.areaId) {
-          profile.areaId = `area_${inviteCode}`;
-          profile.invitedBy = inviteCode; // 簡易実装（本来は招待者のUIDを取得）
-          profile.invitedAt = new Date().toISOString();
-          setUserProfile(profile);
-
-          if (isDebug()) {
-            showToast(`[招待] エリアに参加: ${profile.areaId}`, 5000);
-            console.log('[UserProfile] Invited to area:', profile);
-          } else {
-            showToast(`エリアに参加しました`, 3000);
-          }
-        }
-      }
-
-      // 4. デバッグモード時はプロファイル情報を表示
-      if (isDebug()) {
-        console.log('[UserProfile] Current profile:', profile);
-        showToast(`[DEBUG] UID: ${profile.uid}\nArea: ${profile.areaId || '未設定'}`, 4000);
-      }
-
-    } catch(e) {
-      if (isDebug()) {
-        console.error('[UserProfile] Initialization failed:', e);
-      }
-    }
-  })();
-</script>
-<script>
-// Service Worker 暫定無効化（キャッシュ汚染対策）
-if (false && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(()=>{});
-  });
-}
-// 既存のService Workerを解除（PC真っ黒対策）
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for(let registration of registrations) {
-      registration.unregister();
     }
   });
-}
-</script>
-
-<script>
-/* === Smart Price Settings Unified Patch (v19.9.70 / 2026-02-07_2000_sw-reset) === */
-(function () {
-  "use strict";
-
-  // --- Helpers ---
-  function spParams() { return new URLSearchParams(location.search); }
-  function spIsAdminMode(){
-  try { return sessionStorage.getItem('sp_admin_unlocked') === '1'; } catch(e){ return false; }
-}
-
-function spMaybeUnlockAdmin(ev){
-  try {
-    if (spIsAdminMode()) return true;
-    if (ev && ev.preventDefault) ev.preventDefault();
-    const pass = prompt('運営者パスワードを入力してください');
-    if (pass === '55533557') {
-      try { sessionStorage.setItem('sp_admin_unlocked','1'); } catch(e) {}
-      showToast('運営者メニューを開きました', 3000);
-      // detailsを開く
-      const det = (ev && ev.target) ? ev.target.closest('details') : null;
-      if (det) det.open = true;
-      return false;
-    }
-    showToast('パスワードが違います', 3500);
-    return false;
-  } catch(e){
-    return true;
-  }
-}
-  function spIsDebug() {
-    const p = spParams();
-    return p.has('debug');
-  }
-  function spNowISO() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2,'0');
-    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-  function spSafeText(s) {
-    return (s == null) ? '' : String(s);
-  }
-
-  // Copy by element id
-  window.spCopy = async function(id) {
-    try {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const text = ('value' in el) ? el.value : el.textContent;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        if (typeof showToast === 'function') showToast('コピーしました', 1200);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (typeof showToast === 'function') showToast('コピーしました', 1200);
-      }
-    } catch (e) {
-      console.warn('[spCopy] failed', e);
-      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
-    }
-  };
-
-  // --- Referral / Family share ---
-  const LS_MY_REF = 'sp_ref_my';
-  const LS_REF_FROM = 'sp_ref_from';
-  const LS_FAMILY = 'sp_family_code';
-
-  function spGenId() {
-    // 6 chars (base36)
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
-  }
-
-  function spGetOrCreateMyRef() {
-    let v = localStorage.getItem(LS_MY_REF);
-    if (!v) {
-      v = spGenId();
-      localStorage.setItem(LS_MY_REF, v);
-    }
-    return v;
-  }
-
-  function spSaveFamily(code) {
-    const v = (code || '').trim();
-    if (v) localStorage.setItem(LS_FAMILY, v);
-    else localStorage.removeItem(LS_FAMILY);
-    return v;
-  }
-
-  function spBuildReferralLink(myId) {
-    const url = new URL(location.href);
-    // keep build param for cache busting, but remove debug/mode to avoid leaking
-    url.searchParams.set('ref', myId);
-    url.searchParams.delete('debug');
-    url.searchParams.delete('mode');
-    // ensure b exists
-    if (!url.searchParams.get('b')) url.searchParams.set('b', '2026-02-07_2000_sw-reset');
-    return url.toString();
-  }
-
-  window.spSaveFamilyCode = function() {
-    const input = document.getElementById('family-code-input');
-    const status = document.getElementById('family-code-status');
-    if (!input) return;
-    const saved = spSaveFamily(input.value);
-    if (status) status.textContent = saved ? ('保存しました：' + saved) : '未設定';
-    if (typeof showToast === 'function') showToast('家族共有コードを保存しました', 1500);
-  };
-
-  window.spShareReferral = async function() {
-    try {
-      const myId = spGetOrCreateMyRef();
-      const link = spBuildReferralLink(myId);
-      if (navigator.share) {
-        await navigator.share({ title: 'Smart Price 紹介リンク', text: 'Smart Price の紹介リンクです。', url: link });
-      } else {
-        await window.spCopy('ref-link');
-      }
-    } catch (e) {
-      console.warn('[spShareReferral] failed', e);
-      try { await window.spCopy('ref-link'); } catch(_e) {}
-    }
-  };
-
-  function spHandleRefParam() {
-    const p = spParams();
-    const ref = p.get('ref');
-    const my = spGetOrCreateMyRef();
-    if (ref && ref !== my) {
-      localStorage.setItem(LS_REF_FROM, ref);
-    }
-  }
-
-  // --- Support / Inquiry ---
-  const LS_SUPPORT = 'sp_support_logs_v1'; // max 50
-  const MAX_SUPPORT = 50;
-
-  function spUAInfo() {
-    const ua = navigator.userAgent || '';
-    const plat = navigator.platform || '';
-    return { ua, plat };
-  }
-
-  function spDetectBrowser() {
-    const ua = (navigator.userAgent || '').toLowerCase();
-    if (ua.includes('edg/')) return 'Edge';
-    if (ua.includes('chrome/')) return 'Chrome';
-    if (ua.includes('safari/') && !ua.includes('chrome/')) return 'Safari';
-    if (ua.includes('firefox/')) return 'Firefox';
-    return 'Browser';
-  }
-
-  function spDefaultDevice() {
-    // coarse default; user can edit
-    const ua = navigator.userAgent || '';
-    if (/android/i.test(ua)) return 'Android端末';
-    if (/iphone|ipad|ipod/i.test(ua)) return 'iPhone/iPad';
-    if (/windows/i.test(ua)) return 'Windows PC';
-    if (/macintosh/i.test(ua)) return 'Mac';
-    return '端末';
-  }
-
-  function spDefaultOS() {
-    const ua = navigator.userAgent || '';
-    if (/android\s([0-9\.]+)/i.test(ua)) return 'Android ' + (ua.match(/android\s([0-9\.]+)/i)||[])[1];
-    if (/iphone os\s([0-9_]+)/i.test(ua)) return 'iOS ' + ((ua.match(/iphone os\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
-    if (/windows nt\s([0-9\.]+)/i.test(ua)) return 'Windows ' + (ua.match(/windows nt\s([0-9\.]+)/i)||[])[1];
-    if (/mac os x\s([0-9_]+)/i.test(ua)) return 'macOS ' + ((ua.match(/mac os x\s([0-9_]+)/i)||[])[1]||'').replace(/_/g,'.');
-    return 'OS';
-  }
-
-  let _supportFiles = [];
-
-  function spRenderSupportPreview() {
-    const wrap = document.getElementById('support-preview');
-    if (!wrap) return;
-    wrap.innerHTML = '';
-    _supportFiles.forEach((f, idx) => {
-      const box = document.createElement('div');
-      box.style.position = 'relative';
-      const img = document.createElement('img');
-      img.src = f.dataUrl;
-      img.style.width = '88px';
-      img.style.height = '88px';
-      img.style.objectFit = 'cover';
-      img.style.borderRadius = '10px';
-      img.style.border = '1px solid rgba(255,255,255,.12)';
-      const btn = document.createElement('button');
-      btn.textContent = '×';
-      btn.className = 'btn btn-dark';
-      btn.style.position = 'absolute';
-      btn.style.top = '-10px';
-      btn.style.right = '-10px';
-      btn.style.width = '28px';
-      btn.style.height = '28px';
-      btn.style.borderRadius = '999px';
-      btn.style.padding = '0';
-      btn.style.lineHeight = '1';
-      btn.onclick = () => {
-        _supportFiles.splice(idx,1);
-        spRenderSupportPreview();
-      };
-      box.appendChild(img);
-      box.appendChild(btn);
-      wrap.appendChild(box);
-    });
-  }
-
-  async function spFileToDataUrl(file, maxW=900, maxH=900) {
-    const dataUrl = await new Promise((res, rej) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.onerror = rej;
-      fr.readAsDataURL(file);
-    });
-    // downscale using canvas
-    const img = await new Promise((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = rej;
-      i.src = dataUrl;
-    });
-    const w0 = img.width || 1, h0 = img.height || 1;
-    const scale = Math.min(1, maxW / w0, maxH / h0);
-    const w = Math.max(1, Math.round(w0 * scale));
-    const h = Math.max(1, Math.round(h0 * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, w, h);
-    // jpeg to reduce size
-    return canvas.toDataURL('image/jpeg', 0.82);
-  }
-
-  function spLoadSupportLogs() {
-    try {
-      const raw = localStorage.getItem(LS_SUPPORT);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch(e) {
-      return [];
-    }
-  }
-
-  function spSaveSupportLogs(arr) {
-    try {
-      localStorage.setItem(LS_SUPPORT, JSON.stringify(arr.slice(0, MAX_SUPPORT)));
-    } catch(e) {
-      console.warn('[spSaveSupportLogs] failed', e);
-    }
-  }
-
-  function spCollectSupportText() {
-    const symptom = spSafeText(document.getElementById('support-symptom')?.value).trim();
-    const device = spSafeText(document.getElementById('support-device')?.value).trim();
-    const os = spSafeText(document.getElementById('support-os')?.value).trim();
-    const browser = spSafeText(document.getElementById('support-browser')?.value).trim();
-    const myRef = spGetOrCreateMyRef();
-    const refFrom = localStorage.getItem(LS_REF_FROM) || '';
-    const family = localStorage.getItem(LS_FAMILY) || '';
-    const url = location.href;
-    const version = window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || '';
-    const build = window.BUILD_ID || '2026-02-07_2000_sw-reset';
-    const ua = spUAInfo();
-
-    const lines = [];
-    lines.push('【Smart Price お問い合わせ】');
-    lines.push('日時: ' + spNowISO());
-    lines.push('VERSION: ' + version);
-    lines.push('BUILD: ' + build);
-    if (myRef) lines.push('紹介ID: ' + myRef);
-    if (refFrom) lines.push('紹介元(ref): ' + refFrom);
-    if (family) lines.push('家族共有コード: ' + family);
-    lines.push('URL: ' + url);
-    lines.push('機種: ' + (device || '未入力'));
-    lines.push('OS: ' + (os || '未入力'));
-    lines.push('ブラウザ: ' + (browser || '未入力'));
-    lines.push('UA: ' + ua.ua);
-    lines.push('');
-    lines.push('症状:');
-    lines.push(symptom || '（未入力）');
-    lines.push('');
-    lines.push('スクショ: ' + (_supportFiles.length ? (_supportFiles.length + '枚（この画面で選択）') : 'なし'));
-    return lines.join('\n');
-  }
-
-  window.spCopySupport = async function() {
-    const text = spCollectSupportText();
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (typeof showToast === 'function') showToast('内容をコピーしました', 1500);
-      }
-    } catch(e) {
-      console.warn('[spCopySupport] failed', e);
-      if (typeof showToast === 'function') showToast('コピーに失敗しました', 2000);
-    }
-  };
-
-  window.spSaveSupport = function() {
-    const entry = {
-      ts: Date.now(),
-      text: spCollectSupportText(),
-      symptom: spSafeText(document.getElementById('support-symptom')?.value).trim().slice(0, 120),
-      files: _supportFiles.map(f => ({ name: f.name, dataUrl: f.dataUrl })).slice(0, 3),
-    };
-    const logs = spLoadSupportLogs();
-    logs.unshift(entry);
-    spSaveSupportLogs(logs);
-    if (typeof showToast === 'function') showToast('保存しました（運営者モードで確認できます）', 1800);
-    // clear symptom only
-    const sym = document.getElementById('support-symptom');
-    if (sym) sym.value = '';
-    _supportFiles = [];
-    spRenderSupportPreview();
-    // refresh admin list if visible
-    spRenderAdminSupportList();
-  };
-
-  function spBindSupportFiles() {
-    const inp = document.getElementById('support-screens');
-    if (!inp || inp.dataset.bound === '1') return;
-    inp.dataset.bound = '1';
-    inp.addEventListener('change', async () => {
-      try {
-        const files = Array.from(inp.files || []);
-        // keep up to 3 images
-        const take = files.slice(0, 3);
-        _supportFiles = [];
-        for (const f of take) {
-          const dataUrl = await spFileToDataUrl(f);
-          _supportFiles.push({ name: f.name, dataUrl });
-        }
-        spRenderSupportPreview();
-      } catch(e) {
-        console.warn('[support files] failed', e);
-        if (typeof showToast === 'function') showToast('画像の読み込みに失敗しました', 2000);
-      }
-    });
-  }
-
-  // --- Admin: Support history ---
-  function spRenderAdminSupportList() {
-    const wrap = document.getElementById('admin-support-list');
-    if (!wrap) return;
-    const logs = spLoadSupportLogs();
-    if (!logs.length) {
-      wrap.innerHTML = '<div class="hint">保存されたお問い合わせはありません。</div>';
-      return;
-    }
-    wrap.innerHTML = '';
-    logs.slice(0, 50).forEach((e, i) => {
-      const row = document.createElement('div');
-      row.className = 'p-2 mb-2';
-      row.style.border = '1px solid rgba(255,255,255,.08)';
-      row.style.borderRadius = '12px';
-      row.style.background = 'rgba(255,255,255,.02)';
-      const dt = new Date(e.ts);
-      const title = spSafeText(e.symptom || '').trim() || '（内容未入力）';
-      row.innerHTML = `
-        <div class="small text-secondary mb-1">${dt.toLocaleString()}</div>
-        <div class="text-white small mb-2">${title}</div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-dark btn-sm flex-grow-1" data-i="${i}">コピー</button>
-          <button class="btn btn-outline-secondary btn-sm flex-grow-1" data-d="${i}">詳細</button>
-        </div>
-        <div class="small text-secondary mt-2" style="display:none;" id="support-detail-${i}"></div>
-      `;
-      wrap.appendChild(row);
-      row.querySelector('button[data-i]')?.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(e.text || '');
-          if (typeof showToast === 'function') showToast('コピーしました', 1200);
-        } catch(_e) {
-          window.spCopy('selfcheck-log'); // fallback noop
-        }
-      });
-      row.querySelector('button[data-d]')?.addEventListener('click', () => {
-        const d = row.querySelector('#support-detail-' + i);
-        if (!d) return;
-        if (d.style.display === 'none') {
-          const files = (e.files || []).map(f => f.name).join(', ');
-          d.textContent = (e.text || '') + (files ? ('\n\n添付: ' + files) : '');
-          d.style.whiteSpace = 'pre-wrap';
-          d.style.display = 'block';
-        } else {
-          d.style.display = 'none';
-        }
-      });
-    });
-  }
-
-  // --- Admin: Unconfirmed products (yesterday) ---
-  function spYesterdayRange() {
-    const now = new Date();
-    const y = new Date(now);
-    y.setDate(now.getDate() - 1);
-    const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0).getTime();
-    const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999).getTime();
-    return { start, end };
-  }
-
-  function spGetProductLastTs(p) {
-    try {
-      if (p && Array.isArray(p.history) && p.history.length) {
-        const last = p.history[p.history.length - 1];
-        const ts = last?.t || last?.ts || last?.time || last?.date;
-        if (typeof ts === 'number') return ts;
-        if (typeof ts === 'string') {
-          const n = Date.parse(ts);
-          return isNaN(n) ? 0 : n;
-        }
-      }
-      if (typeof p?.updatedAt === 'number') return p.updatedAt;
-      if (typeof p?.createdAt === 'number') return p.createdAt;
-    } catch(e) {}
-    return 0;
-  }
-
-  function spIsUnconfirmed(p) {
-    const name = spSafeText(p?.name).trim();
-    const maker = spSafeText(p?.maker).trim() || spSafeText(p?.manufacturer).trim();
-    const brand = spSafeText(p?.brand).trim();
-    const hasImg = !!(p?.imageKey || p?.imageUrl || p?.img || p?.image);
-    // 未確定: 名前 or メーカー欠落 or 画像欠落
-    return (!name || !maker || !hasImg);
-  }
-
-  function spRenderUnconfirmedList() {
-    const wrap = document.getElementById('admin-unconfirmed-list');
-    if (!wrap) return;
-    if (!window.db || !db.products) {
-      wrap.innerHTML = '<div class="hint">DBが未初期化です。</div>';
-      return;
-    }
-    const r = spYesterdayRange();
-    const codes = Object.keys(db.products || {});
-    const targets = [];
-    for (const code of codes) {
-      const p = db.products[code];
-      if (!p) continue;
-      const ts = spGetProductLastTs(p);
-      if (ts >= r.start && ts <= r.end && spIsUnconfirmed(p)) {
-        targets.push({ code, p });
-      }
-    }
-    if (!targets.length) {
-      wrap.innerHTML = '<div class="hint">昨日分の未確定商品はありません。</div>';
-      return;
-    }
-
-    wrap.innerHTML = '';
-    targets.slice(0, 50).forEach(({
-      code, p
-    }) => {
-      const box = document.createElement('div');
-      box.className = 'p-2 mb-2';
-      box.style.border = '1px solid rgba(255,255,255,.08)';
-      box.style.borderRadius = '12px';
-      box.style.background = 'rgba(255,255,255,.02)';
-      const name = spSafeText(p.name).trim();
-      const maker = spSafeText(p.maker || p.manufacturer).trim();
-      const brand = spSafeText(p.brand).trim();
-      box.innerHTML = `
-        <div class="small text-secondary mb-1">JAN: <b class="text-white">${code}</b></div>
-        <div class="mb-2">
-          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="name" data-code="${code}" placeholder="商品名" value="${name.replace(/"/g,'&quot;')}">
-          <input class="form-control bg-dark text-white border-secondary mb-2" data-f="maker" data-code="${code}" placeholder="メーカー" value="${maker.replace(/"/g,'&quot;')}">
-          <input class="form-control bg-dark text-white border-secondary" data-f="brand" data-code="${code}" placeholder="ブランド（任意）" value="${brand.replace(/"/g,'&quot;')}">
-        </div>
-      `;
-      wrap.appendChild(box);
-    });
-  }
-
-  window.spConfirmUnconfirmedAll = function() {
-    try {
-      if (!window.db || !db.products) return;
-      const inputs = document.querySelectorAll('#admin-unconfirmed-list [data-code][data-f]');
-      const updates = {};
-      inputs.forEach(inp => {
-        const code = inp.getAttribute('data-code');
-        const f = inp.getAttribute('data-f');
-        if (!updates[code]) updates[code] = {};
-        updates[code][f] = (inp.value || '').trim();
-      });
-      let changed = 0;
-      Object.keys(updates).forEach(code => {
-        const p = db.products[code];
-        if (!p) return;
-        const u = updates[code];
-        if (u.name) p.name = u.name;
-        if (u.maker) {
-          p.maker = u.maker;
-          p.manufacturer = u.maker;
-        }
-        if (u.brand) p.brand = u.brand;
-        // 最終更新を押し込む
-        p.updatedAt = Date.now();
-        changed++;
-      });
-      if (typeof saveLocalOnly === 'function') saveLocalOnly();
-      else if (typeof saveLocal === 'function') saveLocal();
-      spRenderUnconfirmedList();
-      if (typeof showToast === 'function') showToast('確定しました（' + changed + '件）', 1800);
-    } catch (e) {
-      console.warn('[spConfirmUnconfirmedAll] failed', e);
-      if (typeof showToast === 'function') showToast('確定に失敗しました', 2000);
-    }
-  };
-
-  // --- Self check ---
-  window.spRunSelfCheck = function() {
-    const log = [];
-    try {
-      log.push('SELF CHECK (' + spNowISO() + ')');
-      log.push('VERSION: ' + (window.FULL_VERSION || window.VERSION_INFO || window.APP_VERSION || ''));
-      log.push('BUILD: ' + (window.BUILD_ID || '2026-02-07_2000_sw-reset'));
-      log.push('MODE: ' + (spIsAdminMode() ? 'admin' : 'normal') + (spIsDebug() ? ' / debug' : ''));
-      log.push('');
-      // Config
-      log.push('[config]');
-      log.push('SP_CONFIG.loaded: ' + (!!window.SP_CONFIG && Object.keys(window.SP_CONFIG||{}).length));
-      log.push('firebaseUrl(var): ' + (typeof fbUrl === 'string' ? 'OK' : 'NG'));
-      log.push('yahooProxyExecUrl: ' + (window.SP_CONFIG?.yahooProxyExecUrl ? 'OK' : 'NG'));
-      log.push('');
-      // Functions
-      const fn = (name) => (typeof window[name] === 'function');
-      const must = ['processBarcodeData','lookupYahooByJan','lookupRakutenByJan','startMigration','openSettings','showToast'];
-      log.push('[functions]');
-      must.forEach(n => log.push(n + ': ' + (fn(n) ? 'OK' : 'NG')));
-      log.push('');
-      log.push('localStorage keys:');
-      log.push('ref_my=' + (localStorage.getItem(LS_MY_REF)||''));
-      log.push('ref_from=' + (localStorage.getItem(LS_REF_FROM)||''));
-      log.push('family=' + (localStorage.getItem(LS_FAMILY)||''));
-    } catch(e) {
-      log.push('ERROR: ' + e.message);
-    }
-    const ta = document.getElementById('selfcheck-log');
-    if (ta) ta.value = log.join('\n');
-    if (typeof showToast === 'function') showToast('検証ログを作成しました', 1500);
-  };
-
-  // --- Settings UI wiring ---
-  function spSetupSettingsUnified() {
-    // Referral UI
-    const myId = spGetOrCreateMyRef();
-    const refMy = document.getElementById('ref-my-id');
-    const refLink = document.getElementById('ref-link');
-    if (refMy) refMy.value = myId;
-    if (refLink) refLink.value = spBuildReferralLink(myId);
-
-    const fam = localStorage.getItem(LS_FAMILY) || '';
-    const famIn = document.getElementById('family-code-input');
-    const famSt = document.getElementById('family-code-status');
-    if (famIn && famIn.value !== fam) famIn.value = fam;
-    if (famSt) famSt.textContent = fam ? ('保存済み：' + fam) : '未設定';
-
-    const from = localStorage.getItem(LS_REF_FROM) || '';
-    const fromSt = document.getElementById('ref-from-status');
-    if (fromSt) fromSt.textContent = from ? ('紹介元(ref): ' + from) : '';
-
-    // Support defaults
-    const dev = document.getElementById('support-device');
-    const os = document.getElementById('support-os');
-    const br = document.getElementById('support-browser');
-    if (dev && !dev.value) dev.value = spDefaultDevice();
-    if (os && !os.value) os.value = spDefaultOS();
-    if (br && !br.value) br.value = spDetectBrowser();
-
-    spBindSupportFiles();
-
-    // Operator menu gating
-    const enabled = document.getElementById('operatorEnabled');
-    if (enabled) enabled.style.display = spIsAdminMode() ? 'block' : 'none';
-
-    // Firebase URL protection: show only in operator section (readonly)
-    const fb = document.getElementById('fb-url-input');
-    if (fb) {
-      fb.readOnly = true;
-      fb.value = spIsAdminMode() ? (typeof fbUrl === 'string' ? fbUrl : '') : '';
-    }
-
-    if (spIsAdminMode()) {
-      spRenderUnconfirmedList();
-      spRenderAdminSupportList();
-    }
-  }
-
-  // Patch openSettings so every time it opens, we refresh our sections
-  const _origOpenSettings = window.openSettings;
-  window.openSettings = function() {
-    try {
-      if (typeof _origOpenSettings === 'function') _origOpenSettings();
-    } catch(e) {
-      console.warn('[openSettings] orig failed', e);
-    }
-    try {
-      spSetupSettingsUnified();
-    } catch(e) {
-      console.warn('[spSetupSettingsUnified] failed', e);
-    }
-  };
-
-  // Fix debugLog: avoid wrong showToast signature usage (keeps app alive)
-  if (typeof window.debugLog === 'function') {
-    window.debugLog = function(message, type) {
-      if (!spIsDebug()) return;
-      try {
-        showToast(String(message), 10000);
-        console.log('[DEBUG]', type || 'log', message);
-      } catch(e) {
-        console.log('[DEBUG]', type || 'log', message);
-      }
-    };
-  }
-
-  // Ensure default toast life: normal 5 sec, debug 10 sec (if showToast supports default ms)
-  // (This file's showToast already decides internally; we leave behavior unless ms omitted.)
-
-  // Apply once on load
-  spHandleRefParam();
-  // In case settings already open at load
-  document.addEventListener('DOMContentLoaded', () => {
-    try { spSetupSettingsUnified(); } catch(e) {}
-  });
 })();
 </script>
 
-<!-- ✅ DEBUG PANEL v4 (body終了直前に配置) -->
 <script>
-(function () {
-  const params = new URLSearchParams(location.search);
-  if (!params.has('debug')) return;
-
-  // DOMが完全に読み込まれた後に実行
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDebugPanel);
-  } else {
-    // すでにDOMが読み込まれている場合は即実行
-    initDebugPanel();
-  }
-
-  function initDebugPanel() {
-    // デバッグトグルボタン
-    const toggleBtn = document.createElement('div');
-    toggleBtn.id = 'debug-toggle-btn';
-    toggleBtn.className = 'show';
-    toggleBtn.title = 'デバッグパネルを開く';
-    toggleBtn.innerHTML = '<i class="bi bi-bug-fill"></i>';
-
-    // デバッグパネル
-    const panel = document.createElement('div');
-    panel.id = 'debug-panel';
-    panel.innerHTML = `
-      <div id="debug-panel-header">
-        <div id="debug-panel-title">🐛 DEBUG PANEL - ${window.VERSION_INFO || 'v19.9.70'}</div>
-        <button id="debug-panel-close">×</button>
-      </div>
-      <div id="debug-panel-content"></div>
-    `;
-
-    document.body.appendChild(toggleBtn);
-    document.body.appendChild(panel);
-
-    const content = panel.querySelector('#debug-panel-content');
-
-    const log = (k, v) => {
-      const div = document.createElement('div');
-      div.innerHTML = `<b>${k}</b>: ${String(v)}`;
-      content.appendChild(div);
-    };
-
-    // デバッグ情報を収集
-    log('TIME', new Date().toISOString());
-    log('URL', location.href);
-    log('PATH', location.pathname);
-    log('BUILD', params.get('b') || window.BUILD_ID || '(none)');
-    log('VERSION', window.VERSION_INFO || window.APP_VERSION || 'v19.9.70');
-    log('TITLE', document.title || '(empty)');
-    log('USER_AGENT', navigator.userAgent.substring(0, 80) + '...');
-
-    // Service Worker状態
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(rs => {
-        log('SW', rs.length ? `${rs.length} REGISTERED (UNREGISTERING)` : 'NONE');
-        rs.forEach(r => r.unregister());
-      }).catch(e => log('SW', 'ERROR ' + e.message));
-    } else {
-      log('SW', 'NOT SUPPORTED');
-    }
-
-    // localStorage情報
-    try {
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const db = JSON.parse(dbStr);
-        log('DB_PRODUCTS', Object.keys(db.products || {}).length);
-        log('DB_STORES', Object.keys(db.stores || {}).length);
-      } else {
-        log('DB', 'EMPTY');
-      }
-    } catch (e) {
-      log('DB', 'ERROR: ' + e.message);
-    }
-
-    // config.json resolver
-    const isBook = location.pathname.includes('/Smart-Price-Book/');
-    const isDev = location.pathname.includes('/dev/');
-    const isEmergency = location.pathname.includes('/emergency/');
-
-    const fetchOnce = (url, tag) =>
-      fetch(url, { cache: 'no-store' }).then(r => {
-        log(tag, r.ok ? ('OK ' + url) : ('FAIL ' + r.status + ' ' + url));
-        return r.ok;
-      }).catch(e => {
-        log(tag, 'ERROR ' + e.message + ' ' + url);
-        return false;
-      });
-
-    if (!isBook) {
-      log('CONFIG_URL', './config.json');
-      fetchOnce('./config.json', 'CONFIG_FETCH');
-    } else if (isDev || isEmergency) {
-      log('CONFIG_URL', './config.json');
-      fetchOnce('./config.json', 'CONFIG_FETCH');
-    } else {
-      log('CONFIG_URL', './config.json → ./dev/config.json (fallback)');
-      fetchOnce('./config.json', 'CONFIG_1ST').then(ok => {
-        if (ok) {
-          log('CONFIG_FINAL', './config.json');
-          return;
-        }
-        fetchOnce('./dev/config.json', 'CONFIG_2ND').then(() => {
-          log('CONFIG_FINAL', './dev/config.json');
-        });
-      });
-    }
-
-    // エラーハンドリング
-    window.addEventListener('error', e => log('ERROR', e.message));
-    window.addEventListener('unhandledrejection', e => log('PROMISE_REJECT', e.reason));
-
-    log('STATUS', 'JS RUNNING ✓');
-
-    // トグルボタンのイベント
-    toggleBtn.addEventListener('click', () => {
-      // ✅ Modal safety: デバッグを開く前に設定ダイアログを閉じる
-      try {
-        const sm = document.getElementById('settingsModal');
-        if (sm && sm.style.display !== 'none') sm.style.display = 'none';
-      } catch(e) {}
-
-      if (panel.classList.contains('show')) {
-        panel.classList.remove('show');
-        console.log('[DEBUG] パネルを閉じました');
-      } else {
-        panel.classList.add('show');
-        console.log('[DEBUG] パネルを開きました');
-      }
-    });
-
-    // 閉じるボタンのイベント
-    const closeBtn = panel.querySelector('#debug-panel-close');
-    closeBtn.addEventListener('click', () => {
-      panel.classList.remove('show');
-      console.log('[DEBUG] パネルを閉じました');
-    });
-
-    // 初期メッセージ
-    console.log('[DEBUG] デバッグモードが有効です。右下のボタンでパネルを表示できます。');
-    console.log('[DEBUG] VERSION:', window.VERSION_INFO || window.APP_VERSION, '| BUILD:', window.BUILD_ID);
-  }
-})();
-</script>
-<!-- /DEBUG PANEL v4 -->
-
-
-  <!-- ✅ BUILD/VERSION MISMATCH DETECTOR (debug=1 only) -->
-  <script>
-  (function() {
-    try {
-      window.addEventListener('load', function() {
-        var params = new URLSearchParams(location.search);
-        var urlBuild = params.get('b');
-        var buildId = window.BUILD_ID || '';
-        if (urlBuild && buildId && urlBuild !== buildId) {
-          try {
-            console.warn('[BUILD MISMATCH] url b=', urlBuild, ' actual=', buildId);
-          } catch(e) {}
-          if (params.has('debug') && typeof window.showDebugToast === 'function') {
-            window.showDebugToast('⚠️ 旧版の可能性: ?reset=sw を実行してください');
-          }
-        }
-      }, { once: true });
-    } catch(e) {}
-  })();
-  </script>
-
-<!--
-  Smart Price - Init Fix + Export/Import (NO FIREBASE)
-  VERSION: v19.9.70
-  AUTHOR: Yui
-  DATE(JST): 2026-02-13 22:40 JST
-  P26-02-08_2053_admin_overlay_tools_nofb
-  POLICY:
-  - Firebase/UID/接続先URLには触れない
-  - UI凍結：管理者モード（DEBUG PANEL）内にだけ機能追加
--->
-<script>
-(function(){
-  'use strict';
-
-  // ===== safe helpers =====
-  function _qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
-  function _getBuild(){ const p=_qs(); return p.get('b') || (window.BUILD_ID||'') || 'N/A'; }
-  function _getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
-  function _nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
-
-  function _toast(msg) {
-    try { if (typeof showToast === 'function') showToast(String(msg), 6000); } catch(e) {}
-    try { if (typeof debugLog === 'function') debugLog(String(msg)); } catch(e) {}
-  }
-
-  async function _copy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      _toast('コピーしました');
-      return true;
-    } catch(e) {
-      _toast('コピーできませんでした（下に表示した内容を長押しコピーしてください）');
-      return false;
-    }
-  }
-
-  function _buildUrl(edits) {
-    const u = new URL(location.href);
-    const p = u.searchParams;
-    if (edits && Object.prototype.hasOwnProperty.call(edits,'reset')) {
-      if (edits.reset === null) p.delete('reset'); else p.set('reset', String(edits.reset));
-    }
-    if (edits && Object.prototype.hasOwnProperty.call(edits,'b')) {
-      if (edits.b === null) p.delete('b'); else p.set('b', String(edits.b));
-    }
-    u.search = p.toString();
-    return u.toString();
-  }
-
-  function _dbEmpty(db) {
-    if (!db) return true;
-    if (typeof db !== 'object') return true;
-    const keys = Object.keys(db);
-    if (!keys.length) return true;
-    const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
-    const prod = db.products && typeof db.products === 'object' ? Object.keys(db.products).length : 0;
-    return (p===0 && prod===0 && keys.length<=3);
-  }
-
-  function _safeParse(jsonStr) {
-    try {
-      return { ok:true, value: JSON.parse(jsonStr) };
-    } catch(e) {
-      return { ok:false, error: String(e) };
-    }
-  }
-
-  // ===== v19.9.70+ init-fix: localStorage.smart_price_db -> window.db (display-mode非依存) =====
-  function _ensureDbFromLocalStorage() {
-    try {
-      if (!_dbEmpty(window.db)) return;
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const parsed = _safeParse(dbStr);
-        if (parsed.ok && parsed.value && typeof parsed.value === 'object') {
-          window.db = parsed.value;
-          return;
-        }
-      }
-      // fallback
-      window.db = window.db || { products: {}, stores: {}, purchases: [] };
-    } catch(e) {
-      window.db = window.db || { products: {}, stores: {}, purchases: [] };
-    }
-  }
-
-  // ===== export/import (admin only) =====
-  function spAdminExportDb() {
-    const dbStr = localStorage.getItem('smart_price_db') || '';
-    const dataStr = localStorage.getItem('smart_price_data') || '';
-    const payload = {
-      kind: 'SmartPriceExport',
-      version: _getVersion(),
-      build: _getBuild(),
-      exportedAtJST: _nowJP(),
-      smart_price_db: dbStr,
-      smart_price_data: dataStr
-    };
-    const text = JSON.stringify(payload);
-    _showOut(text);
-    _copy(text);
-  }
-
-  function spAdminImportDbFromText(text) {
-    const parsed = _safeParse(text || '');
-    if (!parsed.ok) {
-      _toast('インポート失敗：JSONとして読めません');
-      return false;
-    }
-    const obj = parsed.value;
-    // 期待形式 or 生のsmart_price_db文字列
-    let dbStr = '';
-    let dataStr = '';
-    if (obj && obj.kind === 'SmartPriceExport') {
-      dbStr = String(obj.smart_price_db || '');
-      dataStr = String(obj.smart_price_data || '');
-    } else if (typeof obj === 'object' && obj.products && obj.purchases) {
-      dbStr = JSON.stringify(obj);
-    } else {
-      _toast('インポート失敗：形式が違います（Export文字列を貼ってください）');
-      return false;
-    }
-
-    if (!dbStr) {
-      _toast('インポート失敗：smart_price_db が空です');
-      return false;
-    }
-
-    // dbStr の中身がJSONとして壊れてないか確認
-    const dbParsed = _safeParse(dbStr);
-    if (!dbParsed.ok) {
-      _toast('インポート失敗：smart_price_db が壊れています');
-      return false;
-    }
-
-    try {
-      localStorage.setItem('smart_price_db', dbStr);
-      if (dataStr) localStorage.setItem('smart_price_data', dataStr);
-      window.db = dbParsed.value;
-      _toast('インポートOK：再描画します');
-      try { if (typeof renderHistory === 'function') renderHistory(); } catch(e) {}
-      return true;
-    } catch(e) {
-      _toast('インポート失敗：保存できませんでした');
-      return false;
-    }
-  }
-
-  // ===== diag text (no firebase) =====
-  async function spAdminBuildDiagText() {
-    let swCount='N/A', cacheCount='N/A';
-    try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        swCount = regs.length;
-      }
-    } catch(e) { swCount='ERROR'; }
-    try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        cacheCount = keys.length;
-      }
-    } catch(e) { cacheCount='ERROR'; }
-
-    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
-    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
-
-    let out = '';
-    out += '【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
-    out += '日時: ' + _nowJP() + '\n\n';
-    out += '■ VERSION\n';
-    out += 'VERSION: ' + _getVersion() + '\n';
-    out += 'BUILD(b): ' + _getBuild() + '\n';
-    out += 'URL: ' + location.href + '\n';
-    out += 'PATH: ' + location.pathname + '\n\n';
-    out += '■ SW/CACHE\n';
-    out += 'SW登録数: ' + swCount + '\n';
-    out += 'Cache数: ' + cacheCount + '\n\n';
-    out += '■ LOCAL STORAGE\n';
-    out += 'キー数: ' + keys + '\n';
-    out += 'smart_price_db: ' + (hasDb ? 'あり' : 'なし') + '\n\n';
-    out += '■ DB（端末内 / window.db）\n';
-    try {
-      const db = window.db || {};
-      const pc = Array.isArray(db.purchases) ? db.purchases.length : 0;
-      const prc = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
-      out += '購入件数: ' + pc + '\n';
-      out += '商品件数: ' + prc + '\n';
-    } catch(e) {
-      out += '購入件数: ERROR\n商品件数: ERROR\n';
-    }
-    out += '\n■ URL QUICK LINKS\n';
-    out += 'RESET_URL: ' + _buildUrl({ reset:'sw', b:_getBuild() }) + '\n';
-    out += 'NORMAL_URL: ' + _buildUrl({ reset:null, b:_getBuild() }) + '\n';
-    return out;
-  }
-
-  // ===== DEBUG PANEL injector =====
-  let _outEl = null;
-  let _inEl = null;
-
-  function _findDebugPanel() {
-    const known = document.querySelector('#debug-panel, #debugPanel, [data-debug-panel], .debug-panel');
-    if (known) return known;
-    const cand = document.querySelectorAll('div,section,aside,dialog');
-    for (const el of cand) {
-      if (el && el.textContent && el.textContent.indexOf('DEBUG PANEL') >= 0) return el;
-    }
-    return null;
-  }
-
-  function _showOut(text) {
-    if (_outEl) {
-      _outEl.style.display = 'block';
-      _outEl.value = String(text || '');
-    }
-  }
-
-  function _inject(panel) {
-    if (!panel) return false;
-    if (panel.querySelector('#sp-admin-tools-v1951')) return true;
-
-    const wrap = document.createElement('div');
-    wrap.id = 'sp-admin-tools-v1951';
-    wrap.style.marginTop = '10px';
-    wrap.innerHTML =
-      '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-url">URLコピー</button>'
-      + '<button class="btn btn-sm btn-dark flex-grow-1" id="sp-reset">SW解除URL</button>'
-      + '</div>'
-      + '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-warning w-100 fw-bold" id="sp-diag">診断ログをコピー</button>'
-      + '</div>'
-      + '<div class="d-flex gap-2 mt-2">'
-      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-export">DBエクスポート</button>'
-      + '<button class="btn btn-sm btn-secondary flex-grow-1" id="sp-import">DBインポート</button>'
-      + '</div>'
-      + '<textarea id="sp-in" class="form-control bg-dark text-white border-secondary mt-2" rows="4" '
-      + ' placeholder="ここに『DBエクスポート』の文字列を貼ってから、DBインポート" '
-      + ' style="white-space:pre-wrap;word-break:break-all;"></textarea>'
-      + '<textarea id="sp-out" class="form-control bg-dark text-white border-secondary mt-2" rows="6" readonly '
-      + ' style="display:none;white-space:pre-wrap;word-break:break-all;"></textarea>'
-      + '<div class="small text-secondary mt-1" style="opacity:.9;">'
-      + '※コピーできない端末は、下の欄を長押しコピーでOK。Firebaseは使いません。'
-      + '</div>';
-
-    panel.appendChild(wrap);
-    _outEl = wrap.querySelector('#sp-out');
-    _inEl = wrap.querySelector('#sp-in');
-
-    wrap.querySelector('#sp-url')?.addEventListener('click', async()=>{ const ok=await _copy(location.href); if(!ok)_showOut(location.href); });
-    wrap.querySelector('#sp-reset')?.addEventListener('click', async()=>{ const u=_buildUrl({reset:'sw', b:_getBuild()}); const ok=await _copy(u); if(!ok)_showOut(u); });
-    wrap.querySelector('#sp-diag')?.addEventListener('click', async()=>{ const t=await spAdminBuildDiagText(); _showOut(t); await _copy(t); });
-    wrap.querySelector('#sp-export')?.addEventListener('click', ()=> spAdminExportDb() );
-    wrap.querySelector('#sp-import')?.addEventListener('click', ()=> {
-      const text = (_inEl && _inEl.value) ? _inEl.value : '';
-      if (!text.trim()) { _toast('貼り付けが空です'); return; }
-      spAdminImportDbFromText(text.trim());
-    });
-
-    return true;
-  }
-
-  // expose minimal API for compatibility
-  window.spAdminExportDb = spAdminExportDb;
-  window.spAdminImportDbFromText = spAdminImportDbFromText;
-
-  // init fix should run early after load
-  document.addEventListener('DOMContentLoaded', function() {
-    _ensureDbFromLocalStorage();
-  });
-
-  const mo = new MutationObserver(()=>{ const p=_findDebugPanel(); if(p) _inject(p); });
-  mo.observe(document.body, {childList:true, subtree:true});
-  const p0=_findDebugPanel(); if(p0) _inject(p0);
-
-})();
-</script>
-
-
-<!--
-  Admin Overlay Tools (NO FIREBASE) - Debug panel non-required
-  VERSION: v19.9.70
-  AUTHOR: Yui
-  DATE(JST): 2026-02-13 22:40 JST
-  BUILD(b): 2026-02-08_2053_admin_overlay_tools_nofb
-  POLICY:
-  - debug=1 のときだけ表示（通常UIは一切変更しない）
-  - Firebase/UID/接続先URLには触れない
--->
-<script>
-(function(){
-  'use strict';
-  function qs(){ try{return new URL(location.href).searchParams;}catch(e){return new URLSearchParams('');} }
-  const P = qs();
-  const isDebug = (P.get('debug') === '1');
-  const isAdmin = (P.get('mode') === 'admin');
-  if (!isDebug || !isAdmin) return;
-
-  function nowJP(){ try{ return new Date().toLocaleString('ja-JP'); }catch(e){ return String(new Date()); } }
-  function getBuild(){ return P.get('b') || (window.BUILD_ID||'') || 'N/A'; }
-  function getVersion(){ return (window.VERSION_INFO||'').trim() || 'N/A'; }
-
-  function toast(msg){
-    try{ if (typeof showToast === 'function') showToast(String(msg), 6000); }catch(e){}
-    try{ if (typeof debugLog === 'function') debugLog(String(msg)); }catch(e){}
-  }
-
-  async function copyText(t){
-    try{ await navigator.clipboard.writeText(String(t)); toast('コピーしました'); return true; }
-    catch(e){ toast('コピーできません（下の欄を長押しコピー）'); return false; }
-  }
-
-  function safeParse(s){ try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, err:String(e)}; } }
-  function dbEmpty(db){
-    try{
-      if(!db||typeof db!=='object') return true;
-      const p = Array.isArray(db.purchases) ? db.purchases.length : 0;
-      const pr = db.products && typeof db.products==='object' ? Object.keys(db.products).length : 0;
-      return (p===0 && pr===0);
-    }catch(e){ return true; }
-  }
-  function ensureDbFromLS(){
-    try{
-      if (!dbEmpty(window.db)) return;
-      const dbStr = localStorage.getItem('smart_price_db');
-      if (dbStr) {
-        const r = safeParse(dbStr);
-        if (r.ok && r.v && typeof r.v === 'object') {
-          window.db = r.v;
-          return;
-        }
-      }
-      window.db = window.db || {products: {}, stores: {}, purchases: []};
-    }catch(e){
-      window.db = window.db || {products: {}, stores: {}, purchases: []};
-    }
-  }
-
-  function buildUrlReset(){
-    const u = new URL(location.href);
-    u.searchParams.set('reset','sw');
-    u.searchParams.set('b', getBuild());
-    return u.toString();
-  }
-
-  function buildDiag(){
-    const keys = (()=>{ try{return Object.keys(localStorage||{}).length;}catch(e){return 'ERROR';} })();
-    const hasDb = (()=>{ try{return !!localStorage.getItem('smart_price_db');}catch(e){return false;} })();
-    let out='';
-    out+='【Smart Price 診断ログ（運営者／Firebaseなし）】\n';
-    out+='日時: '+nowJP()+'\n\n';
-    out+='■ VERSION\n';
-    out+='VERSION: '+getVersion()+'\n';
-    out+='BUILD(b): '+getBuild()+'\n';
-    out+='URL: '+location.href+'\n';
-    out+='PATH: '+location.pathname+'\n\n';
-    out+='■ LOCAL STORAGE\n';
-    out+='キー数: '+keys+'\n';
-    out+='smart_price_db: '+(hasDb?'あり':'なし')+'\n\n';
-    out+='■ DB（端末内 / window.db）\n';
-    try{
-      const db = window.db||{};
-      const pc = Array.isArray(db.purchases)?db.purchases.length:0;
-      const prc = db.products&&typeof db.products==='object'?Object.keys(db.products).length:0;
-      out+='購入件数: '+pc+'\n';
-      out+='商品件数: '+prc+'\n';
-    }catch(e){ out+='購入件数: ERROR\n商品件数: ERROR\n'; }
-    out+='\n■ URL QUICK LINKS\n';
-    out+='RESET_URL: '+buildUrlReset()+'\n';
-    out+='NORMAL_URL: '+(new URL(location.href)).toString()+'\n';
-    return out;
-  }
-
-  function exportPayload(){
-    const dbStr = localStorage.getItem('smart_price_db') || '';
-    const dataStr = localStorage.getItem('smart_price_data') || '';
-    const payload = {
-      kind:'SmartPriceExport',
-      version:getVersion(),
-      build:getBuild(),
-      exportedAtJST: nowJP(),
-      smart_price_db: dbStr,
-      smart_price_data: dataStr
-    };
-    return JSON.stringify(payload);
-  }
-
-  function importPayload(text){
-    const r = safeParse(text||'');
-    if(!r.ok){ toast('インポート失敗：JSONとして読めません'); return false; }
-    const obj=r.v;
-    let dbStr='', dataStr='';
-    if(obj && obj.kind==='SmartPriceExport'){ dbStr=String(obj.smart_price_db||''); dataStr=String(obj.smart_price_data||''); }
-    else if(obj && typeof obj==='object' && obj.products && obj.purchases){ dbStr=JSON.stringify(obj); }
-    else { toast('インポート失敗：形式が違います（Export文字列を貼ってください）'); return false; }
-
-    if(!dbStr){ toast('インポート失敗：smart_price_db が空'); return false; }
-    const dbCheck = safeParse(dbStr);
-    if(!dbCheck.ok){ toast('インポート失敗：smart_price_db が壊れてます'); return false; }
-
-    try{
-      localStorage.setItem('smart_price_db', dbStr);
-      if(dataStr) localStorage.setItem('smart_price_data', dataStr);
-      window.db = dbCheck.v;
-      toast('インポートOK：再描画します');
-      try{ if(typeof renderHistory==='function') renderHistory(); }catch(e){}
-      return true;
-    }catch(e){ toast('インポート失敗：保存できません'); return false; }
-  }
-
-  // overlay UI
-  const box = document.createElement('div');
-  box.id='sp-admin-overlay-tools';
-  box.style.position='fixed';
-  box.style.right='10px';
-  box.style.bottom='10px';
-  box.style.zIndex='99999';
-  box.style.width='min(360px, calc(100vw - 20px))';
-  box.style.background='rgba(0,0,0,0.82)';
-  box.style.border='1px solid rgba(255,255,255,0.25)';
-  box.style.borderRadius='12px';
-  box.style.padding='10px';
-  box.style.color='#fff';
-  box.style.fontSize='13px';
-  box.style.backdropFilter='blur(6px)';
-
-  box.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<div style="font-weight:700;">ADMIN TOOLS</div>'
-    + '<div style="opacity:.8;">(debug=1)</div>'
-    + '<button id="spov-close" style="margin-left:auto;border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;">×</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-url" style="flex:1;padding:8px;border-radius:10px;border:0;">URL</button>'
-    + '  <button id="spov-reset" style="flex:1;padding:8px;border-radius:10px;border:0;">SW解除URL</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-diag" style="flex:1;padding:8px;border-radius:10px;border:0;font-weight:700;">診断ログ</button>'
-    + '  <button id="spov-exp" style="flex:1;padding:8px;border-radius:10px;border:0;">EXPORT</button>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '  <button id="spov-imp" style="flex:1;padding:8px;border-radius:10px;border:0;">IMPORT</button>'
-    + '</div>'
-    + '<textarea id="spov-in" rows="3" placeholder="IMPORT用：ここにExport文字列を貼る" '
-    + ' style="margin-top:8px;width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
-    + '<textarea id="spov-out" rows="6" readonly '
-    + ' style="margin-top:8px;width:100%;display:none;border-radius:10px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;padding:8px;white-space:pre-wrap;word-break:break-all;"></textarea>'
-    + '<div style="margin-top:6px;opacity:.8;font-size:12px;">コピー不可なら下の欄を長押しコピーでOK</div>';
-
-  document.documentElement.appendChild(box);
-
-  const out = box.querySelector('#spov-out');
-  function showOut(t){ out.style.display='block'; out.value=String(t||''); }
-
-  box.querySelector('#spov-close').onclick=()=>{ box.remove(); };
-  box.querySelector('#spov-url').onclick=async()=>{ const ok=await copyText(location.href); if(!ok) showOut(location.href); };
-  box.querySelector('#spov-reset').onclick=async()=>{ const u=buildUrlReset(); const ok=await copyText(u); if(!ok) showOut(u); };
-  box.querySelector('#spov-diag').onclick=async()=>{ ensureDbFromLS(); const t=buildDiag(); showOut(t); await copyText(t); };
-  box.querySelector('#spov-exp').onclick=async()=>{ const t=exportPayload(); showOut(t); await copyText(t); };
-  box.querySelector('#spov-imp').onclick=()=>{
-    const t=(box.querySelector('#spov-in').value||'').trim();
-    if(!t){ toast('貼り付けが空'); return; }
-    ensureDbFromLS();
-    importPayload(t);
-  };
-
-})();
-</script>
-
-
-<script>
-(function(){
-  document.addEventListener('keydown', function(e){
-    if (e && e.key === 'Escape') {
-      try { spCloseDebugPanel(); } catch(_) {}
-    }
-  }, {capture:true});
-})();
-</script>
-
-
-
-
-<!-- === SP MODAL FIX PATCH ===
-APP: Smart Price
-VERSION: v19.9.70
-DATE(JST): 2026-02-14 08:30 JST
-TITLE: Settings modal single-instance + panel routing fix
-CHANGES:
-- Prevent duplicate Settings modals / double-open by cloning the gear button and intercepting clicks.
-- Ensure only one panel is visible at a time; fix Back button routing and title switching.
-- On opening Settings, hide sub panels so referral link won't appear under the main menu.
-POLICY: UI_FREEZE / single-HTML / VERSION SSOT
-BUILD_PARAM(b): ?b=2026-02-14_1042_modalfix-r4
-DEBUG_PARAM: &debug=1
--->
-
-
-<!-- === SmartPrice Modal Fix (installed) === -->
-<script>
-/**
- * Smart Price Modal Fix
- * バージョン: 1.0.0
- * 作成日: 2026-02-14
- * 
- * 問題:
- * - モーダルが重複表示される
- * - パネル切替が動作しない
- * - 戻るボタンが機能しない
- * - 関数の多重定義によるカオス
- * 
- * 解決策:
- * - 状態管理の導入
- * - Event Delegation による一元管理
- * - Single Source of Truth
- */
-
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Smart Price 設定モーダル - FINAL FIX
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
   
-  console.log('[SmartPrice Modal Fix] Initializing...');
+  const state = { isOpen: false, currentPanel: 'Main', history: [], initialized: false };
+  let modal = null, panels = {}, titleEl = null;
   
-  // ========================================
-  // 1. State Management
-  // ========================================
-  const state = {
-    isOpen: false,
-    currentPanel: 'Main',
-    history: [],
-    initialized: false
-  };
+  const PANELS = { Main: 'settingsMainMenu', Referral: 'panelReferral', Family: 'panelFamily', Support: 'panelSupport', Operator: 'panelOperator' };
+  const TITLES = { Main: '設定', Referral: '友人紹介', Family: '家族共有', Support: '運営者へ質問', Operator: '管理メニュー' };
   
-  // ========================================
-  // 2. DOM Cache
-  // ========================================
-  let modal = null;
-  let panels = {};
-  let titleElement = null;
-  
-  // ========================================
-  // 3. Configuration
-  // ========================================
-  const PANEL_NAMES = {
-    Main: 'settingsMainMenu',
-    Referral: 'panelReferral',
-    Family: 'panelFamily',
-    Support: 'panelSupport',
-    Operator: 'panelOperator'
-  };
-  
-  const PANEL_TITLES = {
-    Main: '設定',
-    Referral: '友人紹介',
-    Family: '家族共有',
-    Support: '運営者へ質問',
-    Operator: '管理メニュー'
-  };
-  
-  // ========================================
-  // 4. Utility Functions
-  // ========================================
-  function log(msg, data) {
-    console.log(`[Modal] ${msg}`, data || '');
-  }
-  
-  function warn(msg, data) {
-    console.warn(`[Modal] ${msg}`, data || '');
-  }
-  
-  function error(msg, data) {
-    console.error(`[Modal] ${msg}`, data || '');
-  }
-  
-  // ========================================
-  // 5. Initialization
-  // ========================================
   function init() {
-    if (state.initialized) {
-      log('Already initialized');
-      return;
-    }
-    
-    // モーダル要素を取得
+    if (state.initialized) return;
     modal = document.getElementById('settingsModal');
-    if (!modal) {
-      error('settingsModal element not found in DOM');
-      return;
-    }
+    if (!modal) { console.error('[Modal] settingsModal not found'); return; }
     
-    // 重複チェック
     const duplicates = document.querySelectorAll('#settingsModal');
     if (duplicates.length > 1) {
-      warn(`Found ${duplicates.length} modals, removing duplicates...`);
       for (let i = 1; i < duplicates.length; i++) {
-        duplicates[i].remove();
+        try { duplicates[i].remove(); } catch(e) {}
       }
     }
     
-    // パネル要素をキャッシュ
-    Object.keys(PANEL_NAMES).forEach(key => {
-      const el = document.getElementById(PANEL_NAMES[key]);
-      if (el) {
-        panels[key] = el;
-      } else {
-        warn(`Panel not found: ${PANEL_NAMES[key]}`);
-      }
+    Object.keys(PANELS).forEach(function(key) {
+      const el = document.getElementById(PANELS[key]);
+      if (el) panels[key] = el;
     });
     
-    // タイトル要素を取得
-    titleElement = modal.querySelector('.modal-title') || 
-                   modal.querySelector('#settingsTitle') ||
-                   modal.querySelector('h5');
-    
-    // イベントリスナーを設定（Event Delegation）
+    titleEl = modal.querySelector('.modal-title') || modal.querySelector('#settingsTitle') || modal.querySelector('h5');
     setupEventListeners();
-    
-    // 初期状態にリセット
-    showPanel('Main');
-    
+    navigate('Main');
     state.initialized = true;
-    log('Initialized successfully', {
-      modal: !!modal,
-      panels: Object.keys(panels).length,
-      title: !!titleElement
-    });
+    console.log('[Modal] FINAL FIX Loaded');
   }
   
-  // ========================================
-  // 6. Event Listeners
-  // ========================================
   function setupEventListeners() {
-    // すでにリスナーが登録されている場合は削除
-    if (modal._spModalListener) {
-      modal.removeEventListener('click', modal._spModalListener);
+    if (modal._spListener) modal.removeEventListener('click', modal._spListener);
+    
+    modal._spListener = function(e) {
+      const btn = e.target.closest('button, [data-action], [data-target], [data-panel]');
+      if (!btn) return;
+      
+      const action = btn.getAttribute('data-action');
+      const target = btn.getAttribute('data-target') || btn.getAttribute('data-panel');
+      const backTo = btn.getAttribute('data-back');
+      
+      if (action === 'close-settings' || btn.classList.contains('sp-close-btn')) {
+        e.preventDefault(); e.stopPropagation(); close();
+      } else if (btn.classList.contains('sp-menu-btn') && target) {
+        e.preventDefault(); e.stopPropagation(); navigate(target.replace(/^panel/, ''));
+      } else if (btn.classList.contains('sp-back-btn')) {
+        e.preventDefault(); e.stopPropagation(); back(backTo);
+      }
+    };
+    modal.addEventListener('click', modal._spListener);
+    
+    if (!window._spEscListener) {
+      window._spEscListener = function(e) { if (e.key === 'Escape' && state.isOpen) close(); };
+      document.addEventListener('keydown', window._spEscListener);
     }
     
-    // 新しいリスナーを登録
-    modal._spModalListener = handleModalClick;
-    modal.addEventListener('click', modal._spModalListener);
-    
-    // ESCキーでモーダルを閉じる
-    if (!window._spModalEscListener) {
-      window._spModalEscListener = (e) => {
-        if (e.key === 'Escape' && state.isOpen) {
-          close();
-        }
-      };
-      document.addEventListener('keydown', window._spModalEscListener);
-    }
-    
-    // モーダル外クリックで閉じる
-    if (!modal._spModalOutsideListener) {
-      modal._spModalOutsideListener = (e) => {
-        if (e.target === modal && state.isOpen) {
-          close();
-        }
-      };
-      modal.addEventListener('click', modal._spModalOutsideListener);
-    }
-    
-    log('Event listeners attached');
-  }
-  
-  function handleModalClick(e) {
-    // クリックされた要素を取得
-    const target = e.target.closest('button, [data-action], [data-target], [data-panel]');
-    if (!target) return;
-    
-    // data属性を取得（data-target と data-panel 両方に対応）
-    const action = target.getAttribute('data-action');
-    const targetPanel = target.getAttribute('data-target') || target.getAttribute('data-panel');
-    const backTo = target.getAttribute('data-back');
-    
-    // アクション判定
-    if (action === 'close-settings' || target.classList.contains('sp-close-btn')) {
-      e.preventDefault();
-      close();
-    } else if (target.classList.contains('sp-menu-btn') && targetPanel) {
-      e.preventDefault();
-      // "panel" プレフィックスを除去
-      const panelName = targetPanel.replace(/^panel/, '');
-      showPanel(panelName);
-    } else if (target.classList.contains('sp-back-btn')) {
-      e.preventDefault();
-      goBack(backTo);
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn && !settingsBtn._spBound) {
+      settingsBtn._spBound = true;
+      settingsBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); open(); });
     }
   }
   
-  // ========================================
-  // 7. Core Functions
-  // ========================================
   function open() {
-    if (!modal) {
-      error('Cannot open: modal not initialized');
-      return;
-    }
+    if (!modal) return;
+    try { const dp = document.getElementById('debug-panel'); if (dp && dp.classList.contains('show')) { dp.classList.remove('show'); dp.style.display = 'none'; } } catch(e) {}
+    try { if (typeof window.clearToasts === 'function') window.clearToasts(); } catch(e) {}
     
-    log('Opening modal');
-    
-    // 他のオーバーレイを閉じる
-    closeOtherOverlays();
-    
-    // 状態をリセット
-    state.isOpen = true;
-    state.currentPanel = 'Main';
-    state.history = ['Main'];
-    
-    // モーダルを表示
+    state.isOpen = true; state.currentPanel = 'Main'; state.history = ['Main'];
     modal.style.display = 'flex';
-    setTimeout(() => {
-      modal.classList.add('show');
-    }, 10);
-    
-    // メインパネルを表示
-    showPanel('Main');
-    
-    // 既存の openSettings() で設定される値を再現
-    try {
-      syncExistingSettings();
-    } catch (e) {
-      warn('syncExistingSettings failed', e);
-    }
+    setTimeout(function() { modal.classList.add('show'); }, 10);
+    navigate('Main');
+    syncSettings();
   }
   
   function close() {
     if (!modal) return;
-    
-    log('Closing modal');
-    
     state.isOpen = false;
-    
-    // アニメーション
     modal.classList.remove('show');
-    setTimeout(() => {
-      modal.style.display = 'none';
-    }, 300);
-    
-    // 状態をクリーンアップ
-    state.currentPanel = 'Main';
-    state.history = [];
-    
-    // メインパネルに戻しておく（次回開いた時の保険）
-    setTimeout(() => {
-      showPanel('Main');
-    }, 400);
+    setTimeout(function() { modal.style.display = 'none'; }, 300);
+    state.currentPanel = 'Main'; state.history = [];
+    setTimeout(function() { navigate('Main'); }, 400);
   }
   
-  function showPanel(name) {
-    // パネル名の正規化（"Referral" / "panelReferral" 両方に対応）
-    const normalizedName = name.replace(/^panel/, '');
+  function navigate(panelName) {
+    const normalizedName = panelName.replace(/^panel/, '').replace(/^main$/i, 'Main');
+    if (!panels[normalizedName]) { console.warn('[Modal] Panel not found: ' + normalizedName); return; }
     
-    if (!panels[normalizedName]) {
-      warn(`Panel not found: ${normalizedName}`);
-      return;
-    }
-    
-    log(`Showing panel: ${normalizedName}`);
-    
-    // 全パネルを非表示
-    Object.values(panels).forEach(panel => {
-      if (panel) panel.style.display = 'none';
-    });
-    
-    // 指定パネルを表示
+    Object.keys(panels).forEach(function(key) { if (panels[key]) panels[key].style.display = 'none'; });
     panels[normalizedName].style.display = 'block';
+    if (titleEl) titleEl.textContent = TITLES[normalizedName] || '設定';
     
-    // タイトルを更新
-    updateTitle(normalizedName);
-    
-    // 状態を更新
     const prevPanel = state.currentPanel;
     state.currentPanel = normalizedName;
-    
-    // 履歴管理（戻るボタン用）
     if (prevPanel !== normalizedName) {
-      // 同じパネルに戻った場合は履歴から削除
       const lastIndex = state.history.lastIndexOf(normalizedName);
       if (lastIndex !== -1 && lastIndex !== state.history.length - 1) {
         state.history = state.history.slice(0, lastIndex + 1);
@@ -7363,160 +5506,46 @@ DEBUG_PARAM: &debug=1
         state.history.push(normalizedName);
       }
     }
-    
-    log('Current state:', {
-      panel: state.currentPanel,
-      history: state.history
-    });
   }
   
-  function goBack(targetPanel) {
-    log('Going back', { from: state.currentPanel, to: targetPanel });
-    
+  function back(targetPanel) {
     if (targetPanel) {
-      // data-back で指定されたパネルへ
-      const normalizedTarget = targetPanel.replace(/^panel/, '');
-      showPanel(normalizedTarget);
+      navigate(targetPanel.replace(/^panel/, ''));
     } else {
-      // 履歴から戻る
-      if (state.history.length <= 1) {
-        // 履歴がない場合はメインに戻る
-        showPanel('Main');
-      } else {
-        // 履歴から1つ前に戻る
-        state.history.pop(); // 現在のパネルを削除
-        const prev = state.history[state.history.length - 1] || 'Main';
-        state.history.pop(); // showPanel内で追加されるので事前に削除
-        showPanel(prev);
-      }
+      if (state.history.length <= 1) { navigate('Main'); }
+      else { state.history.pop(); const prev = state.history[state.history.length - 1] || 'Main'; state.history.pop(); navigate(prev); }
     }
   }
   
-  function updateTitle(panelName) {
-    if (!titleElement) return;
-    
-    const title = PANEL_TITLES[panelName] || '設定';
-    titleElement.textContent = title;
-    
-    log(`Title updated: ${title}`);
-  }
-  
-  // ========================================
-  // 8. Helper Functions
-  // ========================================
-  function closeOtherOverlays() {
-    // デバッグパネルを閉じる
+  function syncSettings() {
     try {
-      const debugPanel = document.getElementById('debug-panel');
-      if (debugPanel && debugPanel.classList.contains('show')) {
-        debugPanel.classList.remove('show');
-        debugPanel.style.display = 'none';
-      }
-    } catch (e) {
-      // ignore
-    }
-    
-    // トーストを消す
-    try {
-      if (typeof window.clearToasts === 'function') {
-        window.clearToasts();
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-  
-  function syncExistingSettings() {
-    // 既存の openSettings() で設定される値を再現
-    
-    // Firebase URL
-    if (typeof window.fbUrl !== 'undefined') {
-      const urlInput = document.getElementById('fb-url-input');
-      if (urlInput) urlInput.value = window.fbUrl;
-    }
-    
-    // Home City
-    if (typeof window.db !== 'undefined' && window.db.config) {
-      const cityInput = document.getElementById('home-city-input');
-      if (cityInput) {
-        cityInput.value = window.db.config.homeCity || '';
-      }
+      if (typeof window.db !== 'undefined' && typeof window.normalizeDb === 'function') window.db = window.normalizeDb(window.db);
+      if (typeof window.resetSyncBtn === 'function') window.resetSyncBtn();
       
-      // City Chips
-      if (typeof window.renderCityChips === 'function') {
-        window.renderCityChips();
-      }
-    }
-    
-    // デバッグボタンの表示
-    const backupButtons = document.getElementById('debugBackupButtons');
-    if (backupButtons && typeof window.isDebug === 'function') {
-      backupButtons.style.display = window.isDebug() ? 'block' : 'none';
-    }
-    
-    log('Existing settings synced');
+      const urlInput = document.getElementById('fb-url-input');
+      if (urlInput && typeof window.fbUrl !== 'undefined') urlInput.value = window.fbUrl;
+      
+      const cityInput = document.getElementById('home-city-input');
+      if (cityInput && window.db && window.db.config) cityInput.value = window.db.config.homeCity || '';
+      
+      if (typeof window.renderCityChips === 'function') window.renderCityChips();
+      
+      const backupButtons = document.getElementById('debugBackupButtons');
+      if (backupButtons && typeof window.isDebug === 'function') backupButtons.style.display = window.isDebug() ? 'block' : 'none';
+    } catch(e) {}
   }
   
-  // ========================================
-  // 9. Public API
-  // ========================================
-  const SmartPriceModal = {
-    open,
-    close,
-    showPanel,
-    goBack,
-    getState: () => ({ ...state }),
-    isOpen: () => state.isOpen
-  };
+  window.SmartPriceModal = { open: open, close: close, navigate: navigate, back: back };
+  window.openSettings = open;
+  window.closeSettings = close;
   
-  // グローバルに公開
-  window.SmartPriceModal = SmartPriceModal;
-  
-  // ========================================
-  // 10. 既存コードとの互換性
-  // ========================================
-  
-  // 既存の openSettings() を上書き
-  const _originalOpenSettings = window.openSettings;
-  window.openSettings = function() {
-    log('openSettings() called (redirected to SmartPriceModal.open)');
-    open();
-  };
-  
-  // 既存の closeSettings() を上書き
-  const _originalCloseSettings = window.closeSettings;
-  window.closeSettings = function() {
-    log('closeSettings() called (redirected to SmartPriceModal.close)');
-    close();
-  };
-  
-  // デバッグ用: 元の関数を保持
-  window._originalOpenSettings = _originalOpenSettings;
-  window._originalCloseSettings = _originalCloseSettings;
-  
-  // ========================================
-  // 11. Auto Initialize
-  // ========================================
-  function autoInit() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(init, 100);
-      });
-    } else {
-      setTimeout(init, 100);
-    }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 100); });
+  } else {
+    setTimeout(init, 100);
   }
-  
-  autoInit();
-  
-  // ========================================
-  // 12. Debug Info
-  // ========================================
-  console.log('[SmartPrice Modal Fix] Script loaded');
-  console.log('[SmartPrice Modal Fix] API:', Object.keys(SmartPriceModal));
-  
 })();
-
 </script>
+
 </body>
 </html>
