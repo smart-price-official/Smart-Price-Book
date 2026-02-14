@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v19.9.75
+VERSION: v19.9.76
 DATE(JST): 2026-02-14 09:45 JST
 TITLE: 設定モーダル修正（modalfix-r1a）
 CHANGES:
-- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.75 / 2026-02-14_1330_final に統一
+- VERSION/BUILD/表示のSSOT（単一正本）を v19.9.76 / 2026-02-14_1330_final に統一
 - 設定モーダルの二重表示を抑止（イベント1本化・重複DOM除去）
 - 設定内の「戻る」を必ず設定メインへ戻す（サブパネルを閉じる）
 - 友人紹介/家族共有/運営者へ質問/管理メニューの内容・タイトル切替を正す
@@ -16,7 +16,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v19.9.75";
+  const APP_VERSION = "v19.9.76";
   const BUILD_ID = "2026-02-14_1330_final";
   try {
     const url = new URL(location.href);
@@ -65,14 +65,14 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v19.9.75</title>
+  <title>Smart Price v19.9.76 [2026-02-14_1427_homegps-r1]</title>
   <!-- ✅ VERSION情報を最優先で定義（BOOT PROBEより先に読み込む） -->
   <script>
-  window.VERSION_INFO = 'v19.9.75';
-　window.APP_VERSION = 'v19.9.75';
-　window.FULL_VERSION = 'v19.9.75 [2026-02-14_1040_modalfix-r3]';
+  window.VERSION_INFO = 'v19.9.76';
+　window.APP_VERSION = 'v19.9.76';
+　window.FULL_VERSION = 'v19.9.76 [2026-02-14_1427_homegps-r1]';
   </script>
-  <!-- ✅ SW RESET TOOL (v19.9.75) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v19.9.76) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -391,7 +391,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v19.9.75 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v19.9.76 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -401,7 +401,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.75</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v19.9.76</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -710,8 +710,8 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v19.9.75"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const FULL_VERSION = "v19.9.75 [2026-02-14_0945_modalfix-r2]"; // デバッグ用（詳細） // デバッグ用（詳細）
+  const APP_VERSION = "v19.9.76"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
+  const FULL_VERSION = "v19.9.76 [2026-02-14_1427_homegps-r1]"; // デバッグ用（詳細） // デバッグ用（詳細）
   const BUILD_ID = "2026-02-14_0945_modalfix-r2"; // ヘッダーと一致させる
 
   // ========= Firebase Configuration =========
@@ -1551,9 +1551,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
       const isDev = path.includes('/dev/');
       const isEmergency = path.includes('/emergency/');
       const isRoot = path.includes('/Smart-Price-Book/') && !isDev && !isEmergency;
-      
-      const b = new URLSearchParams(location.search).get("b") || "";
-      
+
+      const params = new URLSearchParams(location.search);
+      const b = params.get("b") || "";
+
       const tryFetch = async (url) => {
         const fullUrl = url + (b ? ("?b=" + encodeURIComponent(b)) : "");
         if (isDebug()) {
@@ -1588,14 +1589,38 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
         cfg = await tryFetch('./config.json');
       }
 
-      window.SP_CONFIG = cfg || {};
+      cfg = cfg || {};
+
+      // ---- Yahoo Proxy URL: query param / localStorage fallback ----
+      // URL例: ?b=...&proxy=https%3A%2F%2Fscript.google.com%2Fmacros%2Fs%2F...%2Fexec
+      const proxyParam = params.get('proxy') || params.get('yahooProxyExecUrl') || '';
+      if (proxyParam) {
+        try { localStorage.setItem('SP_YAHOO_PROXY_URL', proxyParam); } catch(_) {}
+        cfg.yahooProxyExecUrl = proxyParam;
+      } else {
+        // configに無い場合はlocalStorageから復元
+        if (!cfg.yahooProxyExecUrl) {
+          try {
+            const saved = localStorage.getItem('SP_YAHOO_PROXY_URL') || '';
+            if (saved) cfg.yahooProxyExecUrl = saved;
+          } catch(_) {}
+        }
+      }
+
+      window.SP_CONFIG = cfg;
+
       if (isDebug()) {
-        showToast(`[Config] Loaded OK: ${JSON.stringify(cfg).substring(0, 100)}...`, 5000);
+        showToast(`[Config] Loaded OK: ${JSON.stringify(cfg).substring(0, 140)}...`, 5000);
         console.log('[Config] Loaded:', window.SP_CONFIG);
       }
     } catch(e) {
-      // P0: 全停止させない
+      // P0: 全停止させない（localStorageに保存済みのproxyがあれば復元）
       window.SP_CONFIG = {};
+      try {
+        const saved = localStorage.getItem('SP_YAHOO_PROXY_URL') || '';
+        if (saved) window.SP_CONFIG.yahooProxyExecUrl = saved;
+      } catch(_) {}
+
       if (isDebug()) {
         console.warn('[Config] Error:', e);
         showToast('Config読み込みエラー: ' + (e.message || '不明'), 10000);
@@ -4043,72 +4068,58 @@ function isQuotaError(e) {
   // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
   async function fetchNearbyStores() {
     try {
-      const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
-      
+      let proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? String(window.SP_CONFIG.yahooProxyExecUrl).trim() : '';
+      if (!proxyUrl) {
+        try {
+          const saved = localStorage.getItem('SP_YAHOO_PROXY_URL') || '';
+          if (saved) {
+            proxyUrl = String(saved).trim();
+            window.SP_CONFIG = window.SP_CONFIG || {};
+            window.SP_CONFIG.yahooProxyExecUrl = proxyUrl;
+          }
+        } catch(_) {}
+      }
+
       if (!proxyUrl) {
         if (isDebug()) {
           console.log('[FetchStores] Proxy URL not configured');
-          showToast('Yahoo Proxy URLが設定されていません', 10000);
+          showToast('Yahoo Proxy URLが未設定です（?proxy=... で一度だけ設定できます）', 10000);
         }
         return [];
       }
 
       // 優先順位1: GPS座標（curPos）
       if (isGpsOn && curPos && curPos.lat && curPos.lng) {
-        const radiusKm = 5; // GPS時は5km
-        const limit = 40;
-        const requestUrl = `${proxyUrl}?action=stores&lat=${curPos.lat}&lng=${curPos.lng}&radius_km=${radiusKm}&limit=${limit}`;
-        
-        if (isDebug()) console.log('[FetchStores] GPS mode:', requestUrl);
-        
-        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
+        const radiusM = 5000; // 5km
+        const q = `?lat=${encodeURIComponent(curPos.lat)}&lng=${encodeURIComponent(curPos.lng)}&radiusM=${encodeURIComponent(radiusM)}&mode=nearby`;
+        const url = proxyUrl + q;
+        if (isDebug()) console.log('[FetchStores] nearby url:', url);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Proxy fetch failed: ' + res.status);
         const json = await res.json();
-        if (json && json.ok && Array.isArray(json.stores)) {
-          if (isDebug()) console.log('[FetchStores] GPS result:', json.stores.length, 'stores');
-          // ✅ trim() + 空要素除去
-          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
-        }
-        return [];
+        const list = Array.isArray(json.stores) ? json.stores : (Array.isArray(json) ? json : []);
+        return list.map(x => String(x).trim()).filter(Boolean);
       }
 
-      // 優先順位2: 生活圏（area）
+      // 優先順位2: 生活圏（市）
       const area = (db && db.config && db.config.homeCity) ? String(db.config.homeCity).trim() : '';
       if (area) {
-        const radiusKm = 15; // area時は15km
-        const limit = 40;
-        const requestUrl = `${proxyUrl}?action=stores&area=${encodeURIComponent(area)}&radius_km=${radiusKm}&limit=${limit}`;
-        
-        if (isDebug()) console.log('[FetchStores] Area mode:', area, requestUrl);
-        
-        const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, 15000);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
+        const radiusM = 15000; // area時は15km相当
+        const q = `?area=${encodeURIComponent(area)}&radiusM=${encodeURIComponent(radiusM)}&mode=area`;
+        const url = proxyUrl + q;
+        if (isDebug()) console.log('[FetchStores] area url:', url);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Proxy fetch failed: ' + res.status);
         const json = await res.json();
-        if (json && json.ok && Array.isArray(json.stores)) {
-          if (isDebug()) console.log('[FetchStores] Area result:', json.stores.length, 'stores');
-          // ✅ trim() + 空要素除去
-          return json.stores.map(s => String(s.name || '').trim()).filter(n => n.length > 0);
-        } else if (json && !json.ok) {
-          // エラー時（例：使用できないアドレス）
-          if (isDebug()) {
-            console.log('[FetchStores] Area failed:', json.error || 'unknown');
-            showToast('店舗検索失敗: ' + (json.error || 'unknown'), 10000);
-          }
-          // GPSへのフォールバックは、すでに上で試しているので、ここでは空配列を返す
-          return [];
-        }
-        return [];
+        const list = Array.isArray(json.stores) ? json.stores : (Array.isArray(json) ? json : []);
+        return list.map(x => String(x).trim()).filter(Boolean);
       }
 
-      // GPS/areaどちらもない場合
-      if (isDebug()) console.log('[FetchStores] No GPS or area configured');
       return [];
-
-    } catch(e) {
+    } catch (e) {
       if (isDebug()) {
-        console.error('[FetchStores] Error:', e);
+        console.warn('[FetchStores] error', e);
+        showToast('近隣ストア取得エラー: ' + (e.message || '不明'), 8000);
       }
       return [];
     }
