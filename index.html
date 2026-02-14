@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.1.1
-DATE(JST): 2026-02-14 16:05 JST
-TITLE: GPS/スキャン復旧（構文エラー解消）+ VERSION SSOT統一
+VERSION: v20.1.2
+P26-02-14 23:56 JST
+TITLE: UI修正（スクショ1-8対応）+ キャッシュクリア配置整理 + スキャン手動入力テンキー
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
 - VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-14_2230_layout-fix
+BUILD_PARAM(b): ?b=2026-02-14_2356_ui-fix19
 DEBUG_PARAM: &debug=1
-AUTHOR: Yui&Claude
+AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
 <head>
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.1.1";
+  const APP_VERSION = "v20.1.2";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-14_2230_layout-fix";
+  const BUILD_ID = "2026-02-14_2356_ui-fix19";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
 
@@ -26,7 +26,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
     const badge = document.getElementById('versionBadge');
     if(!badge) return;
     const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
-    badge.textContent = isMobile ? APP_VERSION : FULL_VERSION;
+    const modal = document.getElementById('settingsModal');
+    const isSettingsOpen = !!(modal && modal.classList && modal.classList.contains('show') && modal.style.display !== 'none');
+    // スマホは通常「バージョン番号だけ」。ただし設定画面表示中はフル表示。
+    badge.textContent = (isMobile && !isSettingsOpen) ? APP_VERSION : FULL_VERSION;
   }
   
   // グローバルに公開
@@ -216,7 +219,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
     /* ✅ スキャナ画面：合わせ窓（角丸ガイド枠）- 既存UIと統一 */
     .scan-frame { 
       position: absolute; 
-      top: 50%; 
+      top: 25%; 
       left: 50%; 
       transform: translate(-50%, -50%); 
       width: 280px; 
@@ -429,6 +432,38 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
 
+/* === PATCH v20.1.2: settings buttons spacing & colors === */
+#settingsModal .sp-menu-btn{
+  border:0 !important;
+  background: rgba(45,108,223,0.95) !important;
+  color:#fff !important;
+  font-weight:800 !important;
+  padding:14px 12px !important;
+  border-radius:14px !important;
+}
+#settingsModal .sp-back-btn{
+  border:0 !important;
+  background: rgba(255,255,255,0.16) !important;
+  color:#fff !important;
+  font-weight:700 !important;
+  padding:12px 12px !important;
+  border-radius:14px !important;
+}
+#settingsModal #syncBtn{
+  border:0 !important;
+  border-radius:14px !important;
+}
+#settingsModal #clearCacheBtn{
+  border:0 !important;
+  border-radius:14px !important;
+}
+#settingsModal #webBtn{
+  border:0 !important;
+  background: rgba(255,255,255,0.12) !important;
+  color:#fff !important;
+  border-radius:14px !important;
+}
+
 
   /* === PATCH: homegps-scan-r3 (2026-02-14) === */
   /* Mobile header: show short version only (full version is shown inside settings). */
@@ -441,6 +476,57 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 
   /* Hide grey corner guides drawn by scanner libs (keep canvas for decoding). */
   #interactive canvas{ opacity: 0 !important; }
+
+
+    /* === PATCH v20.1.2: scanner UI placement & corner artifact cleanup === */
+    #interactive video, #interactive canvas, #interactive *{
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    #interactive video, #interactive canvas{
+      border: none !important;
+    }
+
+    /* === PATCH v20.1.2: manual code entry (numpad) === */
+    #manual-entry.scan-manual{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:2002;
+      width:min(92vw, 360px);
+      padding:10px;
+      background: rgba(0,0,0,0.55);
+      border-radius:12px;
+      backdrop-filter: blur(6px);
+    }
+    #manualCodeInput{
+      width:100%;
+      font-size:20px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.25);
+      background: rgba(20,20,20,0.85);
+      color:#fff;
+      letter-spacing: 1px;
+    }
+    .sp-numpad{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px;
+    }
+    .sp-numpad button{
+      width:100%;
+      padding:14px 0;
+      border-radius:12px;
+      border:0;
+      background: rgba(255,255,255,0.14);
+      color:#fff;
+      font-size:18px;
+      font-weight:700;
+    }
+    .sp-numpad button:active{ transform: scale(0.98); }
+    .sp-numpad .sp-np-wide{ grid-column: span 3; }
 
   /* Dialog (manual code input) should appear around the scan window height. */
   #dialogModal{ align-items: flex-start !important; }
@@ -587,6 +673,25 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   <div id="interactive">
     <!-- scan-frame と scan-laser は動的生成（ensureScanbarDom()で生成） -->
   </div>
+  <div id="manual-entry" class="scan-manual" style="display:none;">
+    <input id="manualCodeInput" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="コードを入力（数字）" autocomplete="off">
+    <div class="sp-numpad" aria-label="numeric keypad">
+      <button type="button" onclick="spNumpad('1')">1</button>
+      <button type="button" onclick="spNumpad('2')">2</button>
+      <button type="button" onclick="spNumpad('3')">3</button>
+      <button type="button" onclick="spNumpad('4')">4</button>
+      <button type="button" onclick="spNumpad('5')">5</button>
+      <button type="button" onclick="spNumpad('6')">6</button>
+      <button type="button" onclick="spNumpad('7')">7</button>
+      <button type="button" onclick="spNumpad('8')">8</button>
+      <button type="button" onclick="spNumpad('9')">9</button>
+      <button type="button" onclick="spNumpad('del')">⌫</button>
+      <button type="button" onclick="spNumpad('0')">0</button>
+      <button type="button" onclick="spNumpad('clear')">C</button>
+      <button type="button" class="sp-np-wide" onclick="spSubmitManualCode()">OK（入力で検索）</button>
+    </div>
+  </div>
+
   <button onclick="stopScanner()" class="btn btn-danger position-absolute top-0 end-0 m-4 fs-3 shadow-lg">×</button>
 </div>
 
@@ -606,7 +711,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   <div class="modal-content">
     <h5 class="text-white mb-4 text-center">設定</h5>
 
-    <div class="mb-3">
+    <div class="mb-3" id="settingsCitySection">
       <label class="small text-secondary">生活圏（市）</label>
       <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市">
       <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
@@ -641,13 +746,6 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
           <button class="btn btn-danger flex-grow-1" onclick="spShareReferral()">共有</button>
         </div>
 
-        <div class="small text-secondary mb-1">家族共有コード（任意）</div>
-        <div class="d-flex gap-2 mb-2">
-          <input id="family-code-input" class="form-control bg-dark text-white border-secondary" placeholder="例：FAMILY-001">
-          <button class="btn btn-warning" onclick="spSaveFamilyCode()">保存</button>
-        </div>
-        <div id="family-code-status" class="small text-secondary"></div>
-
         <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
       </div>
         <div class="mt-3 d-grid">
@@ -667,6 +765,15 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         </div>
         <div class="d-grid gap-2">
           <button type="button" class="btn btn-secondary" id="familySaveBtn">保存</button>
+        <div class="mt-3">
+          <div class="small text-secondary mb-1">家族共有コード（任意）</div>
+          <div class="d-flex gap-2 mb-2">
+            <input id="family-code-input" class="form-control bg-dark text-white border-secondary" placeholder="例：FAMILY-001">
+            <button class="btn btn-primary" onclick="spSaveFamilyCode()">保存</button>
+          </div>
+          <div id="family-code-status" class="small text-secondary"></div>
+        </div>
+
         </div>
         <div id="familyMsg" class="small text-secondary mt-2"></div>
         <div class="mt-3 d-grid">
@@ -753,9 +860,9 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       </div>
     </div>
     
-    <button id="syncBtn" class="btn btn-warning w-100 py-3 fw-bold mb-2 shadow" onclick="startMigration()">設定保存と同期</button>
-    <button class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+    <button id="syncBtn" class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="startMigration()">設定保存と同期</button>
     <button id="clearCacheBtn" class="btn btn-danger w-100 py-2 fw-bold mb-2" onclick="clearAllCache()">🔄 キャッシュクリア（表示崩れ修正）</button>
+    <button id="webBtn" class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
@@ -4292,6 +4399,7 @@ function isQuotaError(e) {
     scanner.start(cameraConfig, scannerConfig, async (t)=> {
       // ✅ スキャンバーDOM要素を確実に生成・配置（カメラ起動成功後すぐ）
       ensureScanbarDom();
+      ensureManualEntryDom();
       
       showToast("読み取りOK", 1500);
       
@@ -4488,7 +4596,7 @@ function isQuotaError(e) {
     
     // ✅ scan-frame のスタイルを確実に設定
     scanFrame.style.position = 'absolute';
-    scanFrame.style.top = '50%';
+    scanFrame.style.top = '25%';
     scanFrame.style.left = '50%';
     scanFrame.style.transform = 'translate(-50%, -50%)';
     scanFrame.style.width = '280px';
@@ -4528,7 +4636,65 @@ function isQuotaError(e) {
       });
     }
     
+    
+
+  // === PATCH v20.1.2: manual code entry UI ===
+  function ensureManualEntryDom() {
+    const cameraArea = document.getElementById('camera-area');
+    const manual = document.getElementById('manual-entry');
+    const frame = cameraArea ? cameraArea.querySelector('.scan-frame') : null;
+    if (!cameraArea || !manual || !frame) return false;
+
+    // 位置：スキャン枠の「すぐ下」。端末差が出ても追随できるようDOMから計算。
+    const r = frame.getBoundingClientRect();
+    const top = Math.min(window.innerHeight - 260, Math.max(10, r.top + r.height + 14));
+    manual.style.top = top + 'px';
+    manual.style.display = 'block';
     return true;
+  }
+
+  window.spNumpad = function(key){
+    const input = document.getElementById('manualCodeInput');
+    if(!input) return;
+    const v = (input.value || '').toString();
+    if(key === 'del'){
+      input.value = v.slice(0, -1);
+      return;
+    }
+    if(key === 'clear'){
+      input.value = '';
+      return;
+    }
+    if(/^[0-9]$/.test(String(key))){
+      // 長すぎ防止（JAN想定: 13〜14桁もあるので余裕を持たせる）
+      if(v.length >= 20) return;
+      input.value = v + String(key);
+    }
+  };
+
+  window.spSubmitManualCode = async function(){
+    const input = document.getElementById('manualCodeInput');
+    const code = (input && input.value || '').trim();
+    if(!code){
+      try{ showToast('コードを入力してください', 2000);}catch(e){}
+      return;
+    }
+    // スキャン結果と同じ処理へ合流
+    try{
+      await stopScanner();
+    }catch(e){}
+    try{
+      if(typeof processBarcodeData === 'function'){
+        await processBarcodeData(code);
+      } else {
+        // フォールバック
+        if(typeof showToast === 'function') showToast('処理関数が見つかりません（processBarcodeData）', 4000);
+      }
+    }catch(e){
+      try{ if(typeof showToast==='function') showToast('入力コード処理エラー: ' + (e?.message||e), 6000);}catch(_){}
+    }
+  };
+return true;
   }
   
   // ✅ スキャンバーのデバッグ情報表示関数（改善版）
@@ -4643,7 +4809,8 @@ function isQuotaError(e) {
   async function stopScanner() {
     if(scanner) {
       try { await scanner.stop(); } catch(e) {}
-      finally { document.getElementById('camera-area').style.display='none'; isScanning = false; }
+      finally { document.getElementById('camera-area').style.display='none'; isScanning = false;
+      try{ const me=document.getElementById('manual-entry'); if(me) me.style.display='none'; const mi=document.getElementById('manualCodeInput'); if(mi) mi.value=''; }catch(e){} }
     } else {
       document.getElementById('camera-area').style.display='none'; isScanning = false;
     }
@@ -5584,6 +5751,7 @@ function isQuotaError(e) {
     
     state.isOpen = true; state.currentPanel = 'Main'; state.history = ['Main'];
     modal.style.display = 'flex';
+    try{ if(typeof window.setHeaderVersionBadge==='function') window.setHeaderVersionBadge(); }catch(e){}
     setTimeout(function() { modal.classList.add('show'); }, 10);
     navigate('Main');
     syncSettings();
@@ -5592,6 +5760,7 @@ function isQuotaError(e) {
   function close() {
     if (!modal) return;
     state.isOpen = false;
+    try{ if(typeof window.setHeaderVersionBadge==='function') window.setHeaderVersionBadge(); }catch(e){}
     modal.classList.remove('show');
     setTimeout(function() { modal.style.display = 'none'; }, 300);
     state.currentPanel = 'Main'; state.history = [];
@@ -5605,6 +5774,19 @@ function isQuotaError(e) {
     Object.keys(panels).forEach(function(key) { if (panels[key]) panels[key].style.display = 'none'; });
     panels[normalizedName].style.display = 'block';
     if (titleEl) titleEl.textContent = TITLES[normalizedName] || '設定';
+    
+    if (typeof window.setHeaderVersionBadge === 'function') { try { window.setHeaderVersionBadge(); } catch(e) {} }
+    const showMain = (normalizedName === 'Main');
+    try{
+      const citySec = document.getElementById('settingsCitySection');
+      if(citySec) citySec.style.display = showMain ? 'block' : 'none';
+      const syncBtn = document.getElementById('syncBtn');
+      if(syncBtn) syncBtn.style.display = showMain ? 'block' : 'none';
+      const cacheBtn = document.getElementById('clearCacheBtn');
+      if(cacheBtn) cacheBtn.style.display = showMain ? 'block' : 'none';
+      const webBtn = document.getElementById('webBtn');
+      if(webBtn) webBtn.style.display = showMain ? 'block' : 'none';
+    }catch(e){} 
     
     const prevPanel = state.currentPanel;
     state.currentPanel = normalizedName;
