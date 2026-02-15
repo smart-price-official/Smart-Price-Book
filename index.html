@@ -16,95 +16,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 
-// --- GLOBAL SAFE ALIASES (onclick handlers) ---
-function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
-function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
-(() => {
-  const APP_VERSION = "v20.1.9";
-  window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-15_1156_ui-fix26";
-  window.BUILD_ID = BUILD_ID;
-  const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
-  window.FULL_VERSION = FULL_VERSION;
-
-  function setHeaderVersionBadge(){
-    const badge = document.getElementById('versionBadge') || document.getElementById('version-badge');
-    if(!badge) return;
-
-    const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
-
-    // ✅ 設定モーダル表示中は、スマホでも「フル表示」へ戻す（class/show だけに頼らず computedStyle で判定）
-    const modal = document.getElementById('settingsModal');
-    let isSettingsOpen = false;
-    try{
-      if(modal){
-        const cs = window.getComputedStyle ? getComputedStyle(modal) : null;
-        const disp = cs ? cs.display : (modal.style ? modal.style.display : '');
-        const vis  = cs ? cs.visibility : '';
-        const op   = cs ? parseFloat(cs.opacity || '1') : 1;
-        isSettingsOpen = (disp !== 'none') && (vis !== 'hidden') && (op > 0.01);
-        if(modal.classList && modal.classList.contains('show')) isSettingsOpen = true;
-        const ah = modal.getAttribute ? modal.getAttribute('aria-hidden') : null;
-        if(ah === 'false') isSettingsOpen = true;
-      }
-    }catch(e){}
-
-    // ✅ スマホは通常「バージョン番号だけ」。ただし設定画面表示中はフル表示。
-    badge.textContent = (isMobile && !isSettingsOpen) ? APP_VERSION : FULL_VERSION;
-  }
-  
-  // グローバルに公開
-  window.setHeaderVersionBadge = setHeaderVersionBadge;
-  
-  try {
-    const url = new URL(location.href);
-    const q = url.searchParams;
-
-    // Persist last build (from ?b=) to detect rollout changes
-    const b = q.get("b") || "";
-    if (b) localStorage.setItem("sp_last_b", b);
-    // UIFIX21: b無しで古いSW/キャッシュを掴んでいる可能性を軽く通知
-    try{
-      if(!b){
-        const last = localStorage.getItem("sp_last_b") || "";
-        if(last && last !== BUILD_ID){
-          // 「何十回リロードしても古い」対策：URLに ?b= を付ける運用へ誘導
-          setTimeout(()=>{ try{ showToast(`更新が反映されない場合はURLに ?b=${BUILD_ID} を付けて開いてください`, 7000); }catch(e){} }, 600);
-        }
-      }
-    }catch(e){}
-
-    const wantsReset = (q.get("swreset") === "1") || (q.get("fresh") === "1") || (q.get("force")==="1");
-    const isControlled = !!navigator.serviceWorker?.controller;
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then(async (regs) => {
-        if (!regs || regs.length === 0) return;
-
-        // If any SW is installed, and this page is controlled OR user forces reset,
-        // we wipe SW + CacheStorage once, then reload with a one-time flag.
-        if (!isControlled && !wantsReset) return;
-
-        if (q.get("swresetdone") === "1") return;
-
-        for (const r of regs) {
-          try { await r.unregister(); } catch (e) {}
-        }
-        if ("caches" in window) {
-          try {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          } catch (e) {}
-        }
-
-        q.set("swresetdone", "1");
-        // keep ?b= if present
-        url.search = q.toString();
-        location.replace(url.toString());
-      });
-    }
-  } catch (e) {}
-})();
+;
 </script>
 
   <meta charset="UTF-8">
@@ -720,6 +632,30 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .modal-content .btn { min-height: 52px; }
 #settingsModal .modal-content .btn.btn-link { min-height: auto; }
 
+
+  .sp-code-display{
+    width:100%;
+    max-width:520px;
+    margin:0 auto 10px auto;
+    padding:10px 12px;
+    font-size:22px;
+    letter-spacing:0.14em;
+    text-align:center;
+    background:#1f1f1f;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:12px;
+    color:#fff;
+  }
+
+/* confirm overlay */
+.sp-confirm-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;}
+.sp-confirm-card{width:min(560px,92vw);background:#1b1b1b;border:1px solid rgba(255,255,255,.12);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.45);padding:16px;}
+.sp-confirm-title{font-weight:800;font-size:18px;margin-bottom:10px;}
+.sp-confirm-body{font-size:14px;line-height:1.5;white-space:pre-line;opacity:.92;}
+.sp-confirm-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;}
+.sp-confirm-btn{min-width:92px;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#2a2a2a;color:#fff;font-weight:800;}
+.sp-confirm-ok{background:#2f6bff;}
+.sp-confirm-cancel{background:#2a2a2a;}
 </style>
 
 <script>
@@ -1052,7 +988,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     <button id="syncBtn" class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="startMigration()">設定保存と同期</button>
     <button id="clearCacheBtn" class="btn btn-danger w-100 py-2 fw-bold mb-2" onclick="clearAllCache()">🔄 キャッシュクリア（表示崩れ修正）</button>
     <button id="webBtn" class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
-    <button id="operatorBtnBottom" class="btn w-100 mb-2" onclick="openSettingsPanel('panelOperator')">管理メニュー（管理者）</button>
+    <button id="operatorBtnBottom" class="btn w-100 mb-2" onclick="openOperatorFromSettings()">管理メニュー（管理者）</button>
 
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
@@ -1594,7 +1530,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         const snapshot = await ref.once('value');
         const data = snapshot.val();
         
-        if (!data || typeof data !== 'object') return [];
+        if (!data || typeof data !== 'object') return fallbackStores().map(name=>({name, source:'fallback'}));
         
         const images = [];
         for (const [imageId, record] of Object.entries(data)) {
@@ -2272,6 +2208,28 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       return null;
     }
   }
+
+function spAppConfirm(title, body){
+  return new Promise((resolve)=>{
+    const ov=document.getElementById('spConfirmOverlay');
+    const t=document.getElementById('spConfirmTitle');
+    const b=document.getElementById('spConfirmBody');
+    const ok=document.getElementById('spConfirmOk');
+    const cancel=document.getElementById('spConfirmCancel');
+    if(!ov||!ok||!cancel){ resolve(false); return; }
+    t.textContent=title||'確認';
+    b.textContent=body||'';
+    ov.style.display='flex';
+    const cleanup=(v)=>{
+      ov.style.display='none';
+      ok.onclick=null; cancel.onclick=null;
+      resolve(v);
+    };
+    ok.onclick=()=>cleanup(true);
+    cancel.onclick=()=>cleanup(false);
+  });
+}
+
 
   // 画面サイズ変更時にhostを再生成しても落ちないようにする
   window.addEventListener("resize", () => {
@@ -4591,6 +4549,12 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
 
   // ========= 近隣店舗取得（YahooProxy経由でOSM検索） =========
   async function fetchNearbyStores() {
+  const fallbackStores = () => ([
+    "イオン","イトーヨーカドー","西友","ドン・キホーテ","業務スーパー","カスミ","ベイシア",
+    "セブン-イレブン","ファミリーマート","ローソン","ミニストップ",
+    "マツモトキヨシ","ウエルシア","ツルハドラッグ","ココカラファイン"
+  ]);
+
     try {
       const proxyUrl = (window.SP_CONFIG && window.SP_CONFIG.yahooProxyExecUrl) ? window.SP_CONFIG.yahooProxyExecUrl.trim() : '';
       
@@ -4676,6 +4640,13 @@ function openSettingsPanel(panelId){
     if(p) p.style.display='block';
   }catch(e){}
 }
+
+function openOperatorFromSettings(){
+  try{ closeSettings(); }catch(e){}
+  try{ showPanel('panelOperator'); }catch(e){}
+  try{ window.scrollTo({top:0, left:0, behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
+}
+
 function openCityModal(){
   const w = document.getElementById('cityModalWrap');
   if(w) w.style.display='block';
@@ -5099,7 +5070,7 @@ function ensureManualEntryDom() {
     const top = Math.min(window.innerHeight - 260, Math.max(10, r.top + r.height + 14));
     manual.style.top = top + 'px';
     manual.style.display = 'block';
-    try{ if(typeof window.spSetCodeLen==='function'){ window.spSetCodeLen(window.__spManual?.len||13); } }catch(e){}
+    try{ if(typeof spSetCodeLen==='function'){ spSetCodeLen(window.__spManual?.len||13); } }catch(e){}
     return true;
   }
 
@@ -5107,7 +5078,55 @@ function ensureManualEntryDom() {
   // UIFIX21: 手入力コード（数字窓＋専用テンキー）— キーボードは出さない
   window.__spManual = window.__spManual || { len: 13, code: "" };
 
-  function spRenderManualBoxes(){
+  
+// ===== Manual JAN input (numpad) state & handlers =====
+let manualCode = "";
+let manualCodeLen = 13; // 8 / 13 / 14
+
+function spSetCodeLen(n){
+  manualCodeLen = (n===8||n===13||n===14) ? n : 13;
+  // trim if current longer
+  if(manualCode.length > manualCodeLen) manualCode = manualCode.slice(0, manualCodeLen);
+  // highlight buttons
+  document.querySelectorAll('.sp-code-len button').forEach(btn=>btn.classList.remove('active'));
+  const map={8:'spLen8',13:'spLen13',14:'spLen14'};
+  const id=map[manualCodeLen];
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+  spRenderManualBoxes();
+  spUpdateManualBoxes();
+}
+
+function spNumpad(d){
+  if(d==='bk'){
+    manualCode = manualCode.slice(0, -1);
+  } else if(d==='clr'){
+    manualCode = "";
+  } else {
+    const s=String(d);
+    if(!/^[0-9]$/.test(s)) return;
+    if(manualCode.length < manualCodeLen) manualCode += s;
+  }
+  // keep hidden input in sync (for accessibility)
+  const inp=document.getElementById('manualCodeInput');
+  if(inp) inp.value = manualCode;
+  spUpdateManualBoxes();
+}
+
+function spSubmitManualCode(){
+  const code = String(manualCode||"").trim();
+  if(code.length !== manualCodeLen){
+    showToast(`桁数が違います（${manualCodeLen}桁）`, 2200);
+    return;
+  }
+  try{ closeManualModal(); }catch(e){}
+  // reuse same pipeline as barcode scan
+  try{ processBarcodeData(code); }catch(e){ console.error(e); showToast("検索に失敗しました", 2200); }
+}
+
+// init default
+document.addEventListener('DOMContentLoaded', ()=>{ spSetCodeLen(13); });
+function spRenderManualBoxes(){
     const wrap = document.getElementById('manualBoxes');
     if(!wrap) return;
     const len = window.__spManual.len || 13;
@@ -5146,14 +5165,14 @@ function ensureManualEntryDom() {
     });
   }
 
-  window.spSetCodeLen = function(len){
+  spSetCodeLen = function(len){
     const n = parseInt(len, 10);
     window.__spManual.len = ([8,13,14].includes(n) ? n : 13);
     window.__spManual.code = '';
     spRenderManualBoxes();
   };
 
-  window.spNumpad = function(key){
+  spNumpad = function(key){
     if(!window.__spManual) window.__spManual = { len:13, code:"" };
     let code = (window.__spManual.code || '').toString();
     const len = window.__spManual.len || 13;
@@ -6126,7 +6145,7 @@ return true;
 
       if(!u) {
         showToast("ローカル保存完了", 3000);
-        closeSettings(); showHome();
+        showToast('保存しました（設定画面は閉じません）', 2500);
         return;
       }
 
@@ -6391,7 +6410,7 @@ return true;
 // キャッシュクリア機能
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function clearAllCache() {
-  const confirmed = confirm(
+  const confirmed = await spAppConfirm("キャッシュ完全クリア", 
     '【キャッシュを完全にクリアします】\n\n' +
     '・Service Worker の削除\n' +
     '・キャッシュストレージの削除\n' +
@@ -6434,6 +6453,8 @@ async function clearAllCache() {
 }
 
 // UIFIX24: 生活圏（市）入力をボタン＋モーダルで統一
+function spCloseSettingsModal(){ try{ closeSettings(); }catch(e){} }
+
 function openHomeCityModal(){
   try{ if(window.spCloseSettingsModal) window.spCloseSettingsModal(); window.__spReturnSettings=1; }catch(e){}
 
@@ -6635,5 +6656,17 @@ async function spShareFamilyId(){
 
 </script>
 
+
+<!-- App Confirm Modal -->
+<div id="spConfirmOverlay" class="sp-confirm-overlay" style="display:none;">
+  <div class="sp-confirm-card">
+    <div id="spConfirmTitle" class="sp-confirm-title">確認</div>
+    <div id="spConfirmBody" class="sp-confirm-body"></div>
+    <div class="sp-confirm-actions">
+      <button id="spConfirmCancel" class="sp-confirm-btn sp-confirm-cancel">キャンセル</button>
+      <button id="spConfirmOk" class="sp-confirm-btn sp-confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
