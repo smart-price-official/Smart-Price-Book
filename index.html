@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.6.0
+VERSION: v22.7.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.6.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.7.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.6.0";
+  const APP_VERSION = "v22.7.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.6.0';
+  window.VERSION_INFO = 'v22.7.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,14 +118,14 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.6.0</title>
-  <!-- ✅ SW RESET TOOL (v22.6.0) : ?reset=sw -->
+  <title>Smart Price v22.7.0</title>
+  <!-- ✅ SW RESET TOOL (v22.7.0) : ?reset=sw -->
   <script>
   (function() {
     try {
       var params = new URLSearchParams(location.search);
 
-  // --- FORCE CLEAN MODE (no DevTools needed) ---
+  // --- FORCE FIREBASE MODE (no DevTools needed) ---
   // If URL has &force=1, we unregister Service Worker + clear caches once, then reload without force.
   (function forceCleanOnce(){
     try{
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.6.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.7.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -1026,11 +1026,14 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         <div id="operatorPanelBody" style="display:none;">
           <!-- Firebase URL -->
           <div class="mb-3">
+            <div class="small text-secondary mb-1">Firebase接続状態</div>
+            <div id="firebase-status" class="mb-2"></div>
             <div class="small text-secondary mb-1">Firebase URL</div>
-            <div class="d-flex gap-2">
-              <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary" readonly>
+            <div class="d-flex gap-2 mb-2">
+              <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary" readonly value="https://smartpricedb-default-rtdb.firebaseio.com">
               <button class="btn btn-dark" onclick="spCopy('fb-url-input')">コピー</button>
             </div>
+            <button class="btn btn-success w-100" onclick="testFirebaseConnection()">🔌 接続テスト</button>
           </div>
 
           <!-- 購入履歴表示 -->
@@ -6826,11 +6829,18 @@ function unlockOperator() {
     msgDiv.style.color = '#28a745';
     passInput.value = '';
     
-    // Firebase URLを自動表示
+    // Firebase URLを表示（固定）
     const fbUrlInput = document.getElementById('fb-url-input');
-    if (fbUrlInput && db && db.config && db.config.firebaseUrl) {
-      fbUrlInput.value = db.config.firebaseUrl;
+    if (fbUrlInput) {
+      fbUrlInput.value = 'https://smartpricedb-default-rtdb.firebaseio.com';
     }
+    
+    // 自動的に接続テストを実行
+    setTimeout(() => {
+      if (typeof testFirebaseConnection === 'function') {
+        testFirebaseConnection();
+      }
+    }, 500);
   } else {
     msgDiv.textContent = '❌ パスワードが違います';
     msgDiv.style.color = '#dc3545';
@@ -6838,6 +6848,7 @@ function unlockOperator() {
     passInput.focus();
   }
 }
+
 
 
 function loadPurchaseHistory() {
@@ -6906,6 +6917,62 @@ function loadStats() {
 window.unlockOperator = unlockOperator;
 window.loadPurchaseHistory = loadPurchaseHistory;
 window.loadStats = loadStats;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.7: Firebase接続テスト
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function testFirebaseConnection() {
+  const statusDiv = document.getElementById('firebase-status');
+  statusDiv.innerHTML = '<div class="text-warning">⏳ 接続確認中...</div>';
+  
+  try {
+    // Firebase認証状態を確認
+    if (!firebaseAuth) {
+      statusDiv.innerHTML = '<div class="text-danger">❌ Firebase初期化エラー</div>';
+      return;
+    }
+    
+    const user = firebaseAuth.currentUser;
+    if (!user) {
+      statusDiv.innerHTML = '<div class="text-warning">⚠️ 未ログイン（匿名認証を試行中...）</div>';
+      
+      // 匿名認証を試行
+      try {
+        await firebaseAuth.signInAnonymously();
+        statusDiv.innerHTML = '<div class="text-success">✅ 匿名認証成功</div>';
+      } catch (authError) {
+        statusDiv.innerHTML = `<div class="text-danger">❌ 認証失敗: ${authError.message}</div>`;
+        return;
+      }
+    } else {
+      statusDiv.innerHTML = `<div class="text-success">✅ 接続中 (UID: ${user.uid.substring(0, 8)}...)</div>`;
+    }
+    
+    // データベース接続テスト
+    if (firebaseDb && db && db.config && db.config.personalId) {
+      const testRef = firebaseDb.ref(`users/${firebaseAuth.currentUser.uid}/test`);
+      await testRef.set({ timestamp: Date.now(), test: true });
+      await testRef.remove();
+      
+      const currentStatus = statusDiv.innerHTML;
+      statusDiv.innerHTML = currentStatus + '<div class="text-success">✅ データベース書き込みテスト成功</div>';
+    }
+    
+    // 購入履歴の存在確認
+    if (db && db.products) {
+      const productCount = Object.keys(db.products).length;
+      const currentStatus = statusDiv.innerHTML;
+      statusDiv.innerHTML = currentStatus + `<div class="text-info">📊 ローカル購入履歴: ${productCount}件</div>`;
+    }
+    
+  } catch (error) {
+    statusDiv.innerHTML = `<div class="text-danger">❌ エラー: ${error.message}</div>`;
+    console.error('Firebase接続テストエラー:', error);
+  }
+}
+
+window.testFirebaseConnection = testFirebaseConnection;
+
 
 
 
