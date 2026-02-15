@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.7.0
-DATE(JST): 2026-02-15 00:48 JST
+VERSION: v22.7.1
+DATE(JST): 2026-02-16 00:38 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
 - VERSION/BUILD/表示のSSOT（単一正本）を v22.7.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
+BUILD_PARAM(b): ?b=2026-02-16_0007_uid-sync
 DEBUG_PARAM: &debug=1
-AUTHOR: Yui&Claude
+AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
 <head>
@@ -20,9 +20,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.7.0";
+  const APP_VERSION = "v22.7.1";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-15_1156_ui-fix26";
+  const BUILD_ID = "2026-02-16_0007_uid-sync";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
   window.FULL_VERSION = FULL_VERSION;
@@ -892,6 +892,15 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       </button>
       <div id="city-history-chips" class="city-chips"></div>
     </div>
+    <div class="mb-3" id="settingsUserIdSection">
+      <label class="small text-secondary">個人ID（複数端末で同じにします）</label>
+      <div class="d-flex gap-2">
+        <button type="button" id="userIdCopyBtn" class="btn btn-dark flex-grow-1 py-2 fw-bold" onclick="copyUserId()">IDをコピー</button>
+        <button type="button" id="userIdEditBtn" class="btn btn-outline-secondary flex-grow-1 py-2 fw-bold" onclick="changeUserId()">IDを変更</button>
+      </div>
+      <div class="small text-secondary mt-1" id="userIdPreview">ID: -</div>
+    </div>
+
 
     <div id="settingsMainMenu" class="mt-3">
         <div class="d-grid gap-2">
@@ -2685,6 +2694,52 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
       return (localStorage.getItem('sp_user_id')||'').toString();
     }
   }
+
+
+  // UIFIX UIDSYNC: Settings UI for userId (copy / change)
+  function updateUserIdPreview(){
+    try{
+      const uid = getOrCreateUserId();
+      const el = document.getElementById('userIdPreview');
+      if(el) el.textContent = `ID: ${uid || '-'}`;
+    }catch(e){}
+  }
+
+  async function copyUserId(){
+    try{
+      const uid = getOrCreateUserId();
+      if(!uid){ try{ showToast('個人IDが取得できませんでした', 2500);}catch(e){}; return; }
+      try{
+        await navigator.clipboard.writeText(uid);
+        try{ showToast('個人IDをコピーしました', 2000);}catch(e){}
+      }catch(e){
+        // fallback: prompt
+        await customPrompt('このIDをコピーしてください（長押し→コピー）', uid);
+      }
+    }catch(e){}
+  }
+
+  async function changeUserId(){
+    try{
+      const cur = getOrCreateUserId();
+      const v = await customPrompt('個人IDを入力（スマホ/PCで同じIDにすると同期します）', cur);
+      if(v === null) return;
+      const nv = (v || '').toString().trim();
+      if(!nv){ try{ showToast('空のIDは設定できません', 2500);}catch(e){}; return; }
+      // simple validation: allow A-Z a-z 0-9 _ - only (no spaces)
+      if(!/^[A-Za-z0-9_\-]{4,32}$/.test(nv)){
+        await customPrompt('IDは英数字と - _ のみ（4〜32文字）で入力してください', cur);
+        return;
+      }
+      db.config = db.config || {};
+      db.config.userId = nv;
+      localStorage.setItem('sp_user_id', nv);
+      try{ saveDb(); }catch(e){}
+      updateUserIdPreview();
+      try{ showToast('個人IDを設定しました', 2200);}catch(e){}
+    }catch(e){}
+  }
+
 
   function scopeUrlByUser(baseJsonUrl, userId){
     // 例: https://xxx.firebaseio.com/smart_price.json → .../users/<uid>/smart_price.json
@@ -6401,6 +6456,7 @@ return true;
     
     state.isOpen = true; state.currentPanel = 'Main'; state.history = ['Main'];
     modal.style.display = 'flex';
+    try{ updateUserIdPreview(); }catch(e){}
     try{ if(typeof window.setHeaderVersionBadge==='function') window.setHeaderVersionBadge(); }catch(e){}
     // ✅ 個人ID表示（設定内の各画面にも表示）
     try{
