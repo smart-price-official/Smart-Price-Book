@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v21.3.0
+VERSION: v21.4.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v21.3.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v21.4.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v21.3.0";
+  const APP_VERSION = "v21.4.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v21.3.0';
+  window.VERSION_INFO = 'v21.4.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v21.3.0</title>
-  <!-- ✅ SW RESET TOOL (v21.3.0) : ?reset=sw -->
+  <title>Smart Price v21.4.0</title>
+  <!-- ✅ SW RESET TOOL (v21.4.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v21.3.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v21.4.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -887,17 +887,10 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
     <div class="mb-3" id="settingsCitySection">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市">
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市" style="display:none;">
-      <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
+      <button type="button" id="homeCityBtn" class="btn btn-dark w-100 py-2 fw-bold mb-1" onclick="openHomeCityModal()">
+        生活圏を設定
+      </button>
       <div id="city-history-chips" class="city-chips"></div>
-      <label class="small text-secondary mt-3">GPS店舗検索範囲</label>
-      <select id="gps-range-select" class="form-select bg-dark text-white border-secondary">
-        <option value="100">📍 100m（徒歩圏内）</option>
-        <option value="500" selected>🚶 500m（近所）</option>
-        <option value="1000">🚗 1km（車で数分）</option>
-        <option value="3000">🚙 3km（ドライブ圏内）</option>
-      </select>
     </div>
 
     <div id="settingsMainMenu" class="mt-3">
@@ -1059,7 +1052,6 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     <button id="syncBtn" class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="startMigration()">設定保存と同期</button>
     <button id="clearCacheBtn" class="btn btn-danger w-100 py-2 fw-bold mb-2" onclick="clearAllCache()">🔄 キャッシュクリア（表示崩れ修正）</button>
     <button id="webBtn" class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
-    <button id="operatorBtnBottom" class="btn w-100 mb-2" onclick="openSettingsPanel('panelOperator')">管理メニュー（管理者）</button>
 
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
@@ -1069,18 +1061,36 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   </div>
 </div>
 
+<!-- 生活圏設定モーダル（v21.4で統合版に置き換え） -->
 
-<!-- UIFIX24: 生活圏入力モーダル（設定内ボタンから開く） -->
-<div id="homeCityModal" class="modal">
-  <div class="modal-content">
-    <h5 class="text-white mb-3 text-center">生活圏の入力</h5>
-    <div class="mb-2 small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
-    <input type="text" id="home-city-modal-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="例：つくば市">
-    <button class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="saveHomeCityFromModal()">保存</button>
-    <button class="btn btn-dark w-100 py-2 fw-bold border-secondary" onclick="closeHomeCityModal()">閉じる</button>
-  </div>
 </div>
 
+<!-- 生活圏設定モーダル -->
+<div id="homeCityModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">生活圏の設定</h5>
+    
+    <div class="mb-3">
+      <label class="small text-secondary">生活圏（市）</label>
+      <input type="text" id="home-city-modal-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市">
+      <div class="small text-secondary mb-2" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
+    </div>
+    
+    <div class="mb-3">
+      <label class="small text-secondary">GPS店舗検索範囲</label>
+      <select id="gps-range-select" class="form-select bg-dark text-white border-secondary">
+        <option value="100">📍 100m（徒歩圏内）</option>
+        <option value="500" selected>🚶 500m（近所）</option>
+        <option value="1000">🚗 1km（車で数分）</option>
+        <option value="3000">🚙 3km（ドライブ圏内）</option>
+      </select>
+    </div>
+    
+    <div class="d-grid gap-2">
+      <button class="btn btn-primary py-3 fw-bold" onclick="saveHomeCityFromModal()">保存</button>
+      <button class="btn btn-outline-secondary" onclick="closeHomeCityModal()">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <div id="webModal" class="modal">
@@ -6200,7 +6210,7 @@ return true;
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Smart Price 設定モーダル - QUICKFIX FIX
+// Smart Price 設定モーダル - FINAL FIX
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
@@ -6232,7 +6242,7 @@ return true;
     setupEventListeners();
     navigate('Main');
     state.initialized = true;
-    console.log('[Modal] QUICKFIX FIX Loaded');
+    console.log('[Modal] FINAL FIX Loaded');
   }
   
   function setupEventListeners() {
@@ -6477,6 +6487,66 @@ function saveHomeCityFromModal(){
 }
 
 window.clearAllCache = clearAllCache;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 生活圏設定モーダル
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function openHomeCityModal() {
+  const modal = document.getElementById('homeCityModal');
+  const input = document.getElementById('home-city-modal-input');
+  const gpsRange = document.getElementById('gps-range-select');
+  
+  if (modal && input) {
+    // 現在の値を読み込み
+    if (typeof db !== 'undefined' && db.config) {
+      input.value = db.config.homeCity || '';
+      if (gpsRange) {
+        gpsRange.value = db.config.gpsRange || 500;
+      }
+    }
+    
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
+  }
+}
+
+function closeHomeCityModal() {
+  const modal = document.getElementById('homeCityModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function saveHomeCityFromModal() {
+  const input = document.getElementById('home-city-modal-input');
+  const gpsRange = document.getElementById('gps-range-select');
+  
+  if (input && typeof db !== 'undefined' && db.config) {
+    db.config.homeCity = input.value;
+    if (gpsRange) {
+      db.config.gpsRange = parseInt(gpsRange.value);
+    }
+    
+    if (typeof saveLocalOnly === 'function') {
+      saveLocalOnly();
+    }
+    
+    if (typeof renderCityChips === 'function') {
+      renderCityChips();
+    }
+    
+    if (typeof showToast === 'function') {
+      showToast('保存しました', 2000);
+    }
+    
+    closeHomeCityModal();
+  }
+}
+
+window.openHomeCityModal = openHomeCityModal;
+window.closeHomeCityModal = closeHomeCityModal;
+window.saveHomeCityFromModal = saveHomeCityFromModal;
+
 </script>
 
 
