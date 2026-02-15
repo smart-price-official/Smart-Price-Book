@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.1.4
-DATE(JST): 2026-02-15 00:37 JST
-TITLE: UIFIX21（購入履歴復旧/角ガイド消去/13桁JANボックス+専用テンキー/桁数ガイド/バージョン表示安定）
+VERSION: v20.1.6
+DATE(JST): 2026-02-15 00:48 JST
+TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
 - VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-15_0037_ui-fix21
+BUILD_PARAM(b): ?b=2026-02-15_0048_ui-fix23
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
@@ -16,15 +16,15 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.1.5";
+  const APP_VERSION = "v20.1.6";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-15_0045_ui-fix22";
+  const BUILD_ID = "2026-02-15_0048_ui-fix23";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
   window.FULL_VERSION = FULL_VERSION;
 
   function setHeaderVersionBadge(){
-    const badge = document.getElementById('versionBadge');
+    const badge = document.getElementById('versionBadge') || document.getElementById('version-badge');
     if(!badge) return;
 
     const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
@@ -712,6 +712,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 // === SAFETY WRAPPERS (keep onclick working) ===
 window.startScanner = window.startScanner || function() {
   try {
+    // 手入力で隠した要素を復帰
+    try{ document.querySelectorAll('.scan-frame,.scan-laser').forEach(el=>el.style.display='block'); }catch(e){}
+    try{ const inter=document.getElementById('interactive'); if(inter){ inter.style.pointerEvents='auto'; } }catch(e){}
     if (typeof startScannerImpl === 'function') return startScannerImpl();
     if (typeof SmartPriceScanner?.start === 'function') return SmartPriceScanner.start();
     if (typeof openScanner === 'function') return openScanner();
@@ -735,7 +738,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">…</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="versionBadge">…</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -2405,8 +2408,7 @@ function isQuotaError(e) {
         const key = localStorage.key(i);
         if(!key) continue;
         if(key === 'smart_price_db' || key === 'smart_price_img_db') continue;
-        if(!/price/i.test(key) || !/db/i.test(key)) continue;
-
+        
         const raw = localStorage.getItem(key);
         if(!raw || raw.length < 50) continue;
 
@@ -4611,10 +4613,13 @@ function saveCityAndClose(){
 function openManualEntryOnly(){
     try{
       const ca = document.getElementById('camera-area');
-      if(ca) ca.style.display = 'none';
+      // ✅ 手入力は「カメラを出さずに」手入力UIだけを全画面に出す
+      if(ca) ca.style.display = 'block';
+      // 走査枠/走査ラインは隠す（手入力では不要）
+      try{ document.querySelectorAll('.scan-frame,.scan-laser').forEach(el=>el.style.display='none'); }catch(e){}
+      try{ const inter=document.getElementById('interactive'); if(inter){ inter.style.pointerEvents='none'; } }catch(e){}
       isScanning = false;
 
-      ensureScanbarDom();
       const ok = ensureManualEntryDom();
 
       try{
