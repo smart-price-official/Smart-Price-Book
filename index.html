@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.0.0
+VERSION: v22.1.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.0.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.1.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
-AUTHOR: Yui
+AUTHOR: Yui＆Claude
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
 <head>
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.0.0";
+  const APP_VERSION = "v22.1.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.0.0';
+  window.VERSION_INFO = 'v22.1.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.0.0</title>
-  <!-- ✅ SW RESET TOOL (v22.0.0) : ?reset=sw -->
+  <title>Smart Price v22.1.0</title>
+  <!-- ✅ SW RESET TOOL (v22.1.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.0.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.1.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -881,7 +881,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   </div>
 </div>
 
-<div id="settingsModal" class="modal">
+<div id="settingsModal" class="modal" style="z-index: 9999;">
   <div class="modal-content">
     <h5 class="text-white mb-4 text-center" id="settingsTitle" onclick="handleSettingsTitleClick()" style="cursor: pointer;">設定</h5>
 
@@ -1071,7 +1071,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 </div>
 
 <!-- 生活圏設定モーダル -->
-<div id="homeCityModal" class="modal" style="z-index: 10001;">
+<div id="homeCityModal" class="modal" style="z-index: 10002;">
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">生活圏の設定</h5>
     
@@ -1111,6 +1111,30 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     
     <div id="barcode-input-container" class="barcode-digits mb-3"></div>
     
+    <!-- 専用テンキー -->
+    <div class="barcode-numpad mb-3">
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('1')">1</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('2')">2</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('3')">3</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('4')">4</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('5')">5</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('6')">6</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('7')">7</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('8')">8</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('9')">9</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="deleteBarcodeDigit()">←</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('0')">0</button>
+        <button class="numpad-btn" onclick="clearBarcodeDigits()">C</button>
+      </div>
+    </div>
+    
     <div class="d-grid gap-2">
       <button class="btn btn-danger py-3 fw-bold" onclick="searchByManualBarcode()">🔍 商品を検索</button>
       <button class="btn btn-outline-secondary" onclick="closeBarcodeManual()">閉じる</button>
@@ -1137,6 +1161,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   color: #fff;
   border-radius: 8px;
   transition: all 0.2s;
+  pointer-events: none;
 }
 .barcode-digit:focus {
   border-color: #ff5252;
@@ -1148,6 +1173,37 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   background: #2a2a2a;
   border-color: #ff5252;
 }
+.barcode-digit.active {
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0,255,0,0.5);
+}
+.barcode-numpad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.numpad-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.numpad-btn {
+  width: 70px;
+  height: 60px;
+  font-size: 24px;
+  font-weight: bold;
+  background: #2a2a2a;
+  border: 2px solid #555;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.numpad-btn:active {
+  background: #ff5252;
+  transform: scale(0.95);
+}
+
 </style>
 
 <div id="webModal" class="modal">
@@ -6631,6 +6687,7 @@ document.addEventListener('click', function(e) {
 function renderBarcodeInputs(digits) {
   const container = document.getElementById('barcode-input-container');
   container.innerHTML = '';
+  currentBarcodeInputIndex = 0;
   
   for (let i = 0; i < digits; i++) {
     const input = document.createElement('input');
@@ -6639,29 +6696,15 @@ function renderBarcodeInputs(digits) {
     input.className = 'barcode-digit';
     input.dataset.index = i;
     input.pattern = '[0-9]';
-    
-    input.addEventListener('input', function(e) {
-      this.value = this.value.replace(/[^0-9]/g, '');
-      if (this.value.length === 1) {
-        this.classList.add('filled');
-        const nextInput = container.querySelector(`[data-index="${i+1}"]`);
-        if (nextInput) nextInput.focus();
-      }
-    });
-    
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Backspace' && this.value === '') {
-        const prevInput = container.querySelector(`[data-index="${i-1}"]`);
-        if (prevInput) {
-          prevInput.value = '';
-          prevInput.classList.remove('filled');
-          prevInput.focus();
-        }
-      }
-    });
+    input.readOnly = true; // テンキー専用
     
     container.appendChild(input);
   }
+  
+  // 最初の枠をアクティブに
+  const firstInput = container.querySelector('[data-index="0"]');
+  if (firstInput) firstInput.classList.add('active');
+}
   
   setTimeout(() => {
     const firstInput = container.querySelector('[data-index="0"]');
@@ -6683,6 +6726,61 @@ function searchByManualBarcode() {
 }
 
 window.openBarcodeManual = openBarcodeManual;
+
+// テンキー用の関数
+let currentBarcodeInputIndex = 0;
+
+function inputBarcodeDigit(digit) {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  if (currentBarcodeInputIndex < inputs.length) {
+    inputs[currentBarcodeInputIndex].value = digit;
+    inputs[currentBarcodeInputIndex].classList.add('filled');
+    inputs[currentBarcodeInputIndex].classList.remove('active');
+    currentBarcodeInputIndex++;
+    
+    if (currentBarcodeInputIndex < inputs.length) {
+      inputs[currentBarcodeInputIndex].classList.add('active');
+    }
+  }
+}
+
+function deleteBarcodeDigit() {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  if (currentBarcodeInputIndex > 0) {
+    currentBarcodeInputIndex--;
+    inputs[currentBarcodeInputIndex].value = '';
+    inputs[currentBarcodeInputIndex].classList.remove('filled');
+    inputs[currentBarcodeInputIndex].classList.add('active');
+    
+    if (currentBarcodeInputIndex + 1 < inputs.length) {
+      inputs[currentBarcodeInputIndex + 1].classList.remove('active');
+    }
+  }
+}
+
+function clearBarcodeDigits() {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  inputs.forEach(input => {
+    input.value = '';
+    input.classList.remove('filled', 'active');
+  });
+  
+  currentBarcodeInputIndex = 0;
+  if (inputs.length > 0) {
+    inputs[0].classList.add('active');
+  }
+}
+
+window.inputBarcodeDigit = inputBarcodeDigit;
+window.deleteBarcodeDigit = deleteBarcodeDigit;
+window.clearBarcodeDigits = clearBarcodeDigits;
+
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v22.0: 管理者メニュー隠しアクセス（5回タップ）
