@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v21.0.0
+VERSION: v21.3.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v21.0.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v21.3.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
-AUTHOR: Claude&Yui
+AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
 <head>
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v21.0.0";
+  const APP_VERSION = "v21.3.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v21.0.0';
+  window.VERSION_INFO = 'v21.3.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v21.0.0</title>
-  <!-- ✅ SW RESET TOOL (v21.0.0) : ?reset=sw -->
+  <title>Smart Price v21.3.0</title>
+  <!-- ✅ SW RESET TOOL (v21.3.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v21.0.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v21.3.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -887,7 +887,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
     <div class="mb-3" id="settingsCitySection">
       <label class="small text-secondary">生活圏（市）</label>
-      <button type="button" id="homeCityBtn" class="btn btn-dark w-100 py-2 fw-bold mb-1" onclick="openHomeCityModal()">生活圏を入力</button>
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市">
       <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市" style="display:none;">
       <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
       <div id="city-history-chips" class="city-chips"></div>
@@ -6200,7 +6200,7 @@ return true;
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Smart Price 設定モーダル - AMAZING FIX
+// Smart Price 設定モーダル - QUICKFIX FIX
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
@@ -6232,7 +6232,7 @@ return true;
     setupEventListeners();
     navigate('Main');
     state.initialized = true;
-    console.log('[Modal] AMAZING FIX Loaded');
+    console.log('[Modal] QUICKFIX FIX Loaded');
   }
   
   function setupEventListeners() {
