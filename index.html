@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.3.0
+VERSION: v22.5.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.3.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.5.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.3.0";
+  const APP_VERSION = "v22.5.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.3.0';
+  window.VERSION_INFO = 'v22.5.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.3.0</title>
-  <!-- ✅ SW RESET TOOL (v22.3.0) : ?reset=sw -->
+  <title>Smart Price v22.5.0</title>
+  <!-- ✅ SW RESET TOOL (v22.5.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.3.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.5.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -1020,7 +1020,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         <div class="small text-secondary mb-2">管理メニューはパスワードが必要です。</div>
         <div class="d-flex gap-2 mb-2">
           <input id="operatorPass" type="password" class="form-control bg-dark text-white border-secondary" placeholder="パスワード">
-          <button type="button" class="btn btn-secondary" id="operatorUnlockBtn">開く</button>
+          <button type="button" class="btn btn-secondary" id="operatorUnlockBtn" onclick="unlockOperator()">開く</button>
         </div>
         <div id="operatorPassMsg" class="small text-secondary mb-2"></div>
         <div id="operatorPanelBody" style="display:none;">
@@ -1043,6 +1043,23 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
               <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
             </div>
         </div>
+        
+        <!-- 購入履歴表示 -->
+        <details class="mb-2">
+          <summary class="small text-secondary" style="cursor:pointer;">📊 購入履歴を表示</summary>
+          <div class="mt-2">
+            <div id="purchase-history-list" class="small"></div>
+            <button class="btn btn-primary w-100 py-2 fw-bold mt-2" onclick="loadPurchaseHistory()">履歴を読み込む</button>
+          </div>
+        </details>
+        
+        <!-- 統計情報 -->
+        <details class="mb-2">
+          <summary class="small text-secondary" style="cursor:pointer;">📈 統計情報</summary>
+          <div class="mt-2" id="stats-info"></div>
+          <button class="btn btn-info w-100 py-2 fw-bold mt-2" onclick="loadStats()">統計を計算</button>
+        </details>
+        
         <div class="mt-3 d-grid">
           <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
@@ -6807,6 +6824,98 @@ function clearBarcodeDigits() {
 window.inputBarcodeDigit = inputBarcodeDigit;
 window.deleteBarcodeDigit = deleteBarcodeDigit;
 window.clearBarcodeDigits = clearBarcodeDigits;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.5: 管理メニュー機能（UIは変更なし、機能のみ追加）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const OPERATOR_PASSWORD = 'smartprice2026';
+
+function unlockOperator() {
+  const passInput = document.getElementById('operatorPass');
+  const msgDiv = document.getElementById('operatorPassMsg');
+  const bodyDiv = document.getElementById('operatorPanelBody');
+  const pass = passInput.value;
+  
+  if (pass === OPERATOR_PASSWORD) {
+    bodyDiv.style.display = 'block';
+    msgDiv.textContent = '✅ ロック解除しました';
+    msgDiv.style.color = '#28a745';
+    passInput.value = '';
+  } else {
+    msgDiv.textContent = '❌ パスワードが違います';
+    msgDiv.style.color = '#dc3545';
+    passInput.value = '';
+    passInput.focus();
+  }
+}
+
+function loadPurchaseHistory() {
+  const container = document.getElementById('purchase-history-list');
+  if (!db || !db.products) {
+    container.innerHTML = '<div class="text-warning">購入履歴がありません</div>';
+    return;
+  }
+  
+  const products = Object.entries(db.products);
+  if (products.length === 0) {
+    container.innerHTML = '<div class="text-warning">購入履歴がありません</div>';
+    return;
+  }
+  
+  products.sort((a, b) => (b[1].date || 0) - (a[1].date || 0));
+  
+  let html = `<div class="text-white mb-2">全${products.length}件</div>`;
+  
+  products.slice(0, 50).forEach(([code, product]) => {
+    const date = product.date ? new Date(product.date).toLocaleDateString('ja-JP') : '不明';
+    const store = product.store || '不明';
+    const name = product.name || 'バーコード: ' + code;
+    const price = product.price ? `¥${product.price}` : '価格不明';
+    
+    html += `
+      <div class="border-bottom border-secondary py-1 small">
+        <div class="text-white">${name} <span class="text-warning">${price}</span></div>
+        <div class="text-secondary" style="font-size: 0.75rem;">${store} | ${date}</div>
+      </div>
+    `;
+  });
+  
+  if (products.length > 50) {
+    html += `<div class="text-secondary mt-2 small">※最新50件のみ表示</div>`;
+  }
+  
+  container.innerHTML = html;
+}
+
+function loadStats() {
+  const container = document.getElementById('stats-info');
+  if (!db || !db.products) {
+    container.innerHTML = '<div class="text-warning">データがありません</div>';
+    return;
+  }
+  
+  const products = Object.values(db.products);
+  const totalItems = products.length;
+  const uniqueStores = new Set(products.map(p => p.store).filter(Boolean)).size;
+  const totalSpent = products.reduce((sum, p) => sum + (p.price || 0), 0);
+  const avgPrice = totalItems > 0 ? Math.round(totalSpent / totalItems) : 0;
+  
+  let html = `
+    <div class="small">
+      <div class="mb-1">📦 登録商品数: <span class="text-white fw-bold">${totalItems}</span></div>
+      <div class="mb-1">🏪 利用店舗数: <span class="text-white fw-bold">${uniqueStores}</span></div>
+      <div class="mb-1">💰 総支出額: <span class="text-warning fw-bold">¥${totalSpent.toLocaleString()}</span></div>
+      <div class="mb-1">📊 平均単価: <span class="text-white fw-bold">¥${avgPrice}</span></div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+window.unlockOperator = unlockOperator;
+window.loadPurchaseHistory = loadPurchaseHistory;
+window.loadStats = loadStats;
+
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
