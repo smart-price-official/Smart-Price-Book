@@ -5,7 +5,7 @@ DATE(JST): 2026-02-15 00:37 JST
 TITLE: UIFIX21（購入履歴復旧/角ガイド消去/13桁JANボックス+専用テンキー/桁数ガイド/バージョン表示安定）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.1.4 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0037_ui-fix21
 DEBUG_PARAM: &debug=1
@@ -105,7 +105,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.1.1';
+  window.VERSION_INFO = 'v20.1.4';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -114,7 +114,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
   <title>Smart Price v20.1.1</title>
-  <!-- ✅ SW RESET TOOL (v20.1.1) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v20.1.4) : ?reset=sw -->
   <script>
   (function() {
     try {
