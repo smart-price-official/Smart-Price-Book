@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.5.0
+VERSION: v22.6.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.5.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.6.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.5.0";
+  const APP_VERSION = "v22.6.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.5.0';
+  window.VERSION_INFO = 'v22.6.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.5.0</title>
-  <!-- ✅ SW RESET TOOL (v22.5.0) : ?reset=sw -->
+  <title>Smart Price v22.6.0</title>
+  <!-- ✅ SW RESET TOOL (v22.6.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.5.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.6.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -1024,51 +1024,35 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
         </div>
         <div id="operatorPassMsg" class="small text-secondary mb-2"></div>
         <div id="operatorPanelBody" style="display:none;">
-          <div class="mt-2">
-        <div id="operatorNote" class="hint mb-2">※運営者モード（URLに <b>&amp;mode=admin</b> ）で有効化されます。</div>
-
-        <div id="operatorEnabled" style="display:none;">
-          <div class="mb-2">
-            <div class="small text-secondary mb-1">Firebase URL（読み取り専用）</div>
+          <!-- Firebase URL -->
+          <div class="mb-3">
+            <div class="small text-secondary mb-1">Firebase URL</div>
             <div class="d-flex gap-2">
               <input type="text" id="fb-url-input" class="form-control bg-dark text-white border-secondary" readonly>
               <button class="btn btn-dark" onclick="spCopy('fb-url-input')">コピー</button>
             </div>
           </div>
 
+          <!-- 購入履歴表示 -->
           <details class="mb-2">
-            <summary class="small text-secondary" style="cursor:pointer;">未確定商品（昨日分）</summary>
+            <summary class="small text-secondary" style="cursor:pointer;">📊 購入履歴を表示</summary>
             <div class="mt-2">
-              <div id="admin-unconfirmed-list" class="small"></div>
-              <button class="btn btn-warning w-100 py-2 fw-bold mt-2" onclick="spConfirmUnconfirmedAll()">まとめて確定</button>
+              <div id="purchase-history-list" class="small"></div>
+              <button class="btn btn-primary w-100 py-2 fw-bold mt-2" onclick="loadPurchaseHistory()">履歴を読み込む</button>
             </div>
-        </div>
-        
-        <!-- 購入履歴表示 -->
-        <details class="mb-2">
-          <summary class="small text-secondary" style="cursor:pointer;">📊 購入履歴を表示</summary>
-          <div class="mt-2">
-            <div id="purchase-history-list" class="small"></div>
-            <button class="btn btn-primary w-100 py-2 fw-bold mt-2" onclick="loadPurchaseHistory()">履歴を読み込む</button>
+          </details>
+          
+          <!-- 統計情報 -->
+          <details class="mb-2">
+            <summary class="small text-secondary" style="cursor:pointer;">📈 統計情報</summary>
+            <div class="mt-2" id="stats-info"></div>
+            <button class="btn btn-info w-100 py-2 fw-bold mt-2" onclick="loadStats()">統計を計算</button>
+          </details>
+          
+          <div class="mt-3 d-grid">
+            <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="Main">戻る</button>
           </div>
-        </details>
-        
-        <!-- 統計情報 -->
-        <details class="mb-2">
-          <summary class="small text-secondary" style="cursor:pointer;">📈 統計情報</summary>
-          <div class="mt-2" id="stats-info"></div>
-          <button class="btn btn-info w-100 py-2 fw-bold mt-2" onclick="loadStats()">統計を計算</button>
-        </details>
-        
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
         </div>
-      </details>
-        </div>
-        <div class="mt-3 d-grid">
-          <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="Main">戻る</button>
-        </div>
-      </div>
     </div>
     
     <button id="syncBtn" class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="startMigration()">設定保存と同期</button>
@@ -6841,6 +6825,12 @@ function unlockOperator() {
     msgDiv.textContent = '✅ ロック解除しました';
     msgDiv.style.color = '#28a745';
     passInput.value = '';
+    
+    // Firebase URLを自動表示
+    const fbUrlInput = document.getElementById('fb-url-input');
+    if (fbUrlInput && db && db.config && db.config.firebaseUrl) {
+      fbUrlInput.value = db.config.firebaseUrl;
+    }
   } else {
     msgDiv.textContent = '❌ パスワードが違います';
     msgDiv.style.color = '#dc3545';
@@ -6848,6 +6838,7 @@ function unlockOperator() {
     passInput.focus();
   }
 }
+
 
 function loadPurchaseHistory() {
   const container = document.getElementById('purchase-history-list');
