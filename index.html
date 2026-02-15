@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.2.0
+VERSION: v22.3.0
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.2.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.3.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
@@ -20,7 +20,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.2.0";
+  const APP_VERSION = "v22.3.0";
   window.APP_VERSION = APP_VERSION;
   const BUILD_ID = "2026-02-15_1156_ui-fix26";
   window.BUILD_ID = BUILD_ID;
@@ -110,7 +110,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.2.0';
+  window.VERSION_INFO = 'v22.3.0';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +118,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.2.0</title>
-  <!-- ✅ SW RESET TOOL (v22.2.0) : ?reset=sw -->
+  <title>Smart Price v22.3.0</title>
+  <!-- ✅ SW RESET TOOL (v22.3.0) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,7 +458,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.2.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.3.0 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
@@ -762,7 +762,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   <div id="mainView">
     <div class="row g-2 mb-4">
       <div class="col-7"><button id="scanBtnTop" class="btn btn-danger w-100 py-3 rounded-4 shadow" onclick="startScanner()"><i class="bi bi-upc-scan fs-1"></i><br>スキャン</button></div>
-      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="openManualEntryOnly()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
+      <div class="col-5"><button class="btn btn-dark w-100 py-3 rounded-4 border-secondary shadow" onclick="openBarcodeManual()"><i class="bi bi-keyboard fs-1"></i><br>手入力</button></div>
     </div>
     <div id="historyList"></div>
   </div>
@@ -883,7 +883,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <div id="settingsModal" class="modal" style="z-index: 9999;">
   <div class="modal-content">
-    <h5 class="text-white mb-4 text-center">設定</h5>
+    <h5 class="text-white mb-4 text-center" id="settingsTitle" onclick="handleSettingsTitleClick()" style="cursor: pointer;">設定</h5>
 
     <div class="mb-3" id="settingsCitySection">
       <label class="small text-secondary">生活圏（市）</label>
@@ -921,8 +921,13 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
           <button class="btn btn-dark flex-grow-1" onclick="spCopy('ref-link')">コピー</button>
           <button class="btn btn-danger flex-grow-1" onclick="spShareReferral()">共有</button>
         </div>
+        
+        <button class="btn btn-primary w-100 py-2 mb-3" onclick="showReferralStatus()">
+          👥 紹介者の利用状況を確認
+        </button>
 
         <div id="ref-from-status" class="small text-secondary mt-2" style="opacity:.9;"></div>
+        <div id="referral-status-list" class="mt-2" style="display:none;"></div>
       </div>
         <div class="mt-3 d-grid">
           <button type="button" class="btn btn-outline-secondary sp-back-btn" data-back="">戻る</button>
@@ -1066,7 +1071,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 </div>
 
 <!-- 生活圏設定モーダル -->
-<div id="homeCityModal" class="modal">
+<div id="homeCityModal" class="modal" style="z-index: 10002;">
   <div class="modal-content">
     <h5 class="text-white mb-3 text-center">生活圏の設定</h5>
     
@@ -1092,6 +1097,113 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     </div>
   </div>
 </div>
+
+<!-- バーコード手入力モーダル -->
+<div id="barcodeManualModal" class="modal" style="z-index: 10000;">
+  <div class="modal-content">
+    <h5 class="text-white mb-4 text-center">バーコード手入力</h5>
+    
+    <div class="btn-group w-100 mb-3" role="group">
+      <button type="button" class="btn btn-outline-secondary btn-barcode-type" data-digits="8">JAN-8</button>
+      <button type="button" class="btn btn-outline-secondary btn-barcode-type active" data-digits="13">JAN-13</button>
+      <button type="button" class="btn btn-outline-secondary btn-barcode-type" data-digits="12">UPC-A</button>
+    </div>
+    
+    <div id="barcode-input-container" class="barcode-digits mb-3"></div>
+    
+    <!-- 専用テンキー -->
+    <div class="barcode-numpad mb-3">
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('1')">1</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('2')">2</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('3')">3</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('4')">4</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('5')">5</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('6')">6</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="inputBarcodeDigit('7')">7</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('8')">8</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('9')">9</button>
+      </div>
+      <div class="numpad-row">
+        <button class="numpad-btn" onclick="deleteBarcodeDigit()">←</button>
+        <button class="numpad-btn" onclick="inputBarcodeDigit('0')">0</button>
+        <button class="numpad-btn" onclick="clearBarcodeDigits()">C</button>
+      </div>
+    </div>
+    
+    <div class="d-grid gap-2">
+      <button class="btn btn-danger py-3 fw-bold" onclick="searchByManualBarcode()">🔍 商品を検索</button>
+      <button class="btn btn-outline-secondary" onclick="closeBarcodeManual()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.barcode-digits {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
+}
+.barcode-digit {
+  width: 40px;
+  height: 50px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  background: #1a1a1a;
+  border: 2px solid #444;
+  color: #fff;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.barcode-digit:focus {
+  border-color: #ff5252;
+  outline: none;
+  background: #2a2a2a;
+  box-shadow: 0 0 10px rgba(255,82,82,0.3);
+}
+.barcode-digit.filled {
+  background: #2a2a2a;
+  border-color: #ff5252;
+}
+.barcode-digit.active {
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0,255,0,0.5);
+}
+.barcode-numpad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.numpad-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.numpad-btn {
+  width: 70px;
+  height: 60px;
+  font-size: 24px;
+  font-weight: bold;
+  background: #2a2a2a;
+  border: 2px solid #555;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.numpad-btn:active {
+  background: #ff5252;
+  transform: scale(0.95);
+}
+
+</style>
 
 <div id="webModal" class="modal">
   <div class="modal-content">
@@ -6210,7 +6322,7 @@ return true;
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Smart Price 設定モーダル - EMERGENCY FIX
+// Smart Price 設定モーダル - COMPLETE FIX
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function() {
   'use strict';
@@ -6242,7 +6354,7 @@ return true;
     setupEventListeners();
     navigate('Main');
     state.initialized = true;
-    console.log('[Modal] EMERGENCY FIX Loaded');
+    console.log('[Modal] COMPLETE FIX Loaded');
   }
   
   function setupEventListeners() {
@@ -6546,6 +6658,292 @@ function saveHomeCityFromModal() {
 window.openHomeCityModal = openHomeCityModal;
 window.closeHomeCityModal = closeHomeCityModal;
 window.saveHomeCityFromModal = saveHomeCityFromModal;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.0: バーコード手入力UI
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let currentBarcodeType = 13;
+
+function openBarcodeManual() {
+  document.getElementById('barcodeManualModal').style.display = 'flex';
+  renderBarcodeInputs(13);
+}
+
+function closeBarcodeManual() {
+  document.getElementById('barcodeManualModal').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-barcode-type')) {
+    const digits = parseInt(e.target.getAttribute('data-digits'));
+    currentBarcodeType = digits;
+    document.querySelectorAll('.btn-barcode-type').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderBarcodeInputs(digits);
+  }
+});
+
+function renderBarcodeInputs(digits) {
+  const container = document.getElementById('barcode-input-container');
+  container.innerHTML = '';
+  currentBarcodeInputIndex = 0;
+  
+  for (let i = 0; i < digits; i++) {
+    const input = document.createElement('input');
+    input.type = 'tel';
+    input.maxLength = 1;
+    input.className = 'barcode-digit';
+    input.dataset.index = i;
+    input.pattern = '[0-9]';
+    
+    input.addEventListener('input', function(e) {
+      this.value = this.value.replace(/[^0-9]/g, '');
+      if (this.value.length === 1) {
+        this.classList.add('filled');
+        this.classList.remove('active');
+        currentBarcodeInputIndex = i + 1;
+        const nextInput = container.querySelector(`[data-index="${i+1}"]`);
+        if (nextInput) {
+          nextInput.classList.add('active');
+          nextInput.focus();
+        }
+      }
+    });
+    
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && this.value === '') {
+        const prevInput = container.querySelector(`[data-index="${i-1}"]`);
+        if (prevInput) {
+          prevInput.value = '';
+          prevInput.classList.remove('filled');
+          prevInput.classList.add('active');
+          prevInput.focus();
+          currentBarcodeInputIndex = i - 1;
+        }
+      }
+    });
+    
+    container.appendChild(input);
+  }
+  
+  // 最初の枠をアクティブに
+  setTimeout(() => {
+    const firstInput = container.querySelector('[data-index="0"]');
+    if (firstInput) {
+      firstInput.classList.add('active');
+      firstInput.focus();
+    }
+  }, 100);
+}
+
+
+function searchByManualBarcode() {
+  const inputs = document.querySelectorAll('.barcode-digit');
+  const barcode = Array.from(inputs).map(i => i.value).join('');
+  
+  if (barcode.length !== currentBarcodeType) {
+    alert(`${currentBarcodeType}桁すべて入力してください`);
+    return;
+  }
+  
+  closeBarcodeManual();
+  if (typeof processBarcode === 'function') processBarcode(barcode);
+}
+
+window.openBarcodeManual = openBarcodeManual;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.3: テンキー機能
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let currentBarcodeInputIndex = 0;
+
+function inputBarcodeDigit(digit) {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  if (currentBarcodeInputIndex < inputs.length) {
+    inputs[currentBarcodeInputIndex].value = digit;
+    inputs[currentBarcodeInputIndex].classList.add('filled');
+    inputs[currentBarcodeInputIndex].classList.remove('active');
+    currentBarcodeInputIndex++;
+    
+    if (currentBarcodeInputIndex < inputs.length) {
+      inputs[currentBarcodeInputIndex].classList.add('active');
+    }
+  }
+}
+
+function deleteBarcodeDigit() {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  if (currentBarcodeInputIndex > 0) {
+    currentBarcodeInputIndex--;
+    inputs[currentBarcodeInputIndex].value = '';
+    inputs[currentBarcodeInputIndex].classList.remove('filled');
+    inputs[currentBarcodeInputIndex].classList.add('active');
+    
+    if (currentBarcodeInputIndex + 1 < inputs.length) {
+      inputs[currentBarcodeInputIndex + 1].classList.remove('active');
+    }
+  }
+}
+
+function clearBarcodeDigits() {
+  const container = document.getElementById('barcode-input-container');
+  const inputs = container.querySelectorAll('.barcode-digit');
+  
+  inputs.forEach(input => {
+    input.value = '';
+    input.classList.remove('filled', 'active');
+  });
+  
+  currentBarcodeInputIndex = 0;
+  if (inputs.length > 0) {
+    inputs[0].classList.add('active');
+  }
+}
+
+window.inputBarcodeDigit = inputBarcodeDigit;
+window.deleteBarcodeDigit = deleteBarcodeDigit;
+window.clearBarcodeDigits = clearBarcodeDigits;
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.0: 管理者メニュー隠しアクセス（5回タップ）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let settingsTitleTapCount = 0;
+let settingsTitleTapTimer = null;
+
+function handleSettingsTitleClick() {
+  settingsTitleTapCount++;
+  
+  if (settingsTitleTapTimer) clearTimeout(settingsTitleTapTimer);
+  
+  settingsTitleTapTimer = setTimeout(() => {
+    settingsTitleTapCount = 0;
+  }, 2000);
+  
+  if (settingsTitleTapCount === 5) {
+    settingsTitleTapCount = 0;
+    if (typeof window.SmartPriceModal !== 'undefined') {
+      window.SmartPriceModal.navigate('Operator');
+    }
+  }
+}
+
+window.handleSettingsTitleClick = handleSettingsTitleClick;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.0: 友人紹介トラッキングシステム
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function checkReferralQualification(referredUserId) {
+  if (!db || !db.products) return false;
+  
+  const userProducts = Object.values(db.products).filter(p => p.userId === referredUserId);
+  const uniqueStores = new Set(userProducts.map(p => p.store));
+  
+  return uniqueStores.size >= 5 && userProducts.length >= 4;
+}
+
+function updateReferralStatus() {
+  if (!db || !db.config || !db.config.referredBy) return;
+  
+  const myId = db.config.personalId;
+  const qualified = checkReferralQualification(myId);
+  
+  if (qualified && !db.config.referralQualified) {
+    db.config.referralQualified = true;
+    db.config.referralQualifiedDate = Date.now();
+    if (typeof saveLocalOnly === 'function') saveLocalOnly();
+  }
+}
+
+window.checkReferralQualification = checkReferralQualification;
+window.updateReferralStatus = updateReferralStatus;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.0: 複数端末同期（ユーザIDベース）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function ensureUserIdInProducts() {
+  if (!db || !db.products || !db.config || !db.config.personalId) return;
+  
+  const myId = db.config.personalId;
+  let updated = false;
+  
+  Object.keys(db.products).forEach(code => {
+    if (!db.products[code].userId) {
+      db.products[code].userId = myId;
+      updated = true;
+    }
+  });
+  
+  if (updated && typeof saveLocalOnly === 'function') {
+    saveLocalOnly();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(() => {
+    ensureUserIdInProducts();
+    updateReferralStatus();
+  }, 1000);
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v22.0: 紹介者利用状況確認
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showReferralStatus() {
+  const container = document.getElementById('referral-status-list');
+  if (!container) return;
+  
+  // 仮データ（実際はFirebaseから取得）
+  const myId = (db && db.config && db.config.personalId) || 'UNKNOWN';
+  
+  // 本来はFirebaseクエリで「referredBy === myId」のユーザーを取得
+  const referredUsers = [
+    { id: 'USER001', qualified: true, stores: 7, products: 12, qualifiedDate: Date.now() - 86400000 * 3 },
+    { id: 'USER002', qualified: false, stores: 3, products: 8, qualifiedDate: null },
+    { id: 'USER003', qualified: true, stores: 5, products: 15, qualifiedDate: Date.now() - 86400000 * 7 }
+  ];
+  
+  let html = '<div class="card bg-dark p-3 mb-2">';
+  html += '<h6 class="text-white mb-3">あなたの紹介実績</h6>';
+  
+  if (referredUsers.length === 0) {
+    html += '<div class="small text-secondary">まだ紹介者はいません</div>';
+  } else {
+    const qualified = referredUsers.filter(u => u.qualified).length;
+    html += `<div class="mb-2"><span class="text-white fw-bold">${qualified}人</span> / ${referredUsers.length}人 が条件達成</div>`;
+    
+    referredUsers.forEach(user => {
+      const statusIcon = user.qualified ? '✅' : '⏳';
+      const statusText = user.qualified ? '条件達成' : '利用中';
+      const statusColor = user.qualified ? 'text-success' : 'text-warning';
+      
+      html += `
+        <div class="small border-top border-secondary pt-2 mt-2">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-secondary">ID: ${user.id.slice(0,6)}...</span>
+            <span class="${statusColor}">${statusIcon} ${statusText}</span>
+          </div>
+          <div class="text-secondary">
+            店舗数: ${user.stores} / 5 | 商品数: ${user.products}
+          </div>
+          ${user.qualifiedDate ? `<div class="text-secondary" style="font-size: 0.75rem;">達成日: ${new Date(user.qualifiedDate).toLocaleDateString('ja-JP')}</div>` : ''}
+        </div>
+      `;
+    });
+  }
+  
+  html += '</div>';
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+window.showReferralStatus = showReferralStatus;
+
+
 
 </script>
 
