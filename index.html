@@ -5,7 +5,7 @@ DATE(JST): 2026-02-15 00:37 JST
 TITLE: UIFIX21（購入履歴復旧/角ガイド消去/13桁JANボックス+専用テンキー/桁数ガイド/バージョン表示安定）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v20.1.4 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
 BUILD_PARAM(b): ?b=2026-02-15_0037_ui-fix21
 DEBUG_PARAM: &debug=1
@@ -16,11 +16,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.1.4";
+  const APP_VERSION = "v20.1.5";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-15_0037_ui-fix21";
+  const BUILD_ID = "2026-02-15_0045_ui-fix22";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
+  window.FULL_VERSION = FULL_VERSION;
 
   function setHeaderVersionBadge(){
     const badge = document.getElementById('versionBadge');
@@ -105,7 +106,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.1.4';
+  window.VERSION_INFO = 'v20.1.1';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -114,7 +115,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
   <title>Smart Price v20.1.1</title>
-  <!-- ✅ SW RESET TOOL (v20.1.4) : ?reset=sw -->
+  <!-- ✅ SW RESET TOOL (v20.1.1) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -588,7 +589,23 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
     .sp-numpad button:active{ transform: scale(0.98); }
     .sp-numpad .sp-np-wide{ grid-column: span 3; }
 
-    /* UIFIX21: 8/13/14桁の手入力（13個の数字窓＋専用テンキー） */
+    
+    /* UIFIX22: settings action buttons unify + menu colors + spacing */
+    .sp-menu-btn, #syncBtn, #clearCacheBtn, #webBtn, #operatorBtnBottom, #cityOpenBtn{
+      min-height: 56px;
+      padding-top: 14px !important;
+      padding-bottom: 14px !important;
+      font-weight: 800 !important;
+      border-radius: 16px !important;
+    }
+    /* Colorize main menu buttons */
+    #settingsMainMenu .sp-menu-btn[data-panel="panelReferral"]{ background: rgba(13,110,253,.18); border-color: rgba(13,110,253,.45); color:#fff; }
+    #settingsMainMenu .sp-menu-btn[data-panel="panelFamily"]{ background: rgba(25,135,84,.18); border-color: rgba(25,135,84,.45); color:#fff; }
+    #settingsMainMenu .sp-menu-btn[data-panel="panelSupport"]{ background: rgba(255,193,7,.18); border-color: rgba(255,193,7,.45); color:#fff; }
+    #operatorBtnBottom{ background: rgba(220,53,69,.18); border:1px solid rgba(220,53,69,.55); color:#fff; }
+    #settingsMainMenu .d-grid{ gap: 12px !important; }
+
+/* UIFIX21: 8/13/14桁の手入力（13個の数字窓＋専用テンキー） */
     .sp-jan-kind{
       display:flex;
       gap:8px;
@@ -718,7 +735,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <body>
 <header class="header d-flex justify-content-between align-items-center">
-   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">v20.1.1</span></h5>
+   <h5 class="m-0 fw-bold text-white"><i class="bi bi-cart4"></i> Smart Price <span class="v-badge" id="version-badge">…</span></h5>
   <button class="btn btn-sm btn-outline-light" id="settingsBtn"><i class="bi bi-gear-fill"></i></button>
 </header>
 
@@ -863,8 +880,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
           <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelReferral">① 友人紹介</button>
           <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelFamily">② 家族共有</button>
           <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelSupport">③ 運営者へ質問／不具合報告</button>
-          <button type="button" class="btn btn-outline-secondary sp-menu-btn" data-panel="panelOperator">④ 管理メニュー</button>
-        </div>
+</div>
       </div>
 
       <div id="panelReferral" class="sp-panel mt-3" style="display:none;">
@@ -1018,6 +1034,8 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     <button id="syncBtn" class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="startMigration()">設定保存と同期</button>
     <button id="clearCacheBtn" class="btn btn-danger w-100 py-2 fw-bold mb-2" onclick="clearAllCache()">🔄 キャッシュクリア（表示崩れ修正）</button>
     <button id="webBtn" class="btn btn-outline-secondary w-100 py-2 fw-bold mb-2" onclick="openWebModal()">ブラウザ版へ（URL表示）</button>
+    <button id="operatorBtnBottom" class="btn w-100 mb-2" onclick="openSettingsPanel('panelOperator')">管理メニュー（管理者）</button>
+
     <div id="debugBackupButtons" style="display:none;">
       <button class="btn btn-success w-100 py-2 fw-bold mb-2" onclick="exportBackup()">バックアップ出力</button>
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
@@ -1079,12 +1097,6 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const APP_VERSION = "v20.1.1"; // 画面表示用（数字のみ） // 画面表示用（数字のみ）
-  const BUILD_ID = "2026-02-14_2230_layout-fix";
-  window.BUILD_ID = BUILD_ID;
-  const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
-  window.FULL_VERSION = FULL_VERSION;
-
   // ========= Firebase Configuration =========
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyCYjQ79KgsohOPlEViHBX5BygVUvX-70l4",
@@ -4571,10 +4583,35 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
   
   // ✅ 手入力（カメラ無し）：スキャン画面の位置に「コード入力＋テンキー」だけを出す
   // - ユーザー要望: 「スキャン画面に手動コード入力＋テンキー」
-  function openManualEntryOnly(){
+  
+function openSettingsPanel(panelId){
+  try{
+    document.querySelectorAll('.sp-panel').forEach(p=>p.style.display='none');
+    const main = document.getElementById('settingsMainMenu');
+    if(main) main.style.display='none';
+    const p = document.getElementById(panelId);
+    if(p) p.style.display='block';
+  }catch(e){}
+}
+function openCityModal(){
+  const w = document.getElementById('cityModalWrap');
+  if(w) w.style.display='block';
+  try{ setHeaderVersionBadge(); }catch(e){}
+}
+function closeCityModal(){
+  const w = document.getElementById('cityModalWrap');
+  if(w) w.style.display='none';
+  try{ setHeaderVersionBadge(); }catch(e){}
+}
+function saveCityAndClose(){
+  try{ if(typeof saveSettings==='function') saveSettings(); }catch(e){}
+  closeCityModal();
+}
+
+function openManualEntryOnly(){
     try{
       const ca = document.getElementById('camera-area');
-      if(ca) ca.style.display = 'block';
+      if(ca) ca.style.display = 'none';
       isScanning = false;
 
       ensureScanbarDom();
