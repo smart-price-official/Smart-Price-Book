@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v20.1.6
+VERSION: v20.1.7
 DATE(JST): 2026-02-15 00:48 JST
 TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
 - VERSION/BUILD/表示のSSOT（単一正本）を v20.1.1 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-15_0048_ui-fix23
+BUILD_PARAM(b): ?b=2026-02-15_0102_ui-fix24
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
@@ -16,9 +16,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 (() => {
-  const APP_VERSION = "v20.1.6";
+  const APP_VERSION = "v20.1.7";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-15_0048_ui-fix23";
+  const BUILD_ID = "2026-02-15_0102_ui-fix24";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
   window.FULL_VERSION = FULL_VERSION;
@@ -106,7 +106,7 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v20.1.1';
+  window.VERSION_INFO = 'v20.1.7';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -559,6 +559,10 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
       background: rgba(0,0,0,0.55);
       border-radius:12px;
       backdrop-filter: blur(6px);
+
+/* UIFIX24: 手入力UIの視認性を強制（黒背景で消える対策） */
+#manual-entry.scan-manual { color:#fff; border:1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+#manual-entry .sp-jan-guide { color: rgba(255,255,255,0.85); }
     }
     #manualCodeInput{
       width:100%;
@@ -706,6 +710,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
     font-weight: 800;
   }
 
+
+/* UIFIX24: 設定モーダルのボタン間隔と高さを統一 */
+#settingsModal .modal-content { display:flex; flex-direction:column; gap:10px; }
+#settingsModal .modal-content .btn { min-height: 52px; }
+#settingsModal .modal-content .btn.btn-link { min-height: auto; }
+
 </style>
 
 <script>
@@ -831,7 +841,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
     </div>
 
     <!-- キーボードを出さないための隠し入力（値の保持だけ） -->
-    <input id="manualCodeInput" type="text" inputmode="none" autocomplete="off" readonly
+    <input id="manualCodeInput" readonly type="text" inputmode="none" autocomplete="off" readonly
            style="position:absolute; left:-9999px; top:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;">
 
     <div class="sp-numpad" aria-label="numeric keypad">
@@ -873,7 +883,8 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
 
     <div class="mb-3" id="settingsCitySection">
       <label class="small text-secondary">生活圏（市）</label>
-      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市">
+      <button type="button" id="homeCityBtn" class="btn btn-dark w-100 py-2 fw-bold mb-1" onclick="openHomeCityModal()">生活圏を入力</button>
+      <input type="text" id="home-city-input" class="form-control bg-dark text-white border-secondary mb-1" placeholder="例：つくば市" style="display:none;">
       <div class="small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
       <div id="city-history-chips" class="city-chips"></div>
     </div>
@@ -1044,6 +1055,18 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       <button class="btn btn-info w-100 py-2 fw-bold mb-2" onclick="importBackup()">バックアップ読み込み</button>
     </div>
     <button class="btn btn-link text-secondary w-100" data-action="close-settings">閉じる</button>
+  </div>
+</div>
+
+
+<!-- UIFIX24: 生活圏入力モーダル（設定内ボタンから開く） -->
+<div id="homeCityModal" class="modal">
+  <div class="modal-content">
+    <h5 class="text-white mb-3 text-center">生活圏の入力</h5>
+    <div class="mb-2 small text-secondary" style="opacity:.9;">複数の場合は「、」で区切ってください</div>
+    <input type="text" id="home-city-modal-input" class="form-control bg-dark text-white border-secondary mb-3" placeholder="例：つくば市">
+    <button class="btn btn-primary w-100 py-2 fw-bold mb-2" onclick="saveHomeCityFromModal()">保存</button>
+    <button class="btn btn-dark w-100 py-2 fw-bold border-secondary" onclick="closeHomeCityModal()">閉じる</button>
   </div>
 </div>
 
@@ -2014,7 +2037,7 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       if (isDebug()) {
         document.title = `Smart Price ${FULL_VERSION} / ${BUILD_ID}`;
       } else {
-        document.title = `Smart Price ${FULL_VERSION}`;
+        document.title = `Smart Price ${window.FULL_VERSION||window.APP_VERSION||window.VERSION_INFO||""}`;
       }
     } catch(e) {
       if (isDebug()) console.warn('[DOMContentLoaded] version update error:', e);
@@ -2510,6 +2533,41 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
     return base ? `${base}/smart_price.json` : "";
   }
 
+  // UIFIX24: ユーザーID（複数端末・複数ユーザーの同期単位）
+  function getOrCreateUserId(){
+    try{
+      db.config = db.config || {};
+      let uid = (db.config.userId || localStorage.getItem('sp_user_id') || '').toString().trim();
+      if(!uid){
+        uid = 'U' + Math.random().toString(36).slice(2,8) + '-' + Math.random().toString(36).slice(2,6);
+      }
+      db.config.userId = uid;
+      localStorage.setItem('sp_user_id', uid);
+      return uid;
+    }catch(e){
+      return (localStorage.getItem('sp_user_id')||'').toString();
+    }
+  }
+
+  function scopeUrlByUser(baseJsonUrl, userId){
+    // 例: https://xxx.firebaseio.com/smart_price.json → .../users/<uid>/smart_price.json
+    try{
+      const u = baseJsonUrl || '';
+      const uid = encodeURIComponent((userId||'').trim());
+      if(!u || !uid) return u;
+      if(u.endsWith('.json')){
+        const i = u.lastIndexOf('/smart_price.json');
+        if(i !== -1){
+          return u.slice(0, i) + `/users/${uid}/smart_price.json`;
+        }
+        // fallback: insert before last .json
+        const j = u.lastIndexOf('.json');
+        return u.slice(0, j) + `/users/${uid}` + u.slice(j);
+      }
+      return u;
+    }catch(e){ return baseJsonUrl; }
+  }
+
   function getImageUrl(url, code, imageId) {
     const base = getBaseUrl(url);
     if (!base) return "";
@@ -2525,7 +2583,8 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
   async function syncFirebasePut() {
     if(!fbUrl) return;
     try {
-      const targetUrl = getSafeUrl(fbUrl);
+      const uid = getOrCreateUserId();
+      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), uid);
       const payload = stripForCloud(db);
       await fetchWithTimeout(targetUrl, {
         method: 'PUT',
@@ -2704,9 +2763,25 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
       const localDb = deepClone(db);
       
       // 2. クラウドDBを取得
-      const targetUrl = getSafeUrl(fbUrl);
-      const res = await fetchWithTimeout(targetUrl, {}, 12000);
-      const cloudDb = await res.json();
+      const uid = getOrCreateUserId();
+      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), uid);
+      let cloudDb = null;
+      try{
+        const res = await fetchWithTimeout(targetUrl, {}, 12000);
+        cloudDb = await res.json();
+      }catch(e){ cloudDb = null; }
+
+      // 旧URLの救済（ユーザーID導入前のデータを表示）
+      if(!(cloudDb && cloudDb.products)){
+        try{
+          const legacyUrl = getSafeUrl(fbUrl);
+          const resL = await fetchWithTimeout(legacyUrl, {}, 12000);
+          const cloudL = await resL.json();
+          if(cloudL && cloudL.products){
+            cloudDb = cloudL;
+          }
+        }catch(e){}
+      }
       
       if (!cloudDb || typeof cloudDb !== 'object' || !cloudDb.products) {
         throw new Error('クラウドデータが無効です');
@@ -3108,7 +3183,9 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
       if (normalized && normalized !== '|') {
         renderedNormalizedKeys.add(normalized);
       }
-      const last = it.history[it.history.length-1];
+      const hlist = (it.history||[]).filter(h => (!h.uid) || (h.uid===curUid));
+      if(!hlist.length) continue;
+      const last = hlist[hlist.length-1];
       const div = document.createElement('div');
       div.className = 'card price-card';
       div.onclick = (e) => {
@@ -4613,39 +4690,43 @@ function saveCityAndClose(){
 function openManualEntryOnly(){
     try{
       const ca = document.getElementById('camera-area');
-      // ✅ 手入力は「カメラを出さずに」手入力UIだけを全画面に出す
+      const inter = document.getElementById('interactive');
+      const manual = document.getElementById('manual-entry');
+
+      // 手入力モード: カメラ枠は使わず、手入力UIだけを確実に表示
       if(ca) ca.style.display = 'block';
+
       // 走査枠/走査ラインは隠す（手入力では不要）
       try{ document.querySelectorAll('.scan-frame,.scan-laser').forEach(el=>el.style.display='none'); }catch(e){}
-      try{ const inter=document.getElementById('interactive'); if(inter){ inter.style.pointerEvents='none'; } }catch(e){}
+
+      // interactive（動画/オーバーレイ）が前面に来て手入力が見えない事故を避ける
+      try{ if(inter){ inter.style.pointerEvents='none'; inter.style.opacity='0.18'; } }catch(e){}
+
+      // スキャナ状態を止める
       isScanning = false;
 
-      const ok = ensureManualEntryDom();
+      // 手入力UIを必ず出す
+      if(manual){
+        manual.style.display = 'block';
+        manual.style.top = '120px';
+        manual.style.left = '50%';
+        manual.style.transform = 'translateX(-50%)';
+        manual.style.zIndex = '2005';
+      }
 
-      try{
-        const me = document.getElementById('manual-entry');
-        if(me) me.style.display = 'block';
-      }catch(e){}
+      // 初期化
+      try{ window.__spManual = window.__spManual || { len: 13, code: "" }; }catch(e){}
+      try{ if(typeof spRenderManualBoxes==='function') spRenderManualBoxes(); }catch(e){}
+      try{ if(typeof spUpdateManualBoxes==='function') spUpdateManualBoxes(); }catch(e){}
 
-      try{ if(typeof window.spSetCodeLen==='function'){ window.spSetCodeLen(window.__spManual?.len||13); } }catch(e){}
-
+      // キーボード禁止: readonly input を触らない
       try{
         const input = document.getElementById('manualCodeInput');
-        if(input){
-          input.value = '';
-          try{ if(typeof window.spSetCodeLen==='function'){ window.spSetCodeLen(window.__spManual?.len||13); } }catch(e){}
-        }
+        if(input){ input.blur(); }
       }catch(e){}
-
-      if(!ok){
-        const manual = document.getElementById('manual-entry');
-        if(manual){
-          manual.style.top = 'calc(25% + 180px + 18px)';
-          manual.style.display = 'block';
-        }
-      }
     }catch(e){
       if(isDebug()) console.warn('[openManualEntryOnly] failed:', e);
+      showToast('手入力画面の表示に失敗しました', 6000);
     }
   }
 
@@ -6045,18 +6126,36 @@ return true;
         return;
       }
 
-      const targetUrl = getSafeUrl(u);
+      const uid = getOrCreateUserId();
+      const targetUrl = scopeUrlByUser(getSafeUrl(u), uid);
+      const legacyUrl = getSafeUrl(u);
 
       // ✅ PUT前にクラウドを読み、マージしてから送る（端末間の取りこぼし減、画像情報も保護）
       try {
+        // まずユーザーID単位（新）を読む
         const res0 = await fetchWithTimeout(targetUrl, { signal: activeSyncController.signal }, 9000);
         const cloud0 = await res0.json();
         if (cloud0 && cloud0.products) {
           db = mergeDb(db, cloud0); // ✅ マージ方式で画像情報が消えない
           saveLocalOnly();
+        } else {
+          // 旧URL（全員共通）にデータが残っている場合の救済
+          try{
+            const resL = await fetchWithTimeout(legacyUrl, { signal: activeSyncController.signal }, 9000);
+            const cloudL = await resL.json();
+            if (cloudL && cloudL.products) {
+              db = mergeDb(db, cloudL);
+              saveLocalOnly();
+            }
+          }catch(e){}
         }
       } catch(e) {
         // 読めなくても続行
+        try{
+          const resL = await fetchWithTimeout(legacyUrl, { signal: activeSyncController.signal }, 9000);
+          const cloudL = await resL.json();
+          if (cloudL && cloudL.products) { db = mergeDb(db, cloudL); saveLocalOnly(); }
+        }catch(e){}
       }
 
       // PUT（画像は送らない）
@@ -6264,6 +6363,7 @@ return true;
       
       const cityInput = document.getElementById('home-city-input');
       if (cityInput && window.db && window.db.config) cityInput.value = window.db.config.homeCity || '';
+      try{ const b=document.getElementById('homeCityBtn'); const v=(window.db&&window.db.config? (window.db.config.homeCity||''):''); if(b){ b.textContent = v? (`生活圏：${v}`) : '生活圏を入力'; } }catch(e){}
       
       if (typeof window.renderCityChips === 'function') window.renderCityChips();
       
@@ -6327,6 +6427,38 @@ async function clearAllCache() {
     console.error('[Cache Clear] Error:', error);
     alert('❌ エラーが発生しました:\n' + error.message);
   }
+}
+
+// UIFIX24: 生活圏（市）入力をボタン＋モーダルで統一
+function openHomeCityModal(){
+  try{
+    const m = document.getElementById('homeCityModal');
+    const inp = document.getElementById('home-city-modal-input');
+    const cur = (window.db && window.db.config ? (window.db.config.homeCity||'') : '');
+    if(inp) inp.value = cur;
+    if(m) m.style.display = 'flex';
+  }catch(e){}
+}
+function closeHomeCityModal(){
+  try{
+    const m = document.getElementById('homeCityModal');
+    if(m) m.style.display = 'none';
+  }catch(e){}
+}
+function saveHomeCityFromModal(){
+  try{
+    const inp = document.getElementById('home-city-modal-input');
+    const v = (inp ? inp.value : '').trim();
+    if(window.db){ window.db.config = window.db.config || {}; window.db.config.homeCity = v; }
+    try{ if(typeof window.saveLocalOnly==='function') window.saveLocalOnly(); }catch(e){}
+    try{ if(typeof window.renderCityChips==='function') window.renderCityChips(); }catch(e){}
+    // ボタン表示更新
+    try{
+      const btn = document.getElementById('homeCityBtn');
+      if(btn){ btn.textContent = v ? `生活圏：${v}` : '生活圏を入力'; }
+    }catch(e){}
+    closeHomeCityModal();
+  }catch(e){}
 }
 
 window.clearAllCache = clearAllCache;
