@@ -1,18 +1,39 @@
 <!DOCTYPE html>
 <!--APP: Smart Price
-VERSION: v22.7.1
+VERSION: v22.7.3
 DATE(JST): 2026-02-16 00:38 JST
-TITLE: UIFIX23（手入力ボタン修正/履歴復旧探索強化/バージョン表示SSOT修正）
+TITLE: UIDSYNC PERSONALPATH SSOTFIX
 CHANGES:
 - 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.7.0 / 2026-02-14_2230_layout-fix に統一（旧表記を全削除）
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.7.3 / 2026-02-16_0055_ssotfix に統一（旧表記を全削除）
 - 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-BUILD_PARAM(b): ?b=2026-02-16_0007_uid-sync
+P26-02-16_0055_ssotfix
 DEBUG_PARAM: &debug=1
 AUTHOR: Yui
 POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 <html lang="ja">
 <head>
+
+<script>
+/* SSOT_MISMATCH_CHECK */
+(function(){
+  try{
+    const qs = new URLSearchParams(location.search);
+    const qb = qs.get('b');
+    const dbg = qs.get('debug') === '1';
+    const v = (window.VERSION_INFO||'').trim();
+    const b = (window.BUILD_ID||'').trim();
+    const ok = (!qb || qb === b);
+    if(dbg && (!v || !b || !ok)){
+      const msg = 'VERSION MISMATCH: ui=' + v + ' build=' + b + ' url_b=' + (qb||'');
+      console.warn(msg);
+      // try show toast if available
+      if(typeof window.showToast === 'function'){ window.showToast(msg, 'error'); }
+    }
+  }catch(e){}
+})();
+</script>
+
 <!-- SW GUARD: prevent old Service Worker from serving stale index.html -->
 <script>
 
@@ -20,9 +41,9 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.7.1";
+  const APP_VERSION = "v22.7.3";
   window.APP_VERSION = APP_VERSION;
-  const BUILD_ID = "2026-02-16_0007_uid-sync";
+  P26-02-16_0055_ssotfix";
   window.BUILD_ID = BUILD_ID;
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
   window.FULL_VERSION = FULL_VERSION;
@@ -110,7 +131,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta charset="UTF-8">
   <script>
   // === VERSION SSOT (auto) ===
-  window.VERSION_INFO = 'v22.7.0';
+  window.VERSION_INFO = 'v22.7.3';
   </script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -118,8 +139,8 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#D50000">
-  <title>Smart Price v22.7.0</title>
-  <!-- ✅ SW RESET TOOL (v22.7.0) : ?reset=sw -->
+  <title>Smart Price v22.7.3</title>
+  <!-- ✅ SW RESET TOOL (v22.7.3) : ?reset=sw -->
   <script>
   (function() {
     try {
@@ -458,12 +479,12 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
 #settingsModal .sp-settings-menu { position: sticky; top: 0; background: rgba(26,26,26,0.98); padding-top: 6px; z-index: 2; }
 
 
-/* --- PATCH v22.7.0 settings menu layout (bootstrap依存を排除) --- */
+/* --- PATCH v22.7.3 settings menu layout (bootstrap依存を排除) --- */
 #settingsModal .sp-settings-menu{display:flex !important;flex-direction:column !important;gap:10px !important;}
 #settingsModal .sp-settings-menu button{display:block !important;width:100% !important;max-width:100% !important;}
 #settingsModal .sp-settings-menu button + button{margin-top:0 !important;}
 
-/* === PATCH v20.1.2: settings buttons spacing & colors === */
+/* === PATCH v22.7.3: settings buttons spacing & colors === */
 #settingsModal .sp-menu-btn{
   border:0 !important;
   background: rgba(45,108,223,0.95) !important;
@@ -517,7 +538,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
   #interactive canvas{ opacity: 0 !important; }
 
 
-    /* === PATCH v20.1.2: scanner UI placement & corner artifact cleanup === */
+    /* === PATCH v22.7.3: scanner UI placement & corner artifact cleanup === */
     #interactive video, #interactive canvas{
       outline: none !important;
       box-shadow: none !important;
@@ -552,7 +573,7 @@ function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : un
       border: none !important;
     }
 
-    /* === PATCH v20.1.2: manual code entry (numpad) === */
+    /* === PATCH v22.7.3: manual code entry (numpad) === */
     #manual-entry.scan-manual{
       position:absolute;
       left:50%;
@@ -2166,6 +2187,36 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
       deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 11);
       localStorage.setItem('smartPriceDeviceId', deviceId);
     }
+
+  // ========= 個人ID（端末をまたいで共有するID）生成・保持 =========
+  // 目的：購入履歴/設定の保存先を「Firebase UID」ではなく「個人ID」に統一して、1ユーザー複数端末を実現する
+  function getOrCreatePersonalId(){
+    try{
+      db.config = db.config || {};
+      // 優先順：db.config.personalId → 明示保存(sp_personal_id) → 旧キー(smartPriceDeviceId) → 生成
+      let pid = (db.config.personalId || localStorage.getItem('sp_personal_id') || localStorage.getItem('smartPriceDeviceId') || '').toString().trim();
+      if(!pid){
+        pid = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 11);
+      }
+      db.config.personalId = pid;
+      localStorage.setItem('sp_personal_id', pid);
+      // 旧キーも維持（既存実装との互換）
+      if(!localStorage.getItem('smartPriceDeviceId')) localStorage.setItem('smartPriceDeviceId', pid);
+      return pid;
+    }catch(e){
+      return (localStorage.getItem('sp_personal_id')||localStorage.getItem('smartPriceDeviceId')||'').toString();
+    }
+  }
+
+  // Firebase UID（認証用）も参照できるようにしておく（保存先には使わない）
+  function getFirebaseUidSafe(){
+    try{
+      if(window.firebaseAuth && firebaseAuth.currentUser && firebaseAuth.currentUser.uid){
+        return String(firebaseAuth.currentUser.uid);
+      }
+    }catch(e){}
+    return '';
+  }
     return deviceId;
   }
 
@@ -2699,7 +2750,7 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
   // UIFIX UIDSYNC: Settings UI for userId (copy / change)
   function updateUserIdPreview(){
     try{
-      const uid = getOrCreateUserId();
+      const pid = getOrCreatePersonalId();
       const el = document.getElementById('userIdPreview');
       if(el) el.textContent = `ID: ${uid || '-'}`;
     }catch(e){}
@@ -2707,7 +2758,7 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
 
   async function copyUserId(){
     try{
-      const uid = getOrCreateUserId();
+      const pid = getOrCreatePersonalId();
       if(!uid){ try{ showToast('個人IDが取得できませんでした', 2500);}catch(e){}; return; }
       try{
         await navigator.clipboard.writeText(uid);
@@ -2775,8 +2826,8 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
   async function syncFirebasePut() {
     if(!fbUrl) return;
     try {
-      const uid = getOrCreateUserId();
-      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), uid);
+      const pid = getOrCreatePersonalId();
+      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), pid);
       const payload = stripForCloud(db);
       await fetchWithTimeout(targetUrl, {
         method: 'PUT',
@@ -2955,26 +3006,59 @@ const taxModeId = db.config.lastTax === "in" ? 'taxIn' : 'taxEx';
       const localDb = deepClone(db);
       
       // 2. クラウドDBを取得
-      const uid = getOrCreateUserId();
-      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), uid);
+      const pid = getOrCreatePersonalId();
+      const targetUrl = scopeUrlByUser(getSafeUrl(fbUrl), pid);
       let cloudDb = null;
+      let cloudSource = { kind: 'none', id: '' };
+
+      // まずは personalId で取得
       try{
         const res = await fetchWithTimeout(targetUrl, {}, 12000);
-        cloudDb = await res.json();
-      }catch(e){ cloudDb = null; }
+        const j = await res.json();
+        if(j && j.products){ cloudDb = j; cloudSource = { kind: 'personalId', id: pid }; }
+      }catch(e){}
 
-      // 旧URLの救済（ユーザーID導入前のデータを表示）
+      // 旧：短いID（sp_user_id）で保存していた可能性
+      if(!(cloudDb && cloudDb.products)){
+        try{
+          const shortId = getOrCreateUserId();
+          if(shortId){
+            const u2 = scopeUrlByUser(getSafeUrl(fbUrl), shortId);
+            const res2 = await fetchWithTimeout(u2, {}, 12000);
+            const j2 = await res2.json();
+            if(j2 && j2.products){ cloudDb = j2; cloudSource = { kind: 'shortId', id: shortId }; }
+          }
+        }catch(e){}
+      }
+
+      // 旧：Firebase UID で保存していた可能性（匿名ログインの端末差）
+      if(!(cloudDb && cloudDb.products)){
+        try{
+          const fuid = getFirebaseUidSafe();
+          if(fuid){
+            const u3 = scopeUrlByUser(getSafeUrl(fbUrl), fuid);
+            const res3 = await fetchWithTimeout(u3, {}, 12000);
+            const j3 = await res3.json();
+            if(j3 && j3.products){ cloudDb = j3; cloudSource = { kind: 'firebaseUid', id: fuid }; }
+          }
+        }catch(e){}
+      }
+
+      // 旧URL（ユーザーID導入前のルート）救済
       if(!(cloudDb && cloudDb.products)){
         try{
           const legacyUrl = getSafeUrl(fbUrl);
           const resL = await fetchWithTimeout(legacyUrl, {}, 12000);
           const cloudL = await resL.json();
-          if(cloudL && cloudL.products){
-            cloudDb = cloudL;
-          }
+          if(cloudL && cloudL.products){ cloudDb = cloudL; cloudSource = { kind: 'legacyRoot', id: '' }; }
         }catch(e){}
       }
-      
+
+      // debug 表示
+      if(isDebug()){
+        try{ console.log('[Sync] cloudSource=', cloudSource); }catch(e){}
+      }
+
       if (!cloudDb || typeof cloudDb !== 'object' || !cloudDb.products) {
         throw new Error('クラウドデータが無効です');
       }
@@ -5229,7 +5313,7 @@ function startScanner() {
     
     
 
-  // === PATCH v20.1.2: manual code entry UI ===
+  // === PATCH v22.7.3: manual code entry UI ===
   
   // UIFIX21: バーコード枠の下に出る「グレーの角合わせガイド」を消す（html5-qrcode側の装飾）
   function suppressQrcodeGuides(){
@@ -6318,7 +6402,7 @@ return true;
         return;
       }
 
-      const uid = getOrCreateUserId();
+      const pid = getOrCreatePersonalId();
       const targetUrl = scopeUrlByUser(getSafeUrl(u), uid);
       const legacyUrl = getSafeUrl(u);
 
@@ -7006,7 +7090,7 @@ async function testFirebaseConnection() {
     
     // データベース接続テスト
     if (firebaseDb && db && db.config && db.config.personalId) {
-      const testRef = firebaseDb.ref(`users/${firebaseAuth.currentUser.uid}/test`);
+      const testRef = firebaseDb.ref(`users/${encodeURIComponent(getOrCreatePersonalId())}/test`);
       await testRef.set({ timestamp: Date.now(), test: true });
       await testRef.remove();
       
@@ -7199,9 +7283,9 @@ window.showReferralStatus = showReferralStatus;
 
     async function collect(){
       const lines = [];
-      lines.push("APP_VERSION: " + (window.APP_VERSION || "n/a"));
+      lines.push("APP_VERSION: v22.7.3
       lines.push("BUILD_ID: " + (window.BUILD_ID || "n/a"));
-      lines.push("FULL_VERSION: " + (window.FULL_VERSION || "n/a"));
+      lines.push("FULL_VERSION: v22.7.3
       lines.push("URL: " + location.href);
       lines.push("UA: " + navigator.userAgent);
       lines.push("SW.controller: " + (!!(navigator.serviceWorker && navigator.serviceWorker.controller)));
@@ -7268,7 +7352,7 @@ window.showReferralStatus = showReferralStatus;
   }catch(e){}
 })();
 
-/* === PATCH v20.1.3: share/copy helpers for referral & family === */
+/* === PATCH v22.7.3: share/copy helpers for referral & family === */
 async function spCopy(elId){
   try{
     const el = document.getElementById(elId);
