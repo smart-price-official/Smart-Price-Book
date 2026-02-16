@@ -1,16 +1,20 @@
 <!DOCTYPE html>
-<!--APP: Smart Price
-VERSION: v22.7.3
-DATE(JST): 2026-02-16 00:38 JST
-TITLE: UIDSYNC PERSONALPATH SSOTFIX
+<!--
+APP: Smart Price
+VERSION: v22.7.4
+DATE(JST): 2026-02-16 10:28 JST
+TITLE: UIDSYNC PERSONALPATH SSOTFIX2
 CHANGES:
-- 重大なJS構文エラーを修正（設定の同期/移行スクリプト末尾の `});` / `})();` を整理）→ startScanner等が未定義になる連鎖を停止
-- VERSION/BUILD/表示のSSOT（単一正本）を v22.7.3 / 2026-02-16_0055_ssotfix に統一（旧表記を全削除）
-- 既存UIはそのまま（UI_FREEZE）。ボタンの見た目・配置は変更なし
-P26-02-16_0055_ssotfix
+- SSOTブロックの構文崩れを修正（BUILD_ID 行が壊れて全JSが止まる問題を解消）→ ホームのバージョン表示/各機能の初期化が戻る
+- VERSION/BUILD/表示のSSOT（単一正本）を v22.7.4 / 2026-02-16_1028_ssotfix2 に統一（旧表記を残さない）
+- 設定画面の幅揃え用CSSを追加（文字列・ボタン幅の不揃いを抑制。UI配置は変更なし）
+- 管理メニュー「購入履歴を表示」「統計情報」をタップしやすいボタン風スタイルに（要素追加なし）
+BUILD_PARAM(b): ?b=2026-02-16_1028_ssotfix2
 DEBUG_PARAM: &debug=1
-AUTHOR: Yui
-POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
+AUTHOR: ChatGPT_Yui
+POLICY: UI_FREEZE / 単一HTML / VERSION_SSOT
+
+-->
 <html lang="ja">
 <head>
 
@@ -41,13 +45,12 @@ POLICY: UI_FREEZE / 単一HTML / VERSION SSOT-->
 function spSetCodeLen(len){ try{ return (window.spSetCodeLen ? window.spSetCodeLen(len) : undefined); }catch(e){} }
 function spNumpad(key){ try{ return (window.spNumpad ? window.spNumpad(key) : undefined); }catch(e){} }
 (() => {
-  const APP_VERSION = "v22.7.3";
-  window.APP_VERSION = APP_VERSION;
-  P26-02-16_0055_ssotfix";
-  window.BUILD_ID = BUILD_ID;
+  const APP_VERSION = "v22.7.4";
+  const BUILD_ID = "2026-02-16_1028_ssotfix2";
   const FULL_VERSION = `${APP_VERSION} [${BUILD_ID}]`;
+  window.APP_VERSION = APP_VERSION;
+  window.BUILD_ID = BUILD_ID;
   window.FULL_VERSION = FULL_VERSION;
-
   function setHeaderVersionBadge(){
     const badge = document.getElementById('versionBadge') || document.getElementById('version-badge');
     if(!badge) return;
@@ -1237,6 +1240,34 @@ window.showVeggieMenu = window.showVeggieMenu || function() {
   transform: scale(0.95);
 }
 
+
+/* === UIFIX: settings width alignment (NO layout change) === */
+#settingsCitySection > label { display: none !important; } /* 生活圏（市）はモーダル内ボタンに表示済み */
+#settingsModal .modal-body { padding-left: 16px; padding-right: 16px; }
+#settingsModal #userIdPreview,
+#settingsModal #personalIdPreview,
+#settingsModal .sp-preview-text {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  word-break: break-all;
+}
+#settingsModal .d-flex.gap-2 > .btn { min-width: 0; } /* IDコピー/変更の幅崩れ防止 */
+#settingsModal .sp-menu-btn { width: 100%; }
+
+/* 管理メニュー内の「購入履歴を表示」「統計情報」をボタン風に（要素追加なし） */
+#settingsModal details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+#settingsModal details[open] > summary { background: rgba(255,255,255,0.09); }
+#settingsModal details > summary::-webkit-details-marker { display: none; }
 </style>
 
 <div id="webModal" class="modal">
