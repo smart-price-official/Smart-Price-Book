@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smart Price｜購入履歴レスキュー・インポート</title>
+  <!--
+    APP: Smart Price (Import Helper)
+    VERSION: v22.7.4-import-01
+    DATE(JST): 2026-02-16 10:47 JST
+    TITLE: Purchase History Rescue Importer
+    CHANGES: Paste SmartPriceExport JSON and restore localStorage['smart_price_db'] then reload app.
+    BUILD_PARAM(b): 2026-02-16_1047_import
+    DEBUG_PARAM: &debug=1
+    POLICY: This page only writes to localStorage on the same origin and never sends data to network.
+  -->
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;background:#0b0b0c;color:#f2f2f2}
+    .wrap{max-width:920px;margin:0 auto;padding:18px}
+    h1{font-size:18px;margin:0 0 10px}
+    .card{background:#151619;border:1px solid #2a2d33;border-radius:14px;padding:14px}
+    textarea{width:100%;min-height:240px;border-radius:12px;border:1px solid #333;background:#0f1012;color:#f2f2f2;padding:12px;box-sizing:border-box;font-size:13px;line-height:1.4}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
+    .primary{background:#2f6fed;color:white}
+    .ghost{background:#2a2d33;color:#e8e8e8}
+    .warn{background:#c43b3b;color:white}
+    .msg{margin-top:10px;font-size:13px;white-space:pre-wrap}
+    code{background:#0f1012;border:1px solid #2a2d33;border-radius:8px;padding:2px 6px}
+    .small{opacity:.85;font-size:12px;margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Smart Price｜購入履歴レスキュー（この端末へ戻す）</h1>
+    <div class="card">
+      <div style="margin-bottom:8px;opacity:.9;font-size:13px">
+        手元の <code>{"kind":"SmartPriceExport" ...}</code> をここに貼って、「インポート」を押してください。<br>
+        端末内の <code>localStorage</code>（アプリのローカル保存）に書き戻します。外部へ送信しません。
+      </div>
+      <textarea id="input" placeholder="ここに SmartPriceExport を貼り付け"></textarea>
+      <div class="row">
+        <button class="primary" id="btnImport">インポートしてSmart Priceへ戻る</button>
+        <button class="ghost" id="btnCheck">中身をチェック</button>
+        <button class="warn" id="btnClear">この端末のローカル購入履歴を消す（注意）</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="small">
+        書き込み先キー：<code>smart_price_db</code> / 端末識別：<code>smartPriceDeviceId</code> / 個人ID：<code>sp_personal_id</code><br>
+        ※このページは同じドメイン（smart-price-official.github.io）で開かないと意味がありません。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  const msg = (t)=>{$('msg').textContent = t || '';};
+
+  function parseExport(raw){
+    let obj;
+    try{ obj = JSON.parse(raw); }catch(e){
+      throw new Error('JSONとして読めませんでした。先頭から末尾まで全部入っているか確認してね。');
+    }
+    if(!obj || obj.kind !== 'SmartPriceExport') throw new Error('kind が SmartPriceExport ではありません。');
+    if(typeof obj.smart_price_db !== 'string') throw new Error('smart_price_db が見つかりません。');
+    let db;
+    try{ db = JSON.parse(obj.smart_price_db); }catch(e){
+      throw new Error('smart_price_db の中身がJSONとして読めませんでした。');
+    }
+    if(!db || typeof db !== 'object') throw new Error('smart_price_db の中身が不正です。');
+    const productCount = db.products ? Object.keys(db.products).length : 0;
+    return {exportObj: obj, db, productCount};
+  }
+
+  function importToLocal(raw){
+    const {exportObj, db, productCount} = parseExport(raw);
+
+    // 1) DB本体
+    localStorage.setItem('smart_price_db', JSON.stringify(db));
+
+    // 2) buildメモ（あれば）
+    if(exportObj.build) localStorage.setItem('sp_last_b', String(exportObj.build));
+
+    // 3) 端末ID / personalId は「この端末の値を優先」(exportから上書きしない)
+    //    ただし export側にしか無い場合はセットしておく
+    const hasDevId = !!localStorage.getItem('smartPriceDeviceId');
+    const hasPid   = !!localStorage.getItem('sp_personal_id');
+    if(!hasDevId && exportObj.deviceId) localStorage.setItem('smartPriceDeviceId', String(exportObj.deviceId));
+    if(!hasPid   && exportObj.personalId) localStorage.setItem('sp_personal_id', String(exportObj.personalId));
+
+    return {productCount};
+  }
+
+  $('btnCheck').addEventListener('click', ()=>{
+    msg('');
+    try{
+      const raw = $('input').value.trim();
+      if(!raw) return msg('貼り付けが空です。');
+      const {productCount, exportObj} = parseExport(raw);
+      msg('チェックOK\n' +
+          'build: ' + (exportObj.build || '-') + '\n' +
+          'exportedAt(JST): ' + (exportObj.exportedAtJST || '-') + '\n' +
+          '商品数: ' + productCount + ' 件');
+    }catch(e){
+      msg('チェックNG\n' + e.message);
+    }
+  });
+
+  $('btnImport').addEventListener('click', ()=>{
+    msg('');
+    try{
+      const raw = $('input').value.trim();
+      if(!raw) return msg('貼り付けが空です。');
+      const {productCount} = importToLocal(raw);
+      msg('インポート完了：商品 ' + productCount + ' 件\n2秒後に Smart Price へ戻ります。');
+      setTimeout(()=>{ location.href = './'; }, 2000);
+    }catch(e){
+      msg('インポート失敗\n' + e.message);
+    }
+  });
+
+  $('btnClear').addEventListener('click', ()=>{
+    if(!confirm('この端末の localStorage["smart_price_db"] を消します。よろしい？')) return;
+    localStorage.removeItem('smart_price_db');
+    msg('削除しました。');
+  });
+
+})();
+</script>
+</body>
+</html>
