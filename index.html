@@ -7447,6 +7447,63 @@ async function spShareFamilyId(){
 }
 
 </script>
+<script>
+(function () {
+  try {
+    const url = new URL(location.href);
+    const debug = url.searchParams.get("debug") === "1";
+    if (!debug) return;
+
+    const ov = document.getElementById("debugOverlay");
+    const info = document.getElementById("debugInfo");
+    if (!ov || !info) return;
+
+    ov.style.display = "block";
+
+    async function collect() {
+      const lines = [];
+      lines.push("APP_VERSION: v22.7.3");
+      lines.push("BUILD_ID: " + (window.BUILD_ID || "n/a"));
+      lines.push("FULL_VERSION: v22.7.3");
+      lines.push("URL: " + location.href);
+      lines.push("UA: " + navigator.userAgent);
+      lines.push(
+        "SW.controller: " +
+          !!(navigator.serviceWorker && navigator.serviceWorker.controller)
+      );
+
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        lines.push("SW.registrations: " + regs.length);
+        regs.forEach((r, i) => {
+          const s = r.active || r.waiting || r.installing;
+          lines.push(
+            `  [${i}] scope=${r.scope} state=${s ? s.state : "-"} scriptURL=${
+              s ? s.scriptURL : "-"
+            }`
+          );
+        });
+      } else {
+        lines.push("SW.registrations: (unsupported)");
+      }
+
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        lines.push("caches: " + keys.length);
+        keys.forEach((k) => lines.push("  - " + k));
+      } else {
+        lines.push("caches: (unsupported)");
+      }
+
+      info.textContent = lines.join("\n");
+    }
+
+    collect();
+  } catch (e) {
+    // ここでは握りつぶす（デバッグ表示が壊れてもアプリ本体を止めないため）
+  }
+})();
+</script>
 
 </body>
 </html>
